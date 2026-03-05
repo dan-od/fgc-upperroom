@@ -1,15 +1,22 @@
 ﻿# Dependencies
-node_modules/
+/node_modules
+/.pnp
+.pnp.js
 
-# Build output
-dist/
+# Testing
+/coverage
+
+# Production build
+/dist
 
 # Environment & secrets
 .env
 .env.local
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Private deployment docs
+# Private deployment docs - DO NOT REMOVE THIS LINE
 SETUP_PRIVATE.md
 
 # Logs
@@ -22,7 +29,4 @@ yarn-error.log*
 .vscode/
 *.swp
 *.swo
-
-# OS
 .DS_Store
-Thumbs.db
