@@ -1,0 +1,29 @@
+.fsq-icons {
+  padding: var(--space-3xl) 0;
+  background: var(--main-cream);
+}
+
+.fsq-icons__wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.fsq-icons__image {
+  max-width: 400px;
+  width: 100%;
+  height: auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .fsq-icons__image {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fsq-icons__image {
+    max-width: 250px;
+  }
+}

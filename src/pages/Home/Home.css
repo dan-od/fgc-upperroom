@@ -1,0 +1,413 @@
+/* ====================================
+   Home Page Styles
+   ==================================== */
+
+/* Hero Section */
+.hero {
+  position: relative;
+  height: 100vh;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: 
+    url('/assets/images/hero-bg.jpg') center/cover no-repeat,
+    linear-gradient(
+      135deg,
+      #1a1a2e 0%,
+      #16213e 25%,
+      #1a1a2e 50%,
+      #0f0f23 75%,
+      #1a1a2e 100%
+    );
+  background-color: #1a1a2e;
+}
+
+.hero__overlay {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 20%, rgba(138, 22, 30, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(45, 58, 122, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(90, 68, 148, 0.1) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+.hero__content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: var(--white);
+  padding: var(--space-lg);
+}
+
+.hero__logo {
+  height: 80px;
+  width: auto;
+  margin: 0 auto var(--space-xl);
+}
+
+.hero__welcome {
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: var(--space-sm);
+}
+
+.hero__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-6xl);
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hero__tagline {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-style: italic;
+  color: var(--dove-yellow);
+  margin-bottom: var(--space-2xl);
+}
+
+.hero__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-2xl);
+}
+
+.hero__scroll {
+  position: absolute;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.hero__scroll-line {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.3);
+  margin-top: var(--space-sm);
+  animation: scroll-bounce 2s infinite;
+}
+
+@keyframes scroll-bounce {
+  0%, 100% { transform: scaleY(1); opacity: 0.3; }
+  50% { transform: scaleY(1.5); opacity: 0.8; }
+}
+
+/* Pastor Welcome Section */
+.pastor-welcome {
+  padding: var(--space-5xl) 0;
+  background: var(--main-cream);
+}
+
+.pastor-welcome__grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: var(--space-4xl);
+  align-items: center;
+}
+
+.pastor-welcome__image {
+  position: relative;
+}
+
+.pastor-welcome__placeholder {
+  aspect-ratio: 3/4;
+  background: var(--gray-200);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-500);
+  font-size: var(--text-lg);
+}
+
+.pastor-welcome__content {
+  max-width: 600px;
+}
+
+.pastor-welcome__tag {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(138, 22, 30, 0.1);
+  color: var(--cross-red);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-md);
+}
+
+.pastor-welcome__content h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-4xl);
+  color: var(--dark);
+  margin-bottom: var(--space-lg);
+}
+
+.pastor-welcome__content p {
+  color: var(--gray-700);
+  font-size: var(--text-lg);
+  line-height: 1.8;
+}
+
+.pastor-welcome__signature {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 2px solid var(--cross-red);
+}
+
+.pastor-welcome__signature strong {
+  display: block;
+  font-size: var(--text-lg);
+  color: var(--dark);
+}
+
+.pastor-welcome__signature span {
+  color: var(--gray-600);
+  font-size: var(--text-sm);
+}
+
+/* What We Believe Section */
+.beliefs {
+  padding: var(--space-5xl) 0;
+  background: var(--gradient-blue);
+}
+
+.beliefs__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+}
+
+.beliefs__card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--transition-base);
+}
+
+.beliefs__card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.beliefs__card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.beliefs__icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.beliefs__card-header h3 {
+  margin: 0;
+}
+
+.beliefs__card h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  color: var(--white);
+  margin-bottom: var(--space-sm);
+}
+
+.beliefs__card p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.beliefs__card--red { border-top: 3px solid var(--cross-red-light); }
+.beliefs__card--yellow { border-top: 3px solid var(--dove-yellow); }
+.beliefs__card--blue { border-top: 3px solid #6b8cff; }
+.beliefs__card--purple { border-top: 3px solid var(--crown-purple-light); }
+
+.beliefs__cta {
+  text-align: center;
+  margin-top: var(--space-3xl);
+}
+
+/* New Here Section */
+.new-here {
+  padding: var(--space-5xl) 0;
+  background: var(--white);
+}
+
+.new-here__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-3xl);
+}
+
+.new-here__card {
+  text-align: center;
+  padding: var(--space-xl);
+  background: var(--cream-light);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+}
+
+.new-here__card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.new-here__icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(138, 22, 30, 0.1);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-md);
+}
+
+.new-here__icon i {
+  font-size: 1.5rem;
+  color: var(--cross-red);
+  --fa-animation-duration: 3s;
+}
+
+.new-here__card h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  color: var(--dark);
+  margin-bottom: var(--space-sm);
+}
+
+.new-here__card p {
+  color: var(--gray-600);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.new-here__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+}
+
+/* Social Media Section */
+.social-section {
+  padding: var(--space-5xl) 0;
+  background: var(--gradient-purple);
+}
+
+.social-section__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+}
+
+.social-section__card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--transition-base);
+  color: var(--white);
+}
+
+.social-section__card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.social-section__icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xl);
+  font-weight: 800;
+  margin: 0 auto var(--space-md);
+}
+
+.social-section__card h3 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+}
+
+.social-section__card p {
+  font-size: var(--text-sm);
+  opacity: 0.8;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .hero__title {
+    font-size: var(--text-5xl);
+  }
+  
+  .pastor-welcome__grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xl);
+  }
+  
+  .pastor-welcome__image {
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  
+  .beliefs__grid,
+  .new-here__grid,
+  .social-section__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .hero__title {
+    font-size: var(--text-4xl);
+  }
+  
+  .hero__actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .hero__scroll {
+    display: none;
+  }
+  
+  .beliefs__grid,
+  .new-here__grid,
+  .social-section__grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .new-here__actions {
+    flex-direction: column;
+  }
+}

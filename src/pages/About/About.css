@@ -1,0 +1,199 @@
+/* About Page Styles */
+
+.about-page {
+  padding-top: 70px;
+}
+
+/* Page Banner */
+.page-banner {
+  padding: var(--space-4xl) 0;
+  text-align: center;
+}
+
+.page-banner h1 {
+  font-family: var(--font-heading);
+  font-size: var(--text-5xl);
+  color: var(--white);
+  margin-bottom: var(--space-sm);
+}
+
+.page-banner p {
+  font-size: var(--text-lg);
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+/* Intro Section */
+.about-intro {
+  padding: var(--space-5xl) 0;
+}
+
+.about-intro__grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--space-4xl);
+  align-items: center;
+}
+
+.about-intro__content .tag {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(138, 22, 30, 0.1);
+  color: var(--cross-red);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-md);
+}
+
+.about-intro__content h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-4xl);
+  color: var(--dark);
+  margin-bottom: var(--space-lg);
+}
+
+.about-intro__content p {
+  color: var(--gray-700);
+  font-size: var(--text-lg);
+  line-height: 1.8;
+}
+
+.about-intro__image .placeholder {
+  aspect-ratio: 4/3;
+  background: var(--gray-200);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-500);
+}
+
+/* Vision & Mission */
+.vision-mission {
+  padding: var(--space-4xl) 0;
+}
+
+.vision-mission__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xl);
+}
+
+.vision-mission__card {
+  background: var(--white);
+  padding: var(--space-2xl);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.vision-mission__card h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  color: var(--cross-red);
+  margin-bottom: var(--space-md);
+}
+
+.vision-mission__card p {
+  color: var(--gray-700);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* Beliefs Full Section */
+.beliefs-full {
+  padding: var(--space-5xl) 0;
+}
+
+.beliefs-full__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
+}
+
+.beliefs-full__card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.beliefs-full__card h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  color: var(--white);
+  margin-bottom: var(--space-md);
+}
+
+.beliefs-full__card p {
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.7;
+  margin-bottom: var(--space-md);
+}
+
+.beliefs-full__card .verse {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--dove-yellow);
+}
+
+.beliefs-full__card--red { border-left: 4px solid var(--cross-red-light); }
+.beliefs-full__card--yellow { border-left: 4px solid var(--dove-yellow); }
+.beliefs-full__card--blue { border-left: 4px solid #6b8cff; }
+.beliefs-full__card--purple { border-left: 4px solid var(--crown-purple-light); }
+
+/* CTA Section */
+.about-cta {
+  padding: var(--space-5xl) 0;
+  background: var(--cream-light);
+}
+
+.about-cta h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-4xl);
+  color: var(--dark);
+  margin-bottom: var(--space-sm);
+}
+
+.about-cta p {
+  color: var(--gray-600);
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.about-cta__buttons {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .about-intro__grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .about-intro__image {
+    order: -1;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .vision-mission__grid,
+  .beliefs-full__grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .about-cta__buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+}

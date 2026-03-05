@@ -1,0 +1,11 @@
+.testimonies-page { padding-top: 70px; }
+.testimonies-section { padding: var(--space-5xl) 0; }
+.testimonies-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xl); }
+.testimony-card { background: var(--cream-light); padding: var(--space-xl); border-radius: var(--radius-lg); transition: all var(--transition-base); }
+.testimony-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.testimony-card blockquote { font-family: var(--font-heading); font-style: italic; font-size: var(--text-lg); color: var(--gray-700); margin-bottom: var(--space-lg); line-height: 1.7; }
+.testimony-author { display: flex; align-items: center; gap: var(--space-md); }
+.testimony-avatar { width: 50px; height: 50px; background: var(--gradient-purple); color: var(--white); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--text-lg); }
+.testimony-author strong { display: block; color: var(--dark); }
+.testimony-author span { font-size: var(--text-sm); color: var(--gray-500); }
+@media (max-width: 768px) { .testimonies-grid { grid-template-columns: 1fr; } }

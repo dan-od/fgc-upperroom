@@ -1,0 +1,122 @@
+.testimonials {
+  padding: var(--space-4xl) 0;
+  background: var(--white);
+}
+
+.testimonials__content {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.testimonials__tag {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(90, 68, 148, 0.1);
+  color: var(--crown-purple);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-md);
+}
+
+.testimonials__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-3xl);
+  color: var(--dark);
+  margin-bottom: var(--space-3xl);
+}
+
+.testimonials__slider {
+  position: relative;
+  min-height: 200px;
+}
+
+.testimonials__item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all var(--transition-slow);
+  pointer-events: none;
+}
+
+.testimonials__item--active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.testimonials__quote {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-style: italic;
+  color: var(--gray-700);
+  line-height: 1.8;
+  margin-bottom: var(--space-xl);
+}
+
+.testimonials__author {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+}
+
+.testimonials__avatar {
+  width: 50px;
+  height: 50px;
+  background: var(--gradient-purple);
+  color: var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-lg);
+}
+
+.testimonials__name {
+  font-weight: 700;
+  color: var(--dark);
+  margin: 0;
+}
+
+.testimonials__role {
+  font-size: var(--text-sm);
+  color: var(--gray-500);
+  margin: 0;
+}
+
+.testimonials__dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-2xl);
+}
+
+.testimonials__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.testimonials__dot--active {
+  background: var(--crown-purple);
+  transform: scale(1.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .testimonials__quote {
+    font-size: var(--text-lg);
+  }
+}

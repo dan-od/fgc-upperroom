@@ -1,0 +1,10 @@
+.events-page { padding-top: 70px; }
+.events-section { padding: var(--space-5xl) 0; }
+.events-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xl); }
+.event-card { background: var(--cream-light); padding: var(--space-xl); border-radius: var(--radius-lg); transition: all var(--transition-base); }
+.event-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.event-card__date { color: var(--cross-red); font-weight: 700; font-size: var(--text-sm); margin-bottom: var(--space-sm); text-transform: uppercase; }
+.event-card h3 { font-family: var(--font-heading); font-size: var(--text-xl); margin-bottom: var(--space-sm); color: var(--dark); }
+.event-card p { color: var(--gray-600); margin-bottom: var(--space-md); }
+.event-card__location { font-size: var(--text-sm); color: var(--gray-500); }
+@media (max-width: 768px) { .events-grid { grid-template-columns: 1fr; } }
