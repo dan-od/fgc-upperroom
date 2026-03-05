@@ -54,6 +54,11 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             dist/ \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
+      - name: Set file permissions
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "chmod -R 755 ${{ secrets.DEPLOY_PATH }}/"
       - name: Restart web server
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
