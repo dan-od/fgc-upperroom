@@ -85,11 +85,12 @@ Edit `src/pages/Team/Team.jsx` with real names and photos
 
 ## 🌐 Deployment
 
-```bash
-npm run build
-```
+This project deploys automatically via **GitHub Actions**.
 
-Upload `dist` folder to Netlify, Vercel, or any static host.
+- Push changes to a feature branch and open a **Pull Request**
+- Once merged to `main`, the site updates automatically
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 
 ---
 
