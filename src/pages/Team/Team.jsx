@@ -4,29 +4,30 @@ import './Team.css'
 const Team = () => {
   const leadership = [
     {
+      name: 'Bro. Babatunde Alepaye',
+      role: 'Youth Pastor',
+      description: 'Upperroom Mgbuoba',
+      image: null
+    },
+    {
       name: 'Rev. Dr. Martins Okoro',
       role: 'Senior Pastor',
       description: 'FGC Mgbuoba Zonal HQ',
       image: null
     },
+    
     {
-      name: 'Youth Leader Name',
-      role: 'Youth Leader',
-      description: 'Upper Room Mgbuoba',
-      image: null
-    },
-    {
-      name: 'Zonal President Name',
-      role: 'Zonal Youth President',
-      description: 'Foursquare Youth',
+      name: 'Dr. Austen Sado',
+      role: 'Youth Advisor',
+      description: 'Upperroom Mgbuoba',
       image: null
     }
   ]
 
   const excos = [
-    { name: 'Exco Name', role: 'President', image: null },
-    { name: 'Exco Name', role: 'Vice President', image: null },
-    { name: 'Exco Name', role: 'Secretary', image: null },
+    { name: 'Sis. Rejoice Lazarus', role: 'Vice President', image: null },
+    { name: 'Bro. Gibson Ekikere', role: 'President', image: null },
+    { name: 'Bro. Thompson Ogemdi', role: 'Secretary', image: null },
   ]
 
   const departments = [
@@ -37,6 +38,8 @@ const Team = () => {
     { name: 'Sanctuary', icon: 'fa-solid fa-church', description: 'Maintaining God\'s house' },
     { name: 'Protocol', icon: 'fa-solid fa-clipboard-list', description: 'Organizing and coordinating' },
     { name: 'Prayer', icon: 'fa-solid fa-hands-praying', description: 'Interceding for the fellowship' },
+    { name: 'Greeters', icon: 'fa-solid fa-people-group', description: 'Creating a warm and welcoming environment' },
+    { name: 'Welfare', icon: 'fa-solid fa-hand-holding-heart', description: 'Caring for the wellbeing of members' },
   ]
 
   return (
@@ -45,7 +48,7 @@ const Team = () => {
       <section className="page-banner bg-purple">
         <div className="container">
           <h1>Our Team</h1>
-          <p>Meet the people who make Upper Room happen</p>
+          <p>Meet the people who make the Upperroom happen</p>
         </div>
       </section>
 

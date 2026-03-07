@@ -14,10 +14,7 @@ const SPECIAL_EVENTS = [
 // Day: 0=Sunday, 1=Monday, ..., 5=Friday, 6=Saturday
 // Hours are in 24-hour format
 const WEEKLY_SERVICES = [
-  { day: 0, name: 'Sunday Worship', hour: 7, minute: 30 },
-  { day: 0, name: 'Sunday 2nd Service', hour: 9, minute: 30 },
-  { day: 3, name: 'Midweek Bible Study', hour: 17, minute: 30 },
-  { day: 5, name: 'Upper Room Meeting', hour: 17, minute: 0 }
+  { day: 0, name: 'Sunday Worship Service', hour: 8, minute: 0 }
 ]
 
 const Countdown = ({ variant = 'default' }) => {

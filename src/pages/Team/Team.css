@@ -135,7 +135,34 @@
   }
   
   .dept-grid {
-    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+  }
+
+  .dept-card {
+    width: calc(50% - var(--space-md));
+  }
+}
+
+@media (max-width: 768px) {
+  .team-section {
+    padding: var(--space-4xl) 0;
+    text-align: center;
+  }
+
+  .team-grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  .team-card {
+    text-align: center;
+  }
+
+  .dept-card {
+    width: 100%;
+    max-width: 360px;
+    min-width: 0;
+    margin: 0 auto;
+    text-align: center;
   }
 }
 
@@ -143,5 +170,9 @@
   .team-grid--3,
   .dept-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dept-card {
+    max-width: 100%;
   }
 }

@@ -148,6 +148,59 @@
 .beliefs-full__card--blue { border-left: 4px solid #6b8cff; }
 .beliefs-full__card--purple { border-left: 4px solid var(--crown-purple-light); }
 
+/* Anthems Section */
+.anthems-section {
+  padding: var(--space-5xl) 0;
+  background: var(--cream-light);
+}
+
+.anthems-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xl);
+  margin-top: var(--space-xl);
+}
+
+.anthem-card {
+  background: var(--white);
+  padding: var(--space-2xl);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border-top: 4px solid var(--cross-red);
+}
+
+.anthem-card h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  color: var(--dark);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+
+.anthem-lyrics {
+  color: var(--gray-700);
+  line-height: 1.8;
+}
+
+.anthem-lyrics p {
+  white-space: pre-line;
+  margin: 0;
+  margin-bottom: var(--space-md);
+}
+
+.anthem-lyrics .chorus {
+  background: rgba(138, 22, 30, 0.05);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--cross-red);
+}
+
+.anthem-lyrics .chorus strong {
+  display: block;
+  color: var(--cross-red);
+  margin-bottom: var(--space-xs);
+}
+
 /* CTA Section */
 .about-cta {
   padding: var(--space-5xl) 0;
@@ -187,13 +240,77 @@
 }
 
 @media (max-width: 768px) {
+  .page-banner {
+    text-align: center;
+    padding: var(--space-3xl) 0;
+  }
+
+  .about-intro,
+  .beliefs-full,
+  .anthems-section,
+  .about-cta {
+    padding: var(--space-4xl) 0;
+    text-align: center;
+  }
+
+  .about-intro__content,
+  .about-cta {
+    text-align: center;
+    margin: 0 auto;
+  }
+
+  .about-intro__content h2,
+  .about-cta h2 {
+    font-size: var(--text-3xl);
+    text-align: center;
+  }
+
+  .about-intro__content p,
+  .about-cta p {
+    font-size: var(--text-base);
+    text-align: center;
+  }
+
+  .about-intro__content .tag {
+    display: block;
+    text-align: center;
+    width: fit-content;
+    margin: 0 auto var(--space-md);
+  }
+
   .vision-mission__grid,
-  .beliefs-full__grid {
+  .beliefs-full__grid,
+  .anthems-grid {
     grid-template-columns: 1fr;
+  }
+
+  .vision-mission__card,
+  .anthem-card,
+  .beliefs-full__card {
+    padding: var(--space-xl);
+    text-align: center;
+  }
+
+  .vision-mission__card h3,
+  .anthem-card h3,
+  .beliefs-full__card h3 {
+    text-align: center;
+  }
+
+  .vision-mission__card p,
+  .anthem-card p,
+  .beliefs-full__card p {
+    text-align: center;
   }
   
   .about-cta__buttons {
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+  }
+
+  .about-cta__buttons .btn {
+    width: 100%;
+    max-width: 320px;
   }
 }

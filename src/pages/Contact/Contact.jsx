@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SectionHeader, Button } from '../../components/common'
-import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon } from '../../components/common/SocialIcons'
+import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../components/common/SocialIcons'
 import './Contact.css'
 
 const Contact = () => {
@@ -34,7 +34,7 @@ const Contact = () => {
     {
       icon: 'fa-solid fa-phone',
       title: 'Phone',
-      content: '+234 800 000 0000'
+      content: '+234 703 152 6399'
     },
     {
       icon: 'fa-solid fa-envelope',
@@ -42,9 +42,14 @@ const Contact = () => {
       content: 'upperroom@fgcmgbuoba.org'
     },
     {
+      icon: 'fa-brands fa-whatsapp',
+      title: 'WhatsApp',
+      content: '+234 703 152 6399'
+    },
+    {
       icon: 'fa-solid fa-clock',
       title: 'Service Times',
-      content: 'Sunday: 7:30 AM & 9:30 AM\nWednesday: 5:30 PM\nFriday: 5:00 PM'
+      content: '1st Sunday: General Service — 7:30 AM\nOther Sundays: Youth Service — 8:00 AM\nWednesday: 5:00 PM (Coming Soon)'
     }
   ]
 
@@ -85,12 +90,22 @@ const Contact = () => {
               </div>
 
               <div className="contact-socials">
-                <h4>Follow Us</h4>
-                <div className="contact-socials__links">
-                  <a href="#" className="social-link" title="Facebook"><FacebookIcon size={18} /></a>
-                  <a href="#" className="social-link" title="Instagram"><InstagramIcon size={18} /></a>
-                  <a href="#" className="social-link" title="YouTube"><YoutubeIcon size={18} /></a>
-                  <a href="#" className="social-link" title="Twitter"><TwitterIcon size={18} /></a>
+                <div className="contact-socials__follow">
+                  <h4>Follow Us</h4>
+                  <div className="contact-socials__links">
+                    <a href="https://web.facebook.com/profile.php?id=61587147628624" className="social-link" title="Facebook" target="_blank" rel="noopener noreferrer"><FacebookIcon size={18} /></a>
+                    <a href="https://www.instagram.com/theupperroom_4sq/" className="social-link" title="Instagram" target="_blank" rel="noopener noreferrer"><InstagramIcon size={18} /></a>
+                    <a href="https://youtube.com/@theupperroom_4sq?si=mDSHkd21JpLiDmwC" className="social-link" title="YouTube" target="_blank" rel="noopener noreferrer"><YoutubeIcon size={18} /></a>
+                    <a href="https://x.com/Upperroom_4sq" className="social-link" title="X" target="_blank" rel="noopener noreferrer"><TwitterIcon size={18} /></a>
+                    <a href="https://tiktok.com/@theupperroom_4sq" className="social-link" title="TikTok" target="_blank" rel="noopener noreferrer"><TikTokIcon size={18} /></a>
+                  </div>
+                </div>
+                <div className="contact-socials__speak">
+                  <h4>Speak With Us</h4>
+                  <div className="contact-socials__speak-links">
+                    <a href="https://wa.me/2347031526399" className="speak-link" title="WhatsApp Chat" target="_blank" rel="noopener noreferrer"><i className="fa-brands fa-whatsapp"></i></a>
+                    <a href="tel:+2347031526399" className="speak-link" title="Phone Call"><i className="fa-solid fa-phone"></i></a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -156,16 +171,6 @@ const Contact = () => {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Map */}
-      <section className="map-section">
-        <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3975.5!2d6.98!3d4.85!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNMKwNTEnMDAuMCJOIDfCsDAwJzAwLjAiRQ!5e0!3m2!1sen!2sng!4v1234567890"
-          allowFullScreen=""
-          loading="lazy"
-          title="Church Location"
-        />
       </section>
     </main>
   )

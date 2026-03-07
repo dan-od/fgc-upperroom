@@ -7,15 +7,31 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bot:dev": "node --watch bot/src/index.js",
+    "bot:start": "node bot/src/index.js",
+    "bot:worker": "node bot/src/worker.js",
+    "bot:validate": "node bot/scripts/validate.js",
+    "bot:test-messages": "node bot/scripts/test-messages.js",
+    "bot:load-test": "node bot/scripts/load-test.js"
   },
   "dependencies": {
+    "bullmq": "^5.56.1",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "google-auth-library": "^10.6.1",
+    "ioredis": "^5.8.1",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
+    "pg": "^8.11.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
-    "vite": "^5.0.0"
+    "vite": "^7.3.1"
   }
 }
