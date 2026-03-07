@@ -38,10 +38,10 @@ const Header = () => {
     <header className={`header ${isScrolled ? 'header--visible' : ''} ${location.pathname !== '/' ? 'header--always' : ''}`}>
       <div className="header__container">
         <Link to="/" className="header__logo">
-          <img src="./assets/logos/logo-color.png" alt="Foursquare Logo" />
+          <img src="./assets/logos/logo-color.png" alt="Foursquare Logo" className="header__logo-mark" />
+          <span className="header__logo-divider" aria-hidden="true"></span>
           <div className="header__logo-text">
-            <span className="header__logo-title">Upper Room</span>
-            <span className="header__logo-sub">Mgbuoba</span>
+            <img src="./assets/logos/upper_left_align_black.png" alt="Upper Room" className="header__logo-title" />
           </div>
         </Link>
 

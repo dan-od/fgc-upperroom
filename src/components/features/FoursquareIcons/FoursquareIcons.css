@@ -7,23 +7,32 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: var(--space-xl);
 }
 
-.fsq-icons__image {
-  max-width: 400px;
-  width: 100%;
-  height: auto;
+.fsq-icons__icon {
+  height: 64px;
+  width: auto;
+  display: block;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .fsq-icons__image {
-    max-width: 300px;
+  .fsq-icons__wrapper {
+    gap: var(--space-lg);
+  }
+
+  .fsq-icons__icon {
+    height: 52px;
   }
 }
 
 @media (max-width: 480px) {
-  .fsq-icons__image {
-    max-width: 250px;
+  .fsq-icons__wrapper {
+    gap: var(--space-md);
+  }
+
+  .fsq-icons__icon {
+    height: 44px;
   }
 }

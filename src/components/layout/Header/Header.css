@@ -31,31 +31,27 @@
   gap: var(--space-md);
 }
 
-.header__logo img {
+.header__logo-mark {
   height: 45px;
   width: auto;
 }
 
+.header__logo-divider {
+  width: 1px;
+  height: 34px;
+  background: var(--gray-300);
+  border-radius: var(--radius-full);
+}
+
 .header__logo-text {
   display: flex;
-  flex-direction: column;
-  line-height: 1.2;
+  align-items: center;
 }
 
 .header__logo-title {
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  font-weight: 800;
-  color: var(--dark);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.header__logo-sub {
-  font-size: var(--text-xs);
-  color: var(--gray-500);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  height: 32px;
+  width: auto;
+  display: block;
 }
 
 /* Navigation */
@@ -153,15 +149,15 @@
     padding: var(--space-md);
   }
   
-  .header__logo img {
+  .header__logo-mark {
     height: 35px;
+  }
+
+  .header__logo-divider {
+    height: 28px;
   }
   
   .header__logo-title {
-    font-size: var(--text-sm);
-  }
-  
-  .header__logo-sub {
-    font-size: 10px;
+    height: 24px;
   }
 }

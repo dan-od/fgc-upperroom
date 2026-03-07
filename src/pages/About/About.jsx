@@ -45,14 +45,14 @@ const About = () => {
           <div className="about-intro__grid">
             <div className="about-intro__content">
               <span className="tag">Who We Are</span>
-              <h2>Upper Room Mgbuoba</h2>
+              <h2>The Upperroom</h2>
               <p>
-                Upper Room is the youth fellowship of Foursquare Gospel Church, 
-                Mgbuoba Zonal Headquarters. We are a vibrant community of young 
+                We are the youth fellowship of the Foursquare Gospel Church, 
+                Mgbuoba Zonal Headquarters.<br />We are a vibrant community of young 
                 believers passionate about knowing God and making Him known.
               </p>
               <p>
-                Our name "Upper Room" is inspired by Acts 1:13-14, where the early 
+                Our name "Upperroom" is inspired by Acts 1:13-14, where the early 
                 disciples gathered in prayer and unity, waiting for the promise of 
                 the Holy Spirit. Like them, we gather to seek God's presence, grow 
                 in faith, and be empowered for kingdom impact.
@@ -109,6 +109,81 @@ const About = () => {
                 <span className="verse">{belief.verse}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Anthems */}
+      <section className="anthems-section">
+        <div className="container">
+          <SectionHeader
+            tag="Our Anthems"
+            title="Songs of Faith"
+            subtitle="The hymns that define our heritage and mission"
+          />
+          <div className="anthems-grid">
+            <div className="anthem-card">
+              <h3>Foursquare Anthem</h3>
+              <div className="anthem-lyrics">
+                <p>Foursquare we stand for the living word<br />
+                  For the word of God<br />
+                  Telling to all the story of Jesus, stem of Jesse's rod<br />
+                  Man of sorrow and of grief, dying on the tree<br />
+                  Mighty Redeemer, glorious Saviour<br />
+                  Jesus of Calvary
+                </p>
+
+                <p className="chorus"><strong>Chorus</strong>
+                  Preach the Foursquare Gospel<br />
+                  The Foursquare Gospel<br />
+                  Clear let the Foursquare message ring<br />
+                  (Let it ring)<br />
+                  Jesus only Saviour, Baptizer and Healer<br />
+                  Jesus the coming King
+                </p>
+
+                <p>Unfurl your banners and forward go<br />
+                  Oh ye ransomed host<br />
+                  Trusting in Jesus Mighty Baptizer<br />
+                  With the Holy Ghost<br />
+                  Lion of Judah, King of kings, Lord of lords is He<br />
+                  Clothing His church with power to witness<br />
+                  Leading to victory.
+                </p>
+
+                <p>Catch up your shield oh ye living Church<br />
+                  Christ of Galilee<br />
+                  Bore all our sickness, carried our sorrows<br />
+                  Set the prisoners free<br />
+                  Lift the fallen, help the faith, dry the weeping eyes<br />
+                  Come bring your sickness<br />
+                  To thy physician, for He is passing by.
+                </p>
+
+                <p>Lift your eyes, then unto the hills<br />
+                  Lift your voice and sing<br />
+                  The cloud of heavens aflame with glory<br />
+                  Greet the coming King<br />
+                  Swift as wings of eagle's flight<br />
+                  Shall He come again,<br />
+                  Clad in His glory, and robed in Honor<br />
+                  And with His Saints shall reign.
+                </p>
+              </div>
+            </div>
+            <div className="anthem-card">
+              <h3>Upper Room Anthem</h3>
+              <div className="anthem-lyrics">
+                <p>
+                  We are youthful people,<br />
+                  With purpose for our lives,<br />
+                  You can know us by our values,<br />
+                  Our value's in our DRIVE<br />
+                  Diligence, respect, integrity, VITALITY...<br />
+                  For the spirit of excellence is in us.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
