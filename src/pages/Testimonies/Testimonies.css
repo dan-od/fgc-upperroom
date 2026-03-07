@@ -8,4 +8,5 @@
 .testimony-avatar { width: 50px; height: 50px; background: var(--gradient-purple); color: var(--white); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--text-lg); }
 .testimony-author strong { display: block; color: var(--dark); }
 .testimony-author span { font-size: var(--text-sm); color: var(--gray-500); }
-@media (max-width: 768px) { .testimonies-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { .testimonies-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .testimonies-grid { grid-template-columns: 1fr; } .testimonies-section { padding: var(--space-4xl) 0; } }

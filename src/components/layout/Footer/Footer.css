@@ -2,30 +2,65 @@
   background: var(--dark);
   color: var(--white);
   padding: var(--space-4xl) 0 var(--space-xl);
+  overflow-x: clip;
 }
 
 .footer__grid {
   display: grid;
+  grid-template-columns: 2.5fr 1fr;
+  gap: var(--space-4xl);
+  margin-bottom: var(--space-3xl);
+  align-items: flex-start;
+}
+
+.footer__grid-left {
+  display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: var(--space-3xl);
-  margin-bottom: var(--space-3xl);
+  width: 100%;
 }
 
 /* About Section */
 .footer__about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
   padding-right: var(--space-xl);
 }
 
 .footer__logo {
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-lg);
+  margin-bottom: 0;
+  text-align: left;
 }
 
-.footer__logo img {
-  height: 50px;
-  width: auto;
+.footer__brand-mark {
+  width: min(100%, 300px);
+  height: auto;
+  display: block;
+}
+
+.footer__brand-divider {
+  width: min(100%, 260px);
+  height: 1px;
+  background: var(--gray-600);
+  border-radius: var(--radius-full);
+}
+
+.footer__brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.footer__brand-wordmark {
+  width: min(100%, 280px);
+  height: auto;
+  display: block;
 }
 
 .footer__logo h3 {
@@ -39,17 +74,26 @@
   font-size: var(--text-sm);
   color: var(--dove-yellow);
   font-style: italic;
+  display: block;
+  text-align: left;
 }
 
 .footer__about p {
   color: var(--gray-400);
   font-size: var(--text-sm);
   line-height: 1.7;
+  margin: 0;
 }
 
 .footer__address {
   color: var(--gray-300) !important;
   font-weight: 500;
+  text-align: left;
+  margin: var(--space-sm) 0 0;
+}
+
+.footer__section {
+  min-width: 0;
 }
 
 /* Links Sections */
@@ -82,6 +126,27 @@
 .footer__time {
   color: var(--gray-400);
   font-size: var(--text-sm);
+}
+
+/* Map Section */
+.footer__map {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.footer__map iframe {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+
+.footer__map h4 {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin: 0;
+  color: var(--white);
 }
 
 /* Bottom */
@@ -136,11 +201,102 @@
 /* Responsive */
 @media (max-width: 1024px) {
   .footer__grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    gap: var(--space-2xl);
   }
   
   .footer__about {
-    grid-column: span 2;
+    grid-column: span 1;
+    padding-right: 0;
+  }
+
+  .footer__grid-left {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2xl);
+  }
+
+  .footer__map {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer {
+    padding-top: var(--space-3xl);
+  }
+
+  .footer__grid {
+    text-align: center;
+  }
+
+  .footer__grid-left {
+    grid-template-columns: 1fr;
+    gap: var(--space-xl);
+    text-align: center;
+  }
+
+  .footer__about {
+    padding-right: 0;
+    text-align: center;
+  }
+
+  .footer__logo {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .footer__brand-mark,
+  .footer__brand-wordmark,
+  .footer__brand-divider {
+    margin-inline: auto;
+  }
+
+  .footer__brand-text {
+    align-items: center;
+  }
+
+  .footer__logo h3,
+  .footer__logo span,
+  .footer__about p {
+    text-align: center;
+  }
+
+  .footer__section {
+    text-align: center;
+  }
+
+  .footer__section h4 {
+    text-align: center;
+  }
+
+  .footer__section ul {
+    text-align: center;
+  }
+
+  .footer__section a {
+    display: block;
+  }
+
+  .footer__time {
+    text-align: center;
+  }
+
+  .footer__address {
+    text-align: center;
+  }
+
+  .footer__map {
+    text-align: center;
+  }
+
+  .footer__map h4 {
+    text-align: center;
+  }
+
+  .footer__socials {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 
@@ -157,5 +313,11 @@
   
   .footer__logo {
     justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer__map iframe {
+    height: 260px;
   }
 }

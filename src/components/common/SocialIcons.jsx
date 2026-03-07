@@ -17,6 +17,12 @@ export const YoutubeIcon = ({ size = 20, color = 'currentColor' }) => (
   </svg>
 )
 
+export const TikTokIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M19.589 6.686a4.793 4.793 0 01-3.77-4.716h-3.4v13.77a2.892 2.892 0 11-2.891-2.892c.358 0 .704.067 1.026.184V9.577a6.292 6.292 0 00-1.026-.084 6.292 6.292 0 106.292 6.292V9.211a8.194 8.194 0 004.77 1.523V7.333a4.83 4.83 0 01-1.001-.647z"/>
+  </svg>
+)
+
 export const TwitterIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
