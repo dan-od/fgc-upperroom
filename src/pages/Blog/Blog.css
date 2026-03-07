@@ -8,4 +8,5 @@
 .blog-card__date { font-size: var(--text-sm); color: var(--cross-red); font-weight: 600; }
 .blog-card h3 { font-family: var(--font-heading); font-size: var(--text-lg); margin: var(--space-sm) 0; color: var(--dark); }
 .blog-card p { color: var(--gray-600); font-size: var(--text-sm); margin: 0; line-height: 1.6; }
-@media (max-width: 768px) { .blog-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { .blog-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .blog-grid { grid-template-columns: 1fr; } .blog-section { padding: var(--space-4xl) 0; } }

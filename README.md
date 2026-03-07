@@ -8,11 +8,27 @@ A multi-page React website for FGC Upper Room Mgbuoba - the youth fellowship of 
 # Install dependencies
 npm install
 
-# Start development server
+# Start website dev server
 npm run dev
 ```
 
-Opens at `http://localhost:3000`
+Website opens at `http://localhost:3000`
+
+## 🤖 Bot Runtime (Independent Service)
+
+```bash
+# Start bot API + scheduler
+npm run bot:dev
+
+# Start bot worker in another terminal
+npm run bot:worker
+```
+
+Bot API health endpoint:
+
+- `http://localhost:4100/bot/health`
+
+The bot is isolated under `bot/` and runs independently from the Vite web server.
 
 ## 📁 Project Structure
 

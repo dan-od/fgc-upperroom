@@ -7,6 +7,13 @@ export default defineConfig({
   base: '/fgc-testing/',
   server: {
     port: 3000,
-    open: true
+    open: true,
+    allowedHosts: true,
+    proxy: {
+      '/bot': {
+        target: 'http://localhost:4100',
+        changeOrigin: true
+      }
+    }
   }
 })
