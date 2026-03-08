@@ -1,0 +1,181 @@
+export const mediaItems = [
+  {
+    id: 'sermon-1',
+    type: 'video',
+    title: 'Grace for a New Season',
+    category: 'sermons',
+    description: 'Sunday teaching from Upper Room service.',
+    date: '2026-03-02',
+    timestamp: 1772409600000,
+    speaker: 'Rev. David Chibuike',
+    keypoint: 'Grace empowers consistency in your walk with God.',
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    alt: 'Senior pastor preaching in church'
+  },
+  {
+    id: 'event-1',
+    type: 'image',
+    title: 'Teens Impact Summit',
+    category: 'events',
+    description: 'Moments from the summit launch day.',
+    date: '2026-03-14',
+    timestamp: 1773446400000,
+    thumbnail: './assets/media/events/images/teens_summit2026.png',
+    src: './assets/media/events/images/teens_summit2026.png',
+    alt: 'Teens Impact Summit event artwork',
+    media: [
+      {
+        type: 'image',
+        src: './assets/media/events/images/teens_summit2026.png',
+        thumbnail: './assets/media/events/images/teens_summit2026.png',
+        alt: 'Teens Impact Summit poster'
+      },
+      {
+        type: 'image',
+        src: './assets/media/Senior Pastor.jpeg',
+        thumbnail: './assets/media/Senior Pastor.jpeg',
+        alt: 'Teens Impact Summit - Speaker session'
+      },
+      {
+        type: 'video',
+        videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+        thumbnail: './assets/media/Senior Pastor.jpeg',
+        alt: 'Teens Impact Summit highlights video'
+      }
+    ]
+  },
+  {
+    id: 'photo-1',
+    type: 'image',
+    title: 'Worship & Fellowship',
+    category: 'worship',
+    description: 'Congregation in worship and fellowship.',
+    date: '2026-02-18',
+    timestamp: 1771372800000,
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    alt: 'Church worship service'
+  },
+  {
+    id: 'audio-1',
+    type: 'audio',
+    title: 'Midweek Prayer Charge',
+    category: 'audio',
+    description: 'Audio recording from Wednesday prayer meeting.',
+    date: '2026-02-05',
+    timestamp: 1770249600000,
+    speaker: 'Minister Amarachi',
+    keypoint: 'Prayer aligns us with God’s direction.',
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    alt: 'Audio sermon cover image'
+  },
+  {
+    id: 'photo-2',
+    type: 'image',
+    title: 'Children Ministry Day',
+    category: 'youth',
+    description: 'Children class and worship highlights.',
+    date: '2026-01-20',
+    timestamp: 1768867200000,
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    alt: 'Children ministry activities'
+  },
+  {
+    id: 'event-2',
+    type: 'image',
+    title: 'Youth Fellowship Gathering',
+    category: 'events',
+    description: 'Youth connect session and prayer walk.',
+    date: '2025-12-12',
+    timestamp: 1765497600000,
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    alt: 'Youth fellowship gathering'
+  },
+  {
+    id: 'sermon-2',
+    type: 'video',
+    title: 'Faith Over Fear',
+    category: 'sermons',
+    description: 'A sermon series on unwavering faith.',
+    date: '2025-11-10',
+    timestamp: 1762732800000,
+    speaker: 'Rev. David Chibuike',
+    keypoint: 'Fear loses power where faith is active.',
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    videoUrl: 'https://www.youtube.com/embed/ysz5S6PUM-U',
+    alt: 'Sermon session in sanctuary'
+  },
+  {
+    id: 'photo-3',
+    type: 'image',
+    title: 'Community Outreach',
+    category: 'community',
+    description: 'Neighborhood outreach and prayer support.',
+    date: '2025-10-04',
+    timestamp: 1759536000000,
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    alt: 'Community outreach event'
+  },
+  {
+    id: 'audio-2',
+    type: 'audio',
+    title: 'Night of Praise Exhortation',
+    category: 'audio',
+    description: 'Praise night word excerpt.',
+    date: '2025-09-02',
+    timestamp: 1756771200000,
+    speaker: 'Pastor Peace',
+    keypoint: 'Praise shifts focus from problems to God.',
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    alt: 'Audio teaching artwork'
+  },
+  {
+    id: 'event-3',
+    type: 'image',
+    title: 'Summer Camp 2025',
+    category: 'events',
+    description: 'Snapshots from camp activities.',
+    date: '2025-08-16',
+    timestamp: 1755302400000,
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    alt: 'Summer camp event'
+  },
+  {
+    id: 'photo-4',
+    type: 'image',
+    title: 'Women Empowerment Meeting',
+    category: 'community',
+    description: 'Women fellowship and empowerment session.',
+    date: '2025-07-21',
+    timestamp: 1753056000000,
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    alt: 'Women empowerment program'
+  },
+  {
+    id: 'sermon-3',
+    type: 'video',
+    title: 'The Power of Thanksgiving',
+    category: 'sermons',
+    description: 'Thanksgiving service sermon.',
+    date: '2025-05-18',
+    timestamp: 1747526400000,
+    speaker: 'Rev. David Chibuike',
+    keypoint: 'Thanksgiving protects your perspective in every season.',
+    thumbnail: './assets/media/Senior Pastor.jpeg',
+    src: './assets/media/Senior Pastor.jpeg',
+    videoUrl: 'https://www.youtube.com/embed/jNQXAC9IVRw',
+    alt: 'Thanksgiving service sermon'
+  }
+]
