@@ -1,11 +1,9 @@
 import dotenv from 'dotenv'
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 
-const botEnvPath = path.resolve(process.cwd(), 'bot/.env')
-const defaultEnvPath = path.resolve(process.cwd(), '.env')
-
-dotenv.config({ path: existsSync(botEnvPath) ? botEnvPath : defaultEnvPath })
+// Always load from root .env file
+const rootEnvPath = path.resolve(process.cwd(), '.env')
+dotenv.config({ path: rootEnvPath })
 
 const toBool = (value, defaultValue = false) => {
   if (value === undefined) return defaultValue
@@ -20,6 +18,8 @@ export const env = {
   DATABASE_URL: process.env.DATABASE_URL || 'postgresql://user:password@localhost/church_bot',
   REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   ENABLE_SCHEDULER: toBool(process.env.ENABLE_SCHEDULER, false),
+  YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY || '',
+  YOUTUBE_CHANNEL_ID: process.env.YOUTUBE_CHANNEL_ID || '',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini',
   LLM_PROVIDER: process.env.LLM_PROVIDER || 'auto',

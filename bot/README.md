@@ -7,9 +7,9 @@ An independent backend runtime that sends automated WhatsApp reminders for churc
 ## Quick Start
 
 ```bash
-# Copy and fill in environment variables
-cp bot/.env.example bot/.env
-vim bot/.env
+# Copy and fill in environment variables from root directory
+cp .env.example .env
+vim .env
 
 npm install
 
