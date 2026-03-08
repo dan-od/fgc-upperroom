@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Plus, Calendar, Clock, MapPin, Users, Search, Edit2, Trash2, X, Eye } from 'lucide-react'
+import { Plus, Calendar, Clock, MapPin, Users, Search, Edit2, Trash2 } from 'lucide-react'
 
 const EventManager = () => {
   const [view, setView] = useState('list') // list, create, edit
   const [events, setEvents] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
-  const [selectedEvent, setSelectedEvent] = useState(null)
   const [formData, setFormData] = useState({
     id: Date.now(),
     title: '',

@@ -1,11 +1,39 @@
+import { useEffect, useState } from 'react'
 import { Calendar, Image, FileText, TrendingUp, Users, ArrowRight } from 'lucide-react'
 
 const Dashboard = ({ onNavigate }) => {
+  const [counts, setCounts] = useState({
+    events: 0,
+    media: 0,
+    blog: 0,
+    visitors: 0
+  })
+
+  useEffect(() => {
+    const readArrayCount = (key) => {
+      const raw = localStorage.getItem(key)
+      if (!raw) return 0
+      try {
+        const parsed = JSON.parse(raw)
+        return Array.isArray(parsed) ? parsed.length : 0
+      } catch {
+        return 0
+      }
+    }
+
+    setCounts({
+      events: readArrayCount('admin_events'),
+      media: readArrayCount('admin_media'),
+      blog: readArrayCount('admin_blog_posts'),
+      visitors: readArrayCount('admin_visitors')
+    })
+  }, [])
+
   const stats = [
-    { label: 'Total Events', value: '12', icon: Calendar, color: '#5a4494', link: 'events' },
-    { label: 'Media Items', value: '156', icon: Image, color: '#2d3a7a', link: 'media' },
-    { label: 'Blog Posts', value: '34', icon: FileText, color: '#d4a82e', link: 'blog' },
-    { label: 'Visitors', value: '856', icon: Users, color: '#10b981', link: 'visitors' }
+    { label: 'Total Events', value: String(counts.events), icon: Calendar, color: '#5a4494', link: 'events' },
+    { label: 'Media Items', value: String(counts.media), icon: Image, color: '#2d3a7a', link: 'media' },
+    { label: 'Blog Posts', value: String(counts.blog), icon: FileText, color: '#d4a82e', link: 'blog' },
+    { label: 'Visitors', value: String(counts.visitors), icon: Users, color: '#10b981', link: 'visitors' }
   ]
 
   const recentActivities = [

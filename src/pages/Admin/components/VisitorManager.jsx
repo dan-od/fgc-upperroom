@@ -1,41 +1,57 @@
-import { useState } from 'react'
-import { Search, Download, UserPlus, UserX, Filter, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Search, Download, UserPlus, UserX } from 'lucide-react'
 
 const VisitorManager = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [selectedVisitors, setSelectedVisitors] = useState([])
+  const [visitors, setVisitors] = useState([])
 
-  // Mock data - replace with API call
-  const [visitors] = useState([
-    {
-      id: 1,
-      name: 'John Doe',
-      phone: '+2348012345678',
-      firstVisit: '2026-01-15',
-      subscribed: true,
-      tags: ['regular', 'tithes'],
-      lastContact: '2026-03-01'
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      phone: '+2348087654321',
-      firstVisit: '2026-02-20',
-      subscribed: true,
-      tags: ['youth'],
-      lastContact: '2026-03-05'
-    },
-    {
-      id: 3,
-      name: 'Mike Johnson',
-      phone: '+2348123456789',
-      firstVisit: '2025-12-10',
-      subscribed: false,
-      tags: ['stopped'],
-      lastContact: '2026-02-10'
+  useEffect(() => {
+    const stored = localStorage.getItem('admin_visitors')
+    if (stored) {
+      setVisitors(JSON.parse(stored))
+      return
     }
-  ])
+
+    const demoVisitors = [
+      {
+        id: 1,
+        name: 'John Doe',
+        phone: '+2348012345678',
+        firstVisit: '2026-01-15',
+        subscribed: true,
+        tags: ['regular', 'tithes'],
+        lastContact: '2026-03-01'
+      },
+      {
+        id: 2,
+        name: 'Jane Smith',
+        phone: '+2348087654321',
+        firstVisit: '2026-02-20',
+        subscribed: true,
+        tags: ['youth'],
+        lastContact: '2026-03-05'
+      },
+      {
+        id: 3,
+        name: 'Mike Johnson',
+        phone: '+2348123456789',
+        firstVisit: '2025-12-10',
+        subscribed: false,
+        tags: ['stopped'],
+        lastContact: '2026-02-10'
+      }
+    ]
+
+    setVisitors(demoVisitors)
+    localStorage.setItem('admin_visitors', JSON.stringify(demoVisitors))
+  }, [])
+
+  const persistVisitors = (updatedVisitors) => {
+    setVisitors(updatedVisitors)
+    localStorage.setItem('admin_visitors', JSON.stringify(updatedVisitors))
+  }
 
   const filteredVisitors = visitors.filter(visitor => {
     const matchesSearch = visitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,15 +93,43 @@ const VisitorManager = () => {
   }
 
   const handleBulkSubscribe = () => {
-    console.log('Bulk subscribe:', selectedVisitors)
+    const updated = visitors.map((visitor) =>
+      selectedVisitors.includes(visitor.id)
+        ? { ...visitor, subscribed: true, lastContact: new Date().toISOString().split('T')[0] }
+        : visitor
+    )
+    persistVisitors(updated)
     alert(`${selectedVisitors.length} visitors subscribed`)
     setSelectedVisitors([])
   }
 
   const handleBulkUnsubscribe = () => {
-    console.log('Bulk unsubscribe:', selectedVisitors)
+    const updated = visitors.map((visitor) =>
+      selectedVisitors.includes(visitor.id)
+        ? { ...visitor, subscribed: false, lastContact: new Date().toISOString().split('T')[0] }
+        : visitor
+    )
+    persistVisitors(updated)
     alert(`${selectedVisitors.length} visitors unsubscribed`)
     setSelectedVisitors([])
+  }
+
+  const handleAddVisitor = () => {
+    const name = window.prompt('Visitor name')
+    const phone = window.prompt('Phone number')
+    if (!name || !phone) return
+
+    const newVisitor = {
+      id: Date.now(),
+      name,
+      phone,
+      firstVisit: new Date().toISOString().split('T')[0],
+      subscribed: true,
+      tags: ['new'],
+      lastContact: new Date().toISOString().split('T')[0]
+    }
+
+    persistVisitors([newVisitor, ...visitors])
   }
 
   return (
@@ -120,6 +164,7 @@ const VisitorManager = () => {
             Export CSV
           </button>
           <button
+            onClick={handleAddVisitor}
             style={{
               padding: '0.75rem 1.25rem',
               background: '#5a4494',
