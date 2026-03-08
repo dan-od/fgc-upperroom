@@ -7,16 +7,17 @@ This guide explains how to obtain every `.env` value required by the WhatsApp bo
 From the project root:
 
 ```bash
-cp bot/.env.example bot/.env
+cp .env.example .env
 ```
 
 Then edit:
 
 ```bash
-vim bot/.env
+vim .env
 ```
 
-Do not commit `bot/.env`.
+**Important:**  
+Do not commit `.env`. All environment variables are now stored in the root `.env` file, shared across the entire application.
 
 ---
 
@@ -245,7 +246,7 @@ pm2 start bot/src/worker.js --name church-bot-worker
 ## 5) Security best practices
 
 - Never commit real keys to git.
-- Keep `bot/.env.example` with placeholders only.
+- Keep `.env.example` (in root directory) with placeholders only.
 - Rotate API keys regularly.
 - Use a secrets manager for production (AWS Secrets Manager / Vault / Doppler / 1Password Secrets Automation).
 - Restrict provider key permissions where supported.

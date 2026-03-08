@@ -110,6 +110,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 
 ---
 
-**"Raising Kingdom Youth"**
+**"Raising Kingdom Youths!"**
 
 *Jesus Christ the same yesterday, and today, and forever. — Hebrews 13:8*
