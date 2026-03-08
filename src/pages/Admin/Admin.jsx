@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, LayoutDashboard, Calendar, Image, FileText, LogOut } from 'lucide-react'
+import { Lock, LayoutDashboard, Calendar, Image, FileText, Users, BarChart3, Settings as SettingsIcon, LogOut } from 'lucide-react'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import EventManager from './components/EventManager'
 import MediaManager from './components/MediaManager'
 import BlogManager from './components/BlogManager'
+import VisitorManager from './components/VisitorManager'
+import Analytics from './components/Analytics'
+import Settings from './components/Settings'
 import './Admin.css'
 
 const Admin = () => {
@@ -47,7 +50,10 @@ const Admin = () => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'media', label: 'Media', icon: Image },
-    { id: 'blog', label: 'Blog', icon: FileText }
+    { id: 'blog', label: 'Blog', icon: FileText },
+    { id: 'visitors', label: 'Visitors', icon: Users },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon }
   ]
 
   return (
@@ -82,10 +88,13 @@ const Admin = () => {
 
       <main className="admin-main">
         <div className="admin-content">
-          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'dashboard' && <Dashboard onNavigate={setActiveTab} />}
           {activeTab === 'events' && <EventManager />}
           {activeTab === 'media' && <MediaManager />}
           {activeTab === 'blog' && <BlogManager />}
+          {activeTab === 'visitors' && <VisitorManager />}
+          {activeTab === 'analytics' && <Analytics />}
+          {activeTab === 'settings' && <Settings />}
         </div>
       </main>
     </div>
