@@ -13,6 +13,10 @@ export default defineConfig({
       '/bot': {
         target: 'http://localhost:4100',
         changeOrigin: true
+      },
+      '/attendance': {
+        target: 'http://localhost:4201',
+        changeOrigin: true
       }
     }
   }

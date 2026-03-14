@@ -1,4 +1,7 @@
-.media-page { padding-top: 70px; }
+.media-page {
+  padding-top: 70px;
+  --hero-primary: var(--crown-purple);
+}
 
 .media-section { 
   padding: var(--space-5xl) 0; 

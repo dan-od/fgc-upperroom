@@ -1,5 +1,6 @@
 .events-page { 
   padding-top: 70px; 
+  --hero-primary: var(--cross-red);
 }
 
 /* Featured Event Hero */
@@ -210,6 +211,7 @@
 }
 
 .filter-tab {
+  position: relative;
   padding: var(--space-md) var(--space-xl);
   background: var(--white);
   border: 2px solid var(--gray-200);
@@ -222,10 +224,15 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  -webkit-text-fill-color: currentColor;
 }
 
 .filter-tab i {
   font-size: var(--text-base);
+}
+
+.filter-tab > * {
+  color: inherit;
 }
 
 .filter-tab:hover {
@@ -234,13 +241,26 @@
   transform: translateY(-2px);
 }
 
+.filter-tab:active,
+.filter-tab:focus-visible {
+  background: var(--cross-red);
+  border-color: var(--cross-red);
+  color: var(--white);
+  outline: none;
+}
+
 .filter-tab--active {
   background: var(--cross-red);
   border-color: var(--cross-red);
   color: var(--white);
 }
 
-.filter-tab--active:hover {
+.filter-tab--active:hover,
+.filter-tab--active:active,
+.filter-tab--active:focus-visible {
+  background: var(--cross-red);
+  border-color: var(--cross-red);
+  color: var(--white);
   transform: translateY(-2px);
 }
 
