@@ -2,6 +2,7 @@
 
 .team-page {
   padding-top: 70px;
+  --hero-primary: var(--crown-purple);
 }
 
 .team-section {

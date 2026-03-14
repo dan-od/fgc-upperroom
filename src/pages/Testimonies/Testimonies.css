@@ -1,4 +1,7 @@
-.testimonies-page { padding-top: 70px; }
+.testimonies-page {
+	padding-top: 70px;
+	--hero-primary: var(--crown-purple);
+}
 .testimonies-section { padding: var(--space-5xl) 0; }
 .testimonies-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xl); }
 .testimony-card { background: var(--cream-light); padding: var(--space-xl); border-radius: var(--radius-lg); transition: all var(--transition-base); }

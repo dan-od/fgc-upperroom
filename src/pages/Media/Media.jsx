@@ -14,6 +14,12 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import { SectionHeader } from '../../components/common'
 import { mediaItems } from './mediaData'
+import {
+  DEFAULT_MEDIA_THUMBNAIL,
+  extractYouTubeId,
+  normalizeTitleKey,
+  readAdminMediaItems
+} from '../../utils/mediaStorage'
 import './Media.css'
 
 const ITEMS_PER_PAGE = 6
@@ -35,27 +41,14 @@ const DATE_FILTERS = [
   { id: 'thisYear', label: 'This Year' }
 ]
 
-const extractYouTubeId = (url = '') => {
-  const shortMatch = url.match(/youtu\.be\/([^?&]+)/i)
-  if (shortMatch?.[1]) return shortMatch[1]
-
-  const watchMatch = url.match(/[?&]v=([^&]+)/i)
-  if (watchMatch?.[1]) return watchMatch[1]
-
-  const embedMatch = url.match(/embed\/([^?&]+)/i)
-  if (embedMatch?.[1]) return embedMatch[1]
-
-  return null
-}
-
 const getItemFilterCategory = (item) => {
-  const category = item.category.toLowerCase()
+  const category = String(item.category || '').toLowerCase()
 
-  if (item.type === 'audio' || category === 'audio') {
+  if (category === 'audio' || item.type === 'audio') {
     return 'audio'
   }
 
-  if (item.type === 'video' || category === 'sermons') {
+  if (category === 'sermons') {
     return 'sermons'
   }
 
@@ -73,6 +66,10 @@ const getItemFilterCategory = (item) => {
 
   if (category === 'events') {
     return 'events'
+  }
+
+  if (item.type === 'video') {
+    return 'sermons'
   }
 
   return 'community'
@@ -101,14 +98,14 @@ const getItemLabel = (item) => {
 }
 
 const getItemIcon = (item) => {
-  const category = item.category.toLowerCase()
-
-  if (category === 'sermons' || item.type === 'video') {
-    return Play
-  }
+  const category = String(item.category || '').toLowerCase()
 
   if (category === 'audio' || item.type === 'audio') {
     return Headphones
+  }
+
+  if (category === 'sermons') {
+    return Play
   }
 
   if (category === 'youth') {
@@ -127,7 +124,162 @@ const getItemIcon = (item) => {
     return Calendar
   }
 
+  if (item.type === 'video') {
+    return Play
+  }
+
   return Camera
+}
+
+const toSafeTimestamp = (value) => {
+  const parsedNumber = Number(value)
+  if (Number.isFinite(parsedNumber) && parsedNumber > 0) {
+    return parsedNumber
+  }
+
+  const parsedDate = new Date(value)
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.getTime()
+  }
+
+  return Date.now()
+}
+
+const toMediaAssetList = (item) => {
+  const normalizeAsset = (asset, index = 0) => {
+    const inferredType = asset?.type || (asset?.audioUrl ? 'audio' : asset?.videoUrl ? 'video' : 'image')
+    const videoSource = String(asset?.videoUrl || asset?.src || '')
+    const youtubeId = inferredType === 'video' ? extractYouTubeId(videoSource) : null
+
+    return {
+      id: String(asset?.id || `${item.id}-asset-${index}`),
+      type: inferredType,
+      src:
+        inferredType === 'image'
+          ? String(asset?.src || asset?.thumbnail || '')
+          : inferredType === 'video'
+            ? youtubeId
+              ? String(asset?.src || '')
+              : String(asset?.src || videoSource || '')
+            : String(asset?.src || ''),
+      thumbnail: String(asset?.thumbnail || item.thumbnail || item.src || DEFAULT_MEDIA_THUMBNAIL),
+      videoUrl: inferredType === 'video' && youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : '',
+      audioUrl: inferredType === 'audio' ? String(asset?.audioUrl || asset?.src || '') : '',
+      alt: String(asset?.alt || item.alt || item.title || '')
+    }
+  }
+
+  if (Array.isArray(item.media) && item.media.length > 0) {
+    return item.media.map((asset, index) => normalizeAsset(asset, index))
+  }
+
+  if (item.type === 'video' || item.videoUrl) {
+    return [
+      normalizeAsset(
+        {
+          type: 'video',
+          videoUrl: item.videoUrl,
+          src: item.src,
+          thumbnail: item.thumbnail || item.src,
+          alt: item.alt || item.title
+        },
+        0
+      )
+    ]
+  }
+
+  if (item.type === 'audio' || item.audioUrl) {
+    return [
+      normalizeAsset(
+        {
+          type: 'audio',
+          audioUrl: item.audioUrl || item.src,
+          src: item.src,
+          thumbnail: item.thumbnail || item.src,
+          alt: item.alt || item.title
+        },
+        0
+      )
+    ]
+  }
+
+  return [
+    normalizeAsset(
+      {
+        type: 'image',
+        src: item.src || item.thumbnail,
+        thumbnail: item.thumbnail || item.src,
+        alt: item.alt || item.title
+      },
+      0
+    )
+  ]
+}
+
+const dedupeMediaAssets = (assets) => {
+  const seen = new Set()
+
+  return assets.filter((asset) => {
+    const key = `${asset.type}:${asset.videoUrl || asset.audioUrl || asset.src || asset.thumbnail}`
+    if (!key || seen.has(key)) {
+      return false
+    }
+    seen.add(key)
+    return true
+  })
+}
+
+const getSermonMergeKey = (item) => {
+  const key = normalizeTitleKey(item.syncKey || item.mergeKey || item.title || item.id)
+  return key || String(item.id)
+}
+
+const getSourceRank = (item) => {
+  if (item.source === 'youtube') {
+    return 3
+  }
+  if (item.source === 'admin') {
+    return 2
+  }
+  if (item.source === 'static') {
+    return 1
+  }
+  return 0
+}
+
+const firstNonEmpty = (values) => {
+  return values.find((value) => String(value || '').trim()) || ''
+}
+
+const mergeSermonGroup = (group) => {
+  const ordered = [...group].sort((a, b) => getSourceRank(b) - getSourceRank(a))
+  const youtubeItem = ordered.find((item) => item.source === 'youtube')
+  const adminItem = ordered.find((item) => item.source === 'admin')
+  const lead = youtubeItem || adminItem || ordered[0]
+
+  const media = dedupeMediaAssets(ordered.flatMap((item) => toMediaAssetList(item)))
+  const leadAsset = media[0] || {}
+  const mergedTimestamp = Math.max(...ordered.map((item) => toSafeTimestamp(item.timestamp || item.date)))
+
+  return {
+    ...lead,
+    id: String(youtubeItem?.id || lead.id),
+    source: 'merged',
+    type: leadAsset.type || lead.type || 'video',
+    category: 'sermons',
+    title: firstNonEmpty(ordered.map((item) => item.title)),
+    description: firstNonEmpty([adminItem?.description, ...ordered.map((item) => item.description)]) || 'Sunday sermon',
+    speaker: firstNonEmpty([adminItem?.speaker, ...ordered.map((item) => item.speaker)]),
+    keypoint: firstNonEmpty([adminItem?.keypoint, ...ordered.map((item) => item.keypoint)]),
+    mergeKey: getSermonMergeKey(lead),
+    timestamp: mergedTimestamp,
+    date: lead.date || new Date(mergedTimestamp).toISOString().slice(0, 10),
+    media,
+    thumbnail: leadAsset.thumbnail || lead.thumbnail || lead.src || DEFAULT_MEDIA_THUMBNAIL,
+    src: leadAsset.src || leadAsset.thumbnail || lead.src || lead.thumbnail || DEFAULT_MEDIA_THUMBNAIL,
+    videoUrl: leadAsset.videoUrl || lead.videoUrl || '',
+    audioUrl: leadAsset.audioUrl || lead.audioUrl || ''
+  }
 }
 
 const Media = () => {
@@ -136,12 +288,28 @@ const Media = () => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [apiSermons, setApiSermons] = useState([])
+  const [adminMediaItems, setAdminMediaItems] = useState([])
   const [setupRequired, setSetupRequired] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedMedia, setSelectedMedia] = useState(null)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
   const [showModal, setShowModal] = useState(false)
   const [touchStart, setTouchStart] = useState(0)
+
+  useEffect(() => {
+    const hydrateAdminMedia = () => {
+      setAdminMediaItems(readAdminMediaItems())
+    }
+
+    hydrateAdminMedia()
+    window.addEventListener('storage', hydrateAdminMedia)
+    window.addEventListener('focus', hydrateAdminMedia)
+
+    return () => {
+      window.removeEventListener('storage', hydrateAdminMedia)
+      window.removeEventListener('focus', hydrateAdminMedia)
+    }
+  }, [])
 
   useEffect(() => {
     const fetchSermons = async () => {
@@ -180,14 +348,26 @@ const Media = () => {
               type: 'video',
               title: item.title,
               category: 'sermons',
+              source: 'youtube',
+              mergeKey: normalizeTitleKey(item.syncKey || item.mergeKey || item.title),
               description: item.description || 'Sunday sermon',
               date: item.date || new Date(safeTimestamp).toISOString().slice(0, 10),
               timestamp: safeTimestamp,
               speaker: item.speaker,
               keypoint: item.keypoint,
-              thumbnail: item.thumbnail || './assets/media/Senior Pastor.jpeg',
-              src: item.thumbnail || './assets/media/Senior Pastor.jpeg',
+              thumbnail: item.thumbnail || DEFAULT_MEDIA_THUMBNAIL,
+              src: item.thumbnail || DEFAULT_MEDIA_THUMBNAIL,
               videoUrl,
+              media: [
+                {
+                  id: `${item.id || `sermon-${safeTimestamp}`}-youtube`,
+                  type: 'video',
+                  videoUrl,
+                  src: '',
+                  thumbnail: item.thumbnail || DEFAULT_MEDIA_THUMBNAIL,
+                  alt: item.title
+                }
+              ],
               alt: item.title
             }
           })
@@ -202,13 +382,40 @@ const Media = () => {
   }, [])
 
   const allMediaItems = useMemo(() => {
-    const merged = [...mediaItems, ...apiSermons]
-    const uniqueById = merged.filter((item, index, list) => {
-      return list.findIndex((candidate) => candidate.id === item.id) === index
+    const staticItems = mediaItems.map((item) => ({
+      ...item,
+      source: 'static',
+      mergeKey: normalizeTitleKey(item.syncKey || item.mergeKey || item.title)
+    }))
+    const adminItems = adminMediaItems.map((item) => ({
+      ...item,
+      source: 'admin',
+      mergeKey: normalizeTitleKey(item.syncKey || item.mergeKey || item.title)
+    }))
+
+    const merged = [...staticItems, ...adminItems, ...apiSermons]
+
+    const sermonItems = merged.filter((item) => getItemFilterCategory(item) === 'sermons')
+    const nonSermonItems = merged.filter((item) => getItemFilterCategory(item) !== 'sermons')
+
+    const groupedSermons = sermonItems.reduce((map, item) => {
+      const key = getSermonMergeKey(item)
+      if (!map.has(key)) {
+        map.set(key, [])
+      }
+      map.get(key).push(item)
+      return map
+    }, new Map())
+
+    const mergedSermons = Array.from(groupedSermons.values()).map((group) => mergeSermonGroup(group))
+
+    const uniqueNonSermons = nonSermonItems.filter((item, index, list) => {
+      return list.findIndex((candidate) => String(candidate.id) === String(item.id)) === index
     })
 
-    return uniqueById.sort((a, b) => b.timestamp - a.timestamp)
-  }, [apiSermons])
+    return [...uniqueNonSermons, ...mergedSermons]
+      .sort((a, b) => toSafeTimestamp(b.timestamp) - toSafeTimestamp(a.timestamp))
+  }, [apiSermons, adminMediaItems])
 
   const filteredMediaItems = useMemo(() => {
     const now = Date.now()
@@ -708,17 +915,42 @@ const Media = () => {
 
             <div className="lightbox-media">
               {activeLightboxAsset?.type === 'video' ? (
-                <motion.iframe
-                  key={`${selectedMedia.id}-asset-${selectedAssetIndex}-video`}
-                  src={activeLightboxAsset.videoUrl || `https://www.youtube.com/embed/${extractYouTubeId(activeLightboxAsset.src || selectedMedia.src)}`}
-                  className="lightbox-iframe"
-                  title={selectedMedia.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  initial={{ opacity: 0, scale: 0.97, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97, y: -10 }}
-                />
+                (() => {
+                  const source = activeLightboxAsset.videoUrl ||
+                    activeLightboxAsset.src ||
+                    selectedMedia.videoUrl ||
+                    selectedMedia.src
+                  const youtubeId = extractYouTubeId(source)
+
+                  if (youtubeId) {
+                    return (
+                      <motion.iframe
+                        key={`${selectedMedia.id}-asset-${selectedAssetIndex}-youtube`}
+                        src={`https://www.youtube.com/embed/${youtubeId}`}
+                        className="lightbox-iframe"
+                        title={selectedMedia.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        initial={{ opacity: 0, scale: 0.97, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.97, y: -10 }}
+                      />
+                    )
+                  }
+
+                  return (
+                    <motion.video
+                      key={`${selectedMedia.id}-asset-${selectedAssetIndex}-video-file`}
+                      src={source}
+                      className="lightbox-video"
+                      controls
+                      poster={activeLightboxAsset.thumbnail || selectedMedia.thumbnail || DEFAULT_MEDIA_THUMBNAIL}
+                      initial={{ opacity: 0, scale: 0.97, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.97, y: -10 }}
+                    />
+                  )
+                })()
               ) : activeLightboxAsset?.type === 'audio' ? (
                 <motion.div
                   key={`${selectedMedia.id}-asset-${selectedAssetIndex}-audio`}

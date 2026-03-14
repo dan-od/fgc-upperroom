@@ -1,70 +1,56 @@
 # FGC Upper Room Mgbuoba Website v2.0
 
-A multi-page React website for FGC Upper Room Mgbuoba - the youth fellowship of Foursquare Gospel Church, Mgbuoba Zonal HQ.
+Modern React-based website and WhatsApp bot for FGC Upper Room Mgbuoba - the youth fellowship of Foursquare Gospel Church, Mgbuoba Zonal HQ.
 
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
-npm install
-
-# Start website dev server
-npm run dev
+npm install                  # Install dependencies
+npm run dev                  # Start website + bot + worker + attendance together
+npm run dev:web              # Start website only (localhost:3000)
 ```
 
-Website opens at `http://localhost:3000`
+## 📦 What's Inside
 
-## 🤖 Bot Runtime (Independent Service)
-
-```bash
-# Start bot API + scheduler
-npm run bot:dev
-
-# Start bot worker in another terminal
-npm run bot:worker
-```
-
-Bot API health endpoint:
-
-- `http://localhost:4100/bot/health`
-
-The bot is isolated under `bot/` and runs independently from the Vite web server.
+- **Website**: Multi-page React app with advanced media gallery, blog, events, and contact
+- **WhatsApp Bot**: Automated service reminders and event notifications with Redis queue
+- **Admin Center**: Content management at `/admin` (events, media, blog posts)
+- **YouTube Integration**: Auto-sync sermons from YouTube channel
+- **Full-Stack**: Express + Vite with TypeScript support
 
 ## 📁 Project Structure
 
 ```
 src/
-├── components/
-│   ├── common/          # Reusable UI (Button, Card, SectionHeader)
-│   ├── layout/          # Layout (Header, Footer, ServiceBar)
-│   └── features/        # Feature components (Countdown, Testimonials)
-├── pages/               # Route pages
-│   ├── Home/            # Homepage
-│   ├── About/           # About page
-│   ├── Team/            # Team & leadership
-│   ├── Events/          # Events page
-│   ├── Media/           # Gallery & videos
-│   ├── Blog/            # Blog posts
-│   ├── Contact/         # Contact form & info
-│   └── Testimonies/     # Testimonies page
-├── styles/
-│   ├── variables.css    # CSS variables (colors, spacing)
-│   └── globals.css      # Global styles
-└── assets/
+├── pages/               # Public routes + Admin center
+│   ├── Home/            # Landing page with hero & countdown
+│   ├── Media/           # Advanced gallery with filtering & pagination
+│   ├── Blog/            # Articles, devotionals, Sunday school
+│   ├── Events/          # Upcoming programs
+│   ├── Admin/           # 🔒 Content management (events, media, blog)
+│   └── ...
+├── components/          # Reusable UI & layout components
+bot/
+├── src/                 # WhatsApp bot backend
+│   ├── routes/          # API endpoints (visitors, events, messages)
+│   ├── services/        # WhatsApp, LLM, analytics services
+│   └── workers/         # Queue workers for reminders
+└── db/schema.sql        # PostgreSQL database schema
 ```
 
-## 🎨 Pages
+## 🎨 Key Features
 
-| Page | Route | Description |
-|------|-------|-------------|
-| Home | `/` | Full hero, countdown, pastor welcome, beliefs, etc. |
-| About | `/about` | Vision, mission, Foursquare beliefs |
-| Team | `/team` | Leadership, excos, departments |
-| Events | `/events` | Upcoming programs |
-| Media | `/media` | Photo gallery |
-| Blog | `/blog` | Articles & devotionals |
-| Contact | `/contact` | Contact form, info, map |
-| Testimonies | `/testimonies` | Member testimonies |
+### Website
+- **Media Gallery**: Category filtering (Sermons, Youth, Events, Audio), date ranges, pagination, YouTube embeds, multi-asset lightbox
+- **Blog**: Articles, devotionals, Sunday school materials with categorization
+- **Events**: Countdown timers, registration forms, event details
+- **Admin Center** (`/admin`): Create/manage events, upload media, publish blog posts
+
+### WhatsApp Bot
+- **Service Reminders**: Automated Saturday 12 PM notifications (first Sunday 07:30, others 08:00)
+- **Event Notifications**: Weekly reminders starting 1 month before events
+- **LLM-Powered**: Personalized messages via Vertex AI, OpenAI, or Gemini
+- **Opt-Out Support**: Automatic STOP detection and suppression list
 
 ## 🎨 Brand Colors
 
@@ -75,28 +61,33 @@ src/
 --crown-purple: #5a4494;  /* Coming King */
 --main-cream: #e8dfc5;    /* Background */
 ```
+⚙️ Configuration
 
-## ✏️ Customization
+### Environment Variables
+Copy `.env.example` to `.env` and configure:
 
-### Add Hero Background Image
-1. Add image to `public/assets/images/hero-bg.jpg`
-2. It will automatically be used in the hero section
+```bash
+# YouTube Data API (for sermon sync)
+YOUTUBE_API_KEY=your_api_key
+YOUTUBE_CHANNEL_ID=your_channel_id
 
-### Update Contact Info
-Edit `src/pages/Contact/Contact.jsx`
+# Admin Access
+ADMIN_PASSWORD=your_secure_password
 
-### Add Special Event Countdown
-Edit `src/components/features/Countdown/Countdown.jsx`:
-```javascript
-const SPECIAL_EVENTS = [
-  {
-    name: "Upper Room Week 2025",
-    date: "2025-03-15T09:00:00",
-  }
-]
+# WhatsApp Bot (Meta Cloud API)
+META_ACCESS_TOKEN=EAAx...
+META_PHONE_NUMBER_ID=123456789012345
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+
+# LLM (auto-selects: Vertex → OpenAI → Gemini → static templates)
+LLM_PROVIDER=auto
+VERTEX_PROJECT_ID=your-gcp-project
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...
 ```
 
-### Update Team
+See [`bot/ENV_SECRETS_SETUP.md`](bot/ENV_SECRETS_SETUP.md) for detailed setup instructions.
 Edit `src/pages/Team/Team.jsx` with real names and photos
 
 ## 🌐 Deployment
