@@ -6,9 +6,8 @@ Modern React-based website and WhatsApp bot for FGC Upper Room Mgbuoba - the you
 
 ```bash
 npm install                  # Install dependencies
-npm run dev                  # Start website (localhost:3000)
-npm run bot:dev              # Start WhatsApp bot API (localhost:4100)
-npm run bot:worker           # Start bot queue worker
+npm run dev                  # Start website + bot + worker + attendance together
+npm run dev:web              # Start website only (localhost:3000)
 ```
 
 ## 📦 What's Inside

@@ -468,21 +468,21 @@ const Events = () => {
                   onClick={() => setActiveFilter('upcoming')}
                 >
                   <i className="fa-solid fa-calendar-days"></i>
-                  Upcoming Events
+                  <span>Upcoming Events</span>
                 </button>
                 <button 
                   className={`filter-tab ${activeFilter === 'thisMonth' ? 'filter-tab--active' : ''}`}
                   onClick={() => setActiveFilter('thisMonth')}
                 >
                   <i className="fa-solid fa-calendar-week"></i>
-                  This Month
+                  <span>This Month</span>
                 </button>
                 <button 
                   className={`filter-tab ${activeFilter === 'past' ? 'filter-tab--active' : ''}`}
                   onClick={() => setActiveFilter('past')}
                 >
                   <i className="fa-solid fa-clock-rotate-left"></i>
-                  Past Events
+                  <span>Past Events</span>
                 </button>
               </div>
             )}

@@ -1,14 +1,34 @@
-import { useState, useEffect } from 'react'
-import { FileText, BookOpen, Heart, GraduationCap, Search, Edit2, Trash2, Star } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  BookOpen,
+  Edit2,
+  FileText,
+  GraduationCap,
+  Heart,
+  Plus,
+  Search,
+  Sparkles,
+  Star,
+  Trash2
+} from 'lucide-react'
+import {
+  BLOG_CATEGORIES,
+  estimateReadTime,
+  formatBlogCategory,
+  getTagList,
+  seedBlogPostsIfEmpty,
+  writeBlogPosts
+} from '../../../utils/blogStorage'
+import './BlogManager.css'
 
-const categories = [
-  { value: 'article', label: 'Article', icon: FileText },
-  { value: 'devotional', label: 'Devotional', icon: Heart },
-  { value: 'sunday-school', label: 'Sunday School', icon: GraduationCap },
-  { value: 'testimony', label: 'Testimony', icon: BookOpen }
-]
+const categoryIcons = {
+  article: FileText,
+  devotional: Heart,
+  'sunday-school': GraduationCap,
+  testimony: BookOpen
+}
 
-const emptyPost = {
+const createEmptyPost = () => ({
   id: Date.now(),
   title: '',
   content: '',
@@ -17,7 +37,23 @@ const emptyPost = {
   excerpt: '',
   tags: '',
   featured: false,
-  status: 'published'
+  status: 'published',
+  image: '',
+  createdAt: null,
+  updatedAt: null
+})
+
+const buildExcerpt = (content) => {
+  const plain = String(content || '').replace(/\s+/g, ' ').trim()
+  if (!plain) {
+    return 'No excerpt provided yet.'
+  }
+
+  if (plain.length <= 170) {
+    return plain
+  }
+
+  return `${plain.slice(0, 167)}...`
 }
 
 const BlogManager = () => {
@@ -26,507 +62,546 @@ const BlogManager = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [formData, setFormData] = useState(emptyPost)
+  const [formData, setFormData] = useState(createEmptyPost)
+  const [notice, setNotice] = useState(null)
 
   useEffect(() => {
-    const stored = localStorage.getItem('admin_blog_posts')
-    if (stored) {
-      setPosts(JSON.parse(stored))
-      return
-    }
-
-    const demoPosts = [
-      {
-        id: 1,
-        title: 'Walking by Faith in Difficult Times',
-        content: 'Faith is not the absence of storms, but confidence in God through them.',
-        category: 'devotional',
-        author: 'Pastor Emmanuel',
-        excerpt: 'How to stay grounded in God during uncertainty.',
-        tags: 'faith, prayer, trust',
-        featured: true,
-        status: 'published',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 2,
-        title: 'Youth Bible Study Notes - Romans 12',
-        content: 'Be transformed by renewing your mind daily through scripture and prayer.',
-        category: 'sunday-school',
-        author: 'Youth Team',
-        excerpt: 'Key takeaways from this week’s youth class.',
-        tags: 'youth, bible-study',
-        featured: false,
-        status: 'draft',
-        createdAt: new Date().toISOString()
-      }
-    ]
-
-    setPosts(demoPosts)
-    localStorage.setItem('admin_blog_posts', JSON.stringify(demoPosts))
+    setPosts(seedBlogPostsIfEmpty())
   }, [])
 
   const persistPosts = (updatedPosts) => {
     setPosts(updatedPosts)
-    localStorage.setItem('admin_blog_posts', JSON.stringify(updatedPosts))
+    writeBlogPosts(updatedPosts)
   }
 
   const resetForm = () => {
-    setFormData({ ...emptyPost, id: Date.now() })
+    setFormData(createEmptyPost())
     setView('list')
   }
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
+  const openCreate = () => {
+    setNotice(null)
+    setFormData(createEmptyPost())
+    setView('create')
+  }
+
+  const handleChange = (event) => {
+    const { name, value, type, checked } = event.target
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
   }
 
-  const savePost = (status) => {
+  const savePost = (targetStatus = formData.status) => {
+    const title = formData.title.trim()
+    const author = formData.author.trim()
+    const content = formData.content.trim()
+
+    if (!title || !author || !content) {
+      setNotice({ tone: 'error', text: 'Title, author, and content are required.' })
+      return
+    }
+
+    const now = new Date().toISOString()
+
     const payload = {
       ...formData,
-      status,
-      createdAt: formData.createdAt || new Date().toISOString()
+      title,
+      author,
+      content,
+      excerpt: formData.excerpt.trim() || buildExcerpt(content),
+      tags: getTagList(formData.tags).join(', '),
+      status: targetStatus,
+      image: formData.image.trim(),
+      updatedAt: now
     }
 
     if (view === 'create') {
-      persistPosts([...posts, { ...payload, id: Date.now() }])
-      alert(status === 'draft' ? 'Draft saved!' : 'Post published!')
-    } else {
-      const updated = posts.map((post) => (post.id === formData.id ? payload : post))
-      persistPosts(updated)
-      alert('Post updated successfully!')
+      const newPost = {
+        ...payload,
+        id: Date.now(),
+        createdAt: now,
+        updatedAt: null
+      }
+
+      persistPosts([newPost, ...posts])
+      setNotice({ tone: 'success', text: targetStatus === 'draft' ? 'Draft saved.' : 'Post published.' })
+      resetForm()
+      return
     }
 
+    const updatedPosts = posts.map((post) => {
+      if (post.id !== formData.id) {
+        return post
+      }
+
+      return {
+        ...payload,
+        id: post.id,
+        createdAt: post.createdAt || now
+      }
+    })
+
+    persistPosts(updatedPosts)
+    setNotice({ tone: 'success', text: 'Post updated successfully.' })
     resetForm()
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleSubmit = (event) => {
+    event.preventDefault()
     savePost('published')
   }
 
   const handleSaveDraft = () => {
     if (!formData.title.trim()) {
-      alert('Please enter a title before saving draft.')
+      setNotice({ tone: 'error', text: 'Enter a title before saving a draft.' })
       return
     }
+
     savePost('draft')
   }
 
   const handleEdit = (post) => {
-    setFormData(post)
+    setNotice(null)
+    setFormData({ ...post })
     setView('edit')
   }
 
   const handleDelete = (id) => {
-    if (!window.confirm('Delete this blog post?')) return
+    if (!window.confirm('Delete this blog post?')) {
+      return
+    }
+
     persistPosts(posts.filter((post) => post.id !== id))
+    setNotice({ tone: 'success', text: 'Post deleted.' })
   }
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post.tags.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = filterCategory === 'all' || post.category === filterCategory
-    const matchesStatus = filterStatus === 'all' || post.status === filterStatus
-    return matchesSearch && matchesCategory && matchesStatus
-  })
+  const handleQuickPublish = (post) => {
+    if (post.status === 'published') {
+      return
+    }
+
+    const updatedPosts = posts.map((item) => {
+      if (item.id !== post.id) {
+        return item
+      }
+
+      return {
+        ...item,
+        status: 'published',
+        updatedAt: new Date().toISOString()
+      }
+    })
+
+    persistPosts(updatedPosts)
+    setNotice({ tone: 'success', text: 'Draft published successfully.' })
+  }
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      const term = searchTerm.toLowerCase()
+      const matchesSearch =
+        post.title.toLowerCase().includes(term) ||
+        post.author.toLowerCase().includes(term) ||
+        post.tags.toLowerCase().includes(term)
+
+      const matchesCategory = filterCategory === 'all' || post.category === filterCategory
+      const matchesStatus = filterStatus === 'all' || post.status === filterStatus
+
+      return matchesSearch && matchesCategory && matchesStatus
+    })
+  }, [posts, searchTerm, filterCategory, filterStatus])
+
+  const stats = useMemo(() => {
+    const published = posts.filter((post) => post.status === 'published').length
+    const drafts = posts.filter((post) => post.status === 'draft').length
+    const featured = posts.filter((post) => post.featured).length
+
+    return {
+      total: posts.length,
+      published,
+      drafts,
+      featured
+    }
+  }, [posts])
+
+  const contentWordCount = useMemo(() => {
+    return String(formData.content || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean).length
+  }, [formData.content])
+
+  const formTags = getTagList(formData.tags)
+  const previewImage = formData.image.trim()
+  const previewText = formData.excerpt.trim() || buildExcerpt(formData.content)
+  const previewBody = String(formData.content || '').trim()
 
   if (view === 'create' || view === 'edit') {
     return (
-      <div>
-        <div style={{ marginBottom: '2rem' }}>
-          <button
-            onClick={resetForm}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'white',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              marginBottom: '1rem'
-            }}
-          >
+      <div className="admin-blog admin-blog--editor">
+        {notice && (
+          <div className={`admin-blog__notice admin-blog__notice--${notice.tone}`}>
+            {notice.text}
+          </div>
+        )}
+
+        <div className="admin-blog__editor-head">
+          <button type="button" onClick={resetForm} className="admin-blog__ghost-btn">
             ← Back to Posts
           </button>
-          <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: '#111827' }}>
-            {view === 'create' ? 'Create New Post' : 'Edit Post'}
-          </h1>
+          <div>
+            <h1>{view === 'create' ? 'Create New Post' : 'Edit Post'}</h1>
+            <p>Manage category, content, and publishing options in one place.</p>
+          </div>
         </div>
 
-        <div style={{
-          background: 'white',
-          padding: '2rem',
-          borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb'
-        }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
-              {categories.map((cat) => {
-                const Icon = cat.icon
+        <form onSubmit={handleSubmit} className="admin-blog__editor-layout">
+          <section className="admin-blog__panel">
+            <h2>Category</h2>
+            <div className="admin-blog__category-grid">
+              {BLOG_CATEGORIES.map((category) => {
+                const Icon = categoryIcons[category.value] || FileText
+                const isActive = formData.category === category.value
+
                 return (
                   <label
-                    key={cat.value}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '1rem',
-                      border: `2px solid ${formData.category === cat.value ? '#5a4494' : '#e5e7eb'}`,
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                      background: formData.category === cat.value ? '#5a449408' : 'transparent'
-                    }}
+                    key={category.value}
+                    className={`admin-blog__category-option ${isActive ? 'is-active' : ''}`}
                   >
                     <input
-                      type='radio'
-                      name='category'
-                      value={cat.value}
-                      checked={formData.category === cat.value}
+                      type="radio"
+                      name="category"
+                      value={category.value}
+                      checked={isActive}
                       onChange={handleChange}
-                      style={{ display: 'none' }}
                     />
-                    <Icon size={22} color={formData.category === cat.value ? '#5a4494' : '#6b7280'} />
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: formData.category === cat.value ? '#5a4494' : '#6b7280' }}>
-                      {cat.label}
-                    </span>
+                    <Icon size={20} />
+                    <span>{category.label}</span>
                   </label>
                 )
               })}
             </div>
+          </section>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-              <input
-                type='text'
-                name='title'
-                value={formData.title}
-                onChange={handleChange}
-                required
-                placeholder='Post title'
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem'
-                }}
-              />
-              <input
-                type='text'
-                name='author'
-                value={formData.author}
-                onChange={handleChange}
-                required
-                placeholder='Author'
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem'
-                }}
-              />
+          <section className="admin-blog__panel">
+            <h2>Post Details</h2>
+            <div className="admin-blog__field-grid admin-blog__field-grid--details">
+              <label className="admin-blog__field">
+                <span>Title</span>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter post title"
+                />
+              </label>
+
+              <label className="admin-blog__field">
+                <span>Author</span>
+                <input
+                  type="text"
+                  name="author"
+                  value={formData.author}
+                  onChange={handleChange}
+                  required
+                  placeholder="Author name"
+                />
+              </label>
+
+              <label className="admin-blog__field admin-blog__field--full">
+                <span>Cover Image URL</span>
+                <input
+                  type="text"
+                  name="image"
+                  value={formData.image}
+                  onChange={handleChange}
+                  placeholder="/assets/media/events/images/teens_summit2026.png"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="admin-blog__panel">
+            <h2>Content</h2>
+            <div className="admin-blog__field-grid">
+              <label className="admin-blog__field admin-blog__field--full">
+                <span>Excerpt</span>
+                <textarea
+                  name="excerpt"
+                  value={formData.excerpt}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="Short summary of the post"
+                />
+              </label>
+
+              <label className="admin-blog__field admin-blog__field--full">
+                <span>Main Content</span>
+                <textarea
+                  name="content"
+                  value={formData.content}
+                  onChange={handleChange}
+                  required
+                  rows={12}
+                  placeholder="Write your post content"
+                  className="admin-blog__content-input"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="admin-blog__panel">
+            <h2>Tags & Publishing</h2>
+            <div className="admin-blog__field-grid admin-blog__field-grid--publish">
+              <label className="admin-blog__field">
+                <span>Tags (comma separated)</span>
+                <input
+                  type="text"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleChange}
+                  placeholder="faith, prayer, youth"
+                />
+              </label>
+
+              <label className="admin-blog__field">
+                <span>Status</span>
+                <select name="status" value={formData.status} onChange={handleChange}>
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </label>
             </div>
 
-            <textarea
-              name='excerpt'
-              value={formData.excerpt}
-              onChange={handleChange}
-              rows={2}
-              placeholder='Excerpt'
-              style={{
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '1rem'
-              }}
-            />
-
-            <textarea
-              name='content'
-              value={formData.content}
-              onChange={handleChange}
-              required
-              rows={12}
-              placeholder='Write your content here... (Markdown supported)'
-              style={{
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-                resize: 'vertical',
-                fontFamily: 'monospace'
-              }}
-            />
-
-            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '1rem' }}>
+            <label className="admin-blog__checkbox">
               <input
-                type='text'
-                name='tags'
-                value={formData.tags}
-                onChange={handleChange}
-                placeholder='faith, prayer, youth'
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem'
-                }}
-              />
-              <select
-                name='status'
-                value={formData.status}
-                onChange={handleChange}
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem'
-                }}
-              >
-                <option value='published'>Published</option>
-                <option value='draft'>Draft</option>
-              </select>
-            </div>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#374151' }}>
-              <input
-                type='checkbox'
-                name='featured'
+                type="checkbox"
+                name="featured"
                 checked={formData.featured}
                 onChange={handleChange}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
-              Feature this post on homepage
+              <span>Feature this post on the public blog</span>
             </label>
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                type='submit'
-                style={{
-                  padding: '0.75rem 2rem',
-                  background: '#d4a82e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
+            {formTags.length > 0 && (
+              <div className="admin-blog__tag-preview" aria-label="Tag preview">
+                {formTags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
+            )}
+
+            <div className="admin-blog__editor-actions">
+              <button type="submit" className="admin-blog__primary-btn">
                 {view === 'create' ? 'Publish Post' : 'Update Post'}
               </button>
-              <button
-                type='button'
-                onClick={handleSaveDraft}
-                style={{
-                  padding: '0.75rem 2rem',
-                  background: 'white',
-                  color: '#6b7280',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
+
+              <button type="button" onClick={handleSaveDraft} className="admin-blog__secondary-btn">
                 Save Draft
               </button>
-              <button
-                type='button'
-                onClick={resetForm}
-                style={{
-                  padding: '0.75rem 2rem',
-                  background: 'white',
-                  color: '#374151',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
+
+              <button type="button" onClick={resetForm} className="admin-blog__ghost-btn">
                 Cancel
               </button>
             </div>
-          </form>
-        </div>
+          </section>
+
+          <aside className="admin-blog__panel admin-blog__panel--preview">
+            <div className="admin-blog__preview-head">
+              <Sparkles size={18} />
+              <h2>Live Preview</h2>
+            </div>
+
+            <div className="admin-blog__preview-card">
+              <div className="admin-blog__preview-image-wrap">
+                {previewImage ? (
+                  <img src={previewImage} alt="Post cover preview" className="admin-blog__preview-image" />
+                ) : (
+                  <div className="admin-blog__preview-image-fallback">Cover image preview</div>
+                )}
+
+                <span className="admin-blog__preview-category">{formatBlogCategory(formData.category)}</span>
+                <span className={`admin-blog__preview-status admin-blog__preview-status--${formData.status}`}>
+                  {formData.status}
+                </span>
+              </div>
+
+              <div className="admin-blog__preview-body">
+                <h3>{formData.title.trim() || 'Your title will appear here'}</h3>
+                <p>{previewText}</p>
+
+                {formTags.length > 0 && (
+                  <div className="admin-blog__preview-tags">
+                    {formTags.slice(0, 4).map((tag) => (
+                      <span key={`preview-${tag}`}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="admin-blog__preview-meta">
+                  <span>By {formData.author.trim() || 'Author name'}</span>
+                  <span>{estimateReadTime(formData.content)} min read</span>
+                  <span>{contentWordCount} words</span>
+                </div>
+
+                <div className="admin-blog__preview-foot">
+                  <strong>Body Preview</strong>
+                  <p>{previewBody || 'Start writing content to preview paragraph flow and rhythm.'}</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </form>
       </div>
     )
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div className="admin-blog">
+      {notice && <div className={`admin-blog__notice admin-blog__notice--${notice.tone}`}>{notice.text}</div>}
+
+      <div className="admin-blog__head">
         <div>
-          <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: '#111827' }}>
-            Blog Management
-          </h1>
-          <p style={{ margin: 0, color: '#6b7280' }}>
-            {posts.length} total posts
-          </p>
+          <h1>Blog Management</h1>
+          <p>Create, update, and publish church blog content.</p>
         </div>
-        <button
-          onClick={() => setView('create')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: '#d4a82e',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer'
-          }}
-        >
-          New Post
+        <button type="button" onClick={openCreate} className="admin-blog__primary-btn">
+          <Plus size={16} />
+          <span>New Post</span>
         </button>
       </div>
 
-      <div style={{
-        background: 'white',
-        padding: '1.5rem',
-        borderRadius: '0.75rem',
-        border: '1px solid #e5e7eb',
-        marginBottom: '1.5rem'
-      }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-            <input
-              type='text'
-              placeholder='Search posts...'
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.75rem 0.75rem 0.75rem 2.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem'
-              }}
-            />
-          </div>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            style={{
-              padding: '0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem'
-            }}
-          >
-            <option value='all'>All Categories</option>
-            <option value='article'>Article</option>
-            <option value='devotional'>Devotional</option>
-            <option value='sunday-school'>Sunday School</option>
-            <option value='testimony'>Testimony</option>
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              padding: '0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem'
-            }}
-          >
-            <option value='all'>All Status</option>
-            <option value='published'>Published</option>
-            <option value='draft'>Draft</option>
-          </select>
-        </div>
+      <div className="admin-blog__stats-grid">
+        <article className="admin-blog__stat-card">
+          <span>Total Posts</span>
+          <strong>{stats.total}</strong>
+        </article>
+        <article className="admin-blog__stat-card">
+          <span>Published</span>
+          <strong>{stats.published}</strong>
+        </article>
+        <article className="admin-blog__stat-card">
+          <span>Drafts</span>
+          <strong>{stats.drafts}</strong>
+        </article>
+        <article className="admin-blog__stat-card">
+          <span>Featured</span>
+          <strong>{stats.featured}</strong>
+        </article>
       </div>
 
-      <div style={{ display: 'grid', gap: '1rem' }}>
+      <section className="admin-blog__panel">
+        <div className="admin-blog__filters">
+          <label className="admin-blog__search">
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Search posts by title, author, or tag"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </label>
+
+          <select value={filterCategory} onChange={(event) => setFilterCategory(event.target.value)}>
+            <option value="all">All Categories</option>
+            {BLOG_CATEGORIES.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </select>
+
+          <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
+            <option value="all">All Status</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+          </select>
+        </div>
+      </section>
+
+      <div className="admin-blog__post-list">
         {filteredPosts.map((post) => {
-          const categoryMeta = categories.find((cat) => cat.value === post.category)
-          const CategoryIcon = categoryMeta?.icon || FileText
+          const Icon = categoryIcons[post.category] || FileText
+          const tags = getTagList(post.tags)
 
           return (
-            <div key={post.id} style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <CategoryIcon size={16} color='#6b7280' />
-                    <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'capitalize' }}>{post.category}</span>
-                    <span style={{ fontSize: '0.75rem', color: post.status === 'published' ? '#065f46' : '#92400e', background: post.status === 'published' ? '#d1fae5' : '#fef3c7', padding: '0.2rem 0.5rem', borderRadius: '999px' }}>
-                      {post.status}
+            <article key={post.id} className="admin-blog__post-card">
+              <div className="admin-blog__post-main">
+                <div className="admin-blog__post-meta-top">
+                  <span className="admin-blog__post-category">
+                    <Icon size={14} />
+                    {formatBlogCategory(post.category)}
+                  </span>
+                  <span className={`admin-blog__status-pill admin-blog__status-pill--${post.status}`}>
+                    {post.status}
+                  </span>
+                  {post.featured && (
+                    <span className="admin-blog__featured-pill">
+                      <Star size={12} /> Featured
                     </span>
-                    {post.featured && <Star size={14} color='#d4a82e' fill='#d4a82e' />}
-                  </div>
-                  <h3 style={{ margin: '0 0 0.35rem', color: '#111827' }}>{post.title}</h3>
-                  <p style={{ margin: '0 0 0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>{post.excerpt || 'No excerpt provided.'}</p>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                    By {post.author} • {new Date(post.createdAt).toLocaleDateString()} • Tags: {post.tags || 'none'}
-                  </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
-                  <button
-                    onClick={() => handleEdit(post)}
-                    style={{
-                      padding: '0.5rem',
-                      border: 'none',
-                      borderRadius: '0.375rem',
-                      background: '#f3f4f6',
-                      color: '#374151',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem'
-                    }}
-                  >
-                    <Edit2 size={14} /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(post.id)}
-                    style={{
-                      padding: '0.5rem',
-                      border: 'none',
-                      borderRadius: '0.375rem',
-                      background: '#fee2e2',
-                      color: '#991b1b',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem'
-                    }}
-                  >
-                    <Trash2 size={14} /> Delete
-                  </button>
+
+                <h3>{post.title}</h3>
+                <p>{post.excerpt || 'No excerpt provided.'}</p>
+
+                <div className="admin-blog__post-meta-bottom">
+                  <span>By {post.author}</span>
+                  <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                  <span>{estimateReadTime(post.content)} min read</span>
                 </div>
+
+                {tags.length > 0 && (
+                  <div className="admin-blog__tag-preview">
+                    {tags.map((tag) => (
+                      <span key={`${post.id}-${tag}`}>{tag}</span>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+
+              <div className="admin-blog__post-actions">
+                <button type="button" onClick={() => handleEdit(post)} className="admin-blog__icon-btn">
+                  <Edit2 size={14} />
+                  <span>Edit</span>
+                </button>
+
+                {post.status === 'draft' && (
+                  <button
+                    type="button"
+                    onClick={() => handleQuickPublish(post)}
+                    className="admin-blog__icon-btn admin-blog__icon-btn--publish"
+                  >
+                    <Sparkles size={14} />
+                    <span>Publish</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(post.id)}
+                  className="admin-blog__icon-btn admin-blog__icon-btn--danger"
+                >
+                  <Trash2 size={14} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </article>
           )
         })}
       </div>
 
       {filteredPosts.length === 0 && (
-        <div style={{
-          background: 'white',
-          borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb',
-          padding: '2rem',
-          textAlign: 'center',
-          color: '#9ca3af'
-        }}>
-          No posts match your filter.
+        <div className="admin-blog__empty">
+          <h3>No posts match your filters.</h3>
+          <p>Adjust search or filter options, or create a new post.</p>
+          <button type="button" onClick={openCreate} className="admin-blog__primary-btn">
+            Create Post
+          </button>
         </div>
       )}
     </div>

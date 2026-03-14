@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Button, SectionHeader, Card } from '../../components/common'
 import { subscribeVisitor, hasSubscribed } from '../../utils/subscribeApi'
@@ -193,7 +193,7 @@ const SocialMedia = () => {
         <SectionHeader
           tag="Stay Connected"
           title="Follow Us Online"
-          subtitle="Join our online community and stay updated with the latest from Upper Room."
+          subtitle="Join our online community and stay updated with the latest from upperroom."
           light
         />
         <div className="social-section__grid">
@@ -220,6 +220,7 @@ const SocialMedia = () => {
 
 // Main Home Page
 const Home = () => {
+  const location = useLocation()
   const [showNewsletter, setShowNewsletter] = useState(false)
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -227,6 +228,14 @@ const Home = () => {
   const [statusMessage, setStatusMessage] = useState('')
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search)
+
+    // If the URL explicitly requests the newsletter, show it immediately.
+    if (params.get('subscribe') === 'true' && !hasSubscribed()) {
+      setShowNewsletter(true)
+      sessionStorage.setItem('newsletterModalShown', 'true')
+    }
+
     // Never show popup if this browser/device already subscribed
     if (hasSubscribed()) return
 
@@ -257,7 +266,7 @@ const Home = () => {
       clearTimeout(timeoutId)
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [])
+  }, [location.search])
 
   const handleCloseNewsletter = () => {
     setShowNewsletter(false)
@@ -291,7 +300,7 @@ const Home = () => {
   }
 
   return (
-    <>
+    <main className="home-page">
       {/* Newsletter Modal — only renders if not already subscribed */}
       {showNewsletter && (
         <div className="newsletter-modal-overlay" onClick={handleCloseNewsletter}>
@@ -363,7 +372,7 @@ const Home = () => {
       <FoursquareIcons />
       <Testimonials />
       <SocialMedia />
-    </>
+    </main>
   )
 }
 

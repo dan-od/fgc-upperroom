@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Header, Footer, ScrollToTop } from './components/layout'
 
 // Pages
@@ -12,9 +13,38 @@ import Contact from './pages/Contact/Contact'
 import Testimonies from './pages/Testimonies/Testimonies'
 import Admin from './pages/Admin/Admin'
 
+const DEFAULT_HERO_PRIMARY = 'var(--cup-blue)'
+
+const resolveHeroPrimary = () => {
+  const pageRoot = document.querySelector('main[class*="-page"], main.admin-main')
+  if (!pageRoot) return null
+
+  const heroPrimary = getComputedStyle(pageRoot).getPropertyValue('--hero-primary').trim()
+  return heroPrimary || null
+}
+
+const RouteScrollbarTheme = () => {
+  const location = useLocation()
+
+  useEffect(() => {
+    const applyHeroPrimary = () => {
+      const heroPrimary = resolveHeroPrimary() || DEFAULT_HERO_PRIMARY
+      document.documentElement.style.setProperty('--hero-primary', heroPrimary)
+    }
+
+    applyHeroPrimary()
+    const rafId = requestAnimationFrame(applyHeroPrimary)
+
+    return () => cancelAnimationFrame(rafId)
+  }, [location.pathname])
+
+  return null
+}
+
 function App() {
   return (
     <BrowserRouter basename="/fgc-testing/">
+      <RouteScrollbarTheme />
       <ScrollToTop />
       <Routes>
         {/* Admin Route - No Header/Footer */}
