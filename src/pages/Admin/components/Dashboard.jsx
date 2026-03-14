@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Calendar, Image, FileText, TrendingUp, Users, ArrowRight } from 'lucide-react'
+import { ArrowRight, Calendar, FileText, Heart, Image, TrendingUp, Users } from 'lucide-react'
 
 const Dashboard = ({ onNavigate }) => {
   const [counts, setCounts] = useState({
     events: 0,
     media: 0,
     blog: 0,
+    testimonies: 0,
     visitors: 0
   })
 
@@ -25,6 +26,7 @@ const Dashboard = ({ onNavigate }) => {
       events: readArrayCount('admin_events'),
       media: readArrayCount('admin_media'),
       blog: readArrayCount('admin_blog_posts'),
+      testimonies: readArrayCount('admin_testimonies'),
       visitors: readArrayCount('admin_visitors')
     })
   }, [])
@@ -33,6 +35,7 @@ const Dashboard = ({ onNavigate }) => {
     { label: 'Total Events', value: String(counts.events), icon: Calendar, color: '#5a4494', link: 'events' },
     { label: 'Media Items', value: String(counts.media), icon: Image, color: '#2d3a7a', link: 'media' },
     { label: 'Blog Posts', value: String(counts.blog), icon: FileText, color: '#d4a82e', link: 'blog' },
+    { label: 'Testimonies', value: String(counts.testimonies), icon: Heart, color: '#e11d48', link: 'testimonies' },
     { label: 'Visitors', value: String(counts.visitors), icon: Users, color: '#10b981', link: 'visitors' }
   ]
 
@@ -200,6 +203,25 @@ const Dashboard = ({ onNavigate }) => {
             >
               New Blog Post
               <FileText size={16} />
+            </button>
+            <button
+              onClick={() => onNavigate('testimonies')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#e11d48',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              Add Testimony
+              <Heart size={16} />
             </button>
             <button
               onClick={() => onNavigate('analytics')}

@@ -102,6 +102,14 @@
   margin-top: var(--space-2xl);
 }
 
+.hero__content:has(.countdown__split) .hero__actions {
+  margin-top: var(--space-md);
+}
+
+.hero__content:has(.countdown__split) {
+  padding-bottom: calc(var(--space-lg) + 22px);
+}
+
 .hero__scroll {
   position: absolute;
   bottom: var(--space-xl);
@@ -114,6 +122,17 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+.hero:has(.countdown__split) .hero__scroll {
+  bottom: 18px;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.hero:has(.countdown__split) .hero__scroll-line {
+  height: 32px;
+  margin-top: 6px;
 }
 
 .hero__scroll-line {

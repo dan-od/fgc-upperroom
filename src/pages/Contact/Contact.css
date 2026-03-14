@@ -2,6 +2,7 @@
 
 .contact-page {
   padding-top: 70px;
+  --hero-primary: var(--cross-red);
 }
 
 .contact-section {

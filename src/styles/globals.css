@@ -5,6 +5,27 @@
 
 @import './variables.css';
 
+:root {
+  --hero-primary: var(--cup-blue);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hero-primary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--hero-primary) 85%, black);
+}
+
 /* Reset */
 *, *::before, *::after {
   margin: 0;
@@ -16,6 +37,8 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 80px;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hero-primary) transparent;
 }
 
 body {
