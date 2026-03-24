@@ -259,7 +259,7 @@ export const findPotentialVisitorDuplicates = async ({ name, email, phoneNumber,
 
   const params = [normalizedPhone || null, normalizedEmail || null, normalizedNameKey || null]
   const where = [
-    '(($1 IS NOT NULL AND phone_number = $1) OR ($2 IS NOT NULL AND email = $2) OR ($3 IS NOT NULL AND normalized_name = $3))'
+    '(($1::text IS NOT NULL AND phone_number = $1::text) OR ($2::text IS NOT NULL AND email = $2::text) OR ($3::text IS NOT NULL AND normalized_name = $3::text))'
   ]
 
   if (excludeVisitorId) {
