@@ -6,7 +6,7 @@ import './Header.css'
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { language, setLanguage, languages, t } = useI18n()
+  const { t } = useI18n()
   const location = useLocation()
   const navRef = useRef(null)
   const toggleRef = useRef(null)
@@ -96,23 +96,6 @@ const Header = () => {
               {link.label}
             </Link>
           ))}
-          <div className="header__lang-mobile">
-            <label className="sr-only" htmlFor="header-language-mobile">
-              {t('header.languageLabel', 'Language')}
-            </label>
-            <select
-              id="header-language-mobile"
-              className="header__lang-select"
-              value={language}
-              onChange={(event) => setLanguage(event.target.value)}
-            >
-              {languages.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
         </nav>
 
         {mobileMenuOpen && (
@@ -123,24 +106,6 @@ const Header = () => {
             onClick={() => setMobileMenuOpen(false)}
           />
         )}
-
-        <div className="header__lang-desktop">
-          <label className="sr-only" htmlFor="header-language-desktop">
-            {t('header.languageLabel', 'Language')}
-          </label>
-          <select
-            id="header-language-desktop"
-            className="header__lang-select"
-            value={language}
-            onChange={(event) => setLanguage(event.target.value)}
-          >
-            {languages.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </div>
 
         <button
           ref={toggleRef}

@@ -233,6 +233,119 @@
   line-height: 1.5;
 }
 
+.footer__language-switcher {
+  position: relative;
+  margin-top: 16px;
+}
+
+.footer__language-label {
+  margin: 0 0 8px;
+  color: #d6dbe4;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.footer__language-trigger {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05)),
+    rgba(20, 25, 32, 0.92);
+  color: #edf1f7;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.footer__language-trigger:hover {
+  border-color: rgba(212, 168, 46, 0.6);
+  transform: translateY(-1px);
+}
+
+.footer__language-trigger:focus-visible {
+  outline: none;
+  border-color: rgba(212, 168, 46, 0.82);
+  box-shadow: 0 0 0 2px rgba(212, 168, 46, 0.22);
+}
+
+.footer__language-trigger--open {
+  border-color: rgba(212, 168, 46, 0.72);
+}
+
+.footer__language-trigger-value {
+  flex: 1;
+  text-align: left;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.footer__language-trigger-code {
+  border-radius: var(--radius-full);
+  background: rgba(212, 168, 46, 0.16);
+  color: #f2d889;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.5rem;
+}
+
+.footer__language-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #181d25;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  margin: 0;
+  z-index: 5;
+}
+
+.footer__language-option {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: transparent;
+  color: #c7ced8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.footer__language-option small {
+  color: #9da8b7;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+
+.footer__language-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.footer__language-option:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.footer__language-option--active {
+  background: rgba(212, 168, 46, 0.18);
+  color: #f2d889;
+}
+
 .footer__socials {
   display: flex;
   gap: 12px;

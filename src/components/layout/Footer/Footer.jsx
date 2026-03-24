@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../common/SocialIcons'
 import { subscribeEmail } from '../../../utils/newsletterApi'
@@ -6,11 +6,14 @@ import { useI18n } from '../../../i18n/LanguageContext'
 import './Footer.css'
 
 const Footer = () => {
-  const { t } = useI18n()
+  const { t, language, setLanguage, languages } = useI18n()
   const [newsletterForm, setNewsletterForm] = useState({ name: '', email: '' })
   const [newsletterStatus, setNewsletterStatus] = useState(null)
   const [newsletterMessage, setNewsletterMessage] = useState('')
   const [newsletterSubmitting, setNewsletterSubmitting] = useState(false)
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false)
+  const languageMenuRef = useRef(null)
+  const languageTriggerRef = useRef(null)
 
   const quickLinks = [
     { path: '/', label: t('header.nav.home', 'Home') },
@@ -77,6 +80,39 @@ const Footer = () => {
     } finally {
       setNewsletterSubmitting(false)
     }
+  }
+
+  useEffect(() => {
+    if (!isLanguageMenuOpen) return undefined
+
+    const handleClickOutside = (event) => {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+        setIsLanguageMenuOpen(false)
+      }
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsLanguageMenuOpen(false)
+        languageTriggerRef.current?.focus()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isLanguageMenuOpen])
+
+  const activeLanguage = languages.find((item) => item.code === language) || languages[0]
+
+  const handleLanguageSelect = (nextLanguage) => {
+    setLanguage(nextLanguage)
+    setIsLanguageMenuOpen(false)
+    languageTriggerRef.current?.focus()
   }
 
   return (
@@ -228,6 +264,42 @@ const Footer = () => {
                 <p className="footer__address-line">{t('footer.addressLine1', '36 Shell Location Road, Mgbuoba')}</p>
                 <p className="footer__address-line">{t('footer.addressLine2', 'Port Harcourt, Rivers State, Nigeria')}</p>
               </div>
+            </div>
+
+            <div className="footer__language-switcher" ref={languageMenuRef}>
+              <p className="footer__language-label">{t('footer.languageLabel', 'Language')}</p>
+              <button
+                ref={languageTriggerRef}
+                type="button"
+                className={`footer__language-trigger ${isLanguageMenuOpen ? 'footer__language-trigger--open' : ''}`}
+                aria-haspopup="listbox"
+                aria-expanded={isLanguageMenuOpen}
+                aria-label={t('footer.languageLabel', 'Language')}
+                onClick={() => setIsLanguageMenuOpen((prev) => !prev)}
+              >
+                <span className="footer__language-trigger-value">{activeLanguage?.label || 'English'}</span>
+                <span className="footer__language-trigger-code">{String(activeLanguage?.code || 'en').toUpperCase()}</span>
+                <i className="fa-solid fa-chevron-down" aria-hidden="true"></i>
+              </button>
+
+              {isLanguageMenuOpen ? (
+                <ul className="footer__language-menu" role="listbox" aria-label={t('footer.languageLabel', 'Language')}>
+                  {languages.map((item) => (
+                    <li key={item.code}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={language === item.code}
+                        className={`footer__language-option ${language === item.code ? 'footer__language-option--active' : ''}`}
+                        onClick={() => handleLanguageSelect(item.code)}
+                      >
+                        <span>{item.label}</span>
+                        <small>{item.code.toUpperCase()}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </section>
         </div>
