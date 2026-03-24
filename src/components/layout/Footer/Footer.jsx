@@ -1,62 +1,122 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../common/SocialIcons'
+import { subscribeEmail } from '../../../utils/newsletterApi'
+import { useI18n } from '../../../i18n/LanguageContext'
 import './Footer.css'
 
 const Footer = () => {
+  const { t } = useI18n()
+  const [newsletterForm, setNewsletterForm] = useState({ name: '', email: '' })
+  const [newsletterStatus, setNewsletterStatus] = useState(null)
+  const [newsletterMessage, setNewsletterMessage] = useState('')
+  const [newsletterSubmitting, setNewsletterSubmitting] = useState(false)
+
   const quickLinks = [
-    { path: '/', label: 'Home' },
-    { path: '/about', label: 'About' },
-    { path: '/team', label: 'Our Team' },
-    { path: '/events', label: 'Events' },
-    { path: '/contact', label: 'Contact' },
+    { path: '/', label: t('header.nav.home', 'Home') },
+    { path: '/about', label: t('header.nav.about', 'About') },
+    { path: '/team', label: t('header.nav.team', 'Team') },
+    { path: '/events', label: t('header.nav.events', 'Events') },
+    { path: '/contact', label: t('header.nav.contact', 'Contact') }
   ]
 
   const resources = [
-    { path: '/media', label: 'Media' },
+    { path: '/media', label: t('header.nav.media', 'Media') },
     { path: '/testimonies', label: 'Testimonies' },
-    { path: '/blog', label: 'Blog' },
-    { path: '/contact', label: 'Prayer Request' },
-  ]
-
-  const serviceTimes = [
-    '1st Sunday: Worship Service — 7:30 AM',
-    'Other Sundays: Youth Service — 8:00 AM',
-    'Wednesday: 5:00 PM (Coming Soon)',
+    { path: '/blog', label: t('header.nav.blog', 'Blog') },
+    { path: '/contact', label: 'Prayer Request' }
   ]
 
   const socialLinks = [
     { Icon: FacebookIcon, label: 'Facebook', url: 'https://web.facebook.com/profile.php?id=61587147628624' },
     { Icon: InstagramIcon, label: 'Instagram', url: 'https://www.instagram.com/theupperroom_4sq/' },
     { Icon: YoutubeIcon, label: 'YouTube', url: 'https://youtube.com/@theupperroom_4sq?si=mDSHkd21JpLiDmwC' },
-    { Icon: TikTokIcon, label: 'TikTok', url: 'https://tiktok.com/@theupperroom_4sq' },
     { Icon: TwitterIcon, label: 'X', url: 'https://x.com/Upperroom_4sq' },
+    { Icon: TikTokIcon, label: 'TikTok', url: 'https://www.tiktok.com/@theupperroom_4sq' }
   ]
+
+  const handleNewsletterChange = (e) => {
+    const { name, value } = e.target
+    setNewsletterForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleNewsletterSubmit = async (e) => {
+    e.preventDefault()
+    setNewsletterStatus(null)
+
+    const name = newsletterForm.name.trim()
+    const email = newsletterForm.email.trim()
+    if (!name || !email) {
+      setNewsletterStatus('error')
+      setNewsletterMessage(t('footer.subscribeErrorMissing', 'Please enter your name and email address.'))
+      return
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailPattern.test(email)) {
+      setNewsletterStatus('error')
+      setNewsletterMessage(t('footer.subscribeErrorInvalidEmail', 'Enter a valid email address.'))
+      return
+    }
+
+    setNewsletterSubmitting(true)
+
+    try {
+      const result = await subscribeEmail({
+        name,
+        email,
+        source: 'footer-newsletter'
+      })
+
+      setNewsletterStatus('success')
+      setNewsletterMessage(result?.message || t('footer.subscribeSuccessFallback', 'You are subscribed for event email updates.'))
+      setNewsletterForm({ name: '', email: '' })
+    } catch {
+      setNewsletterStatus('error')
+      setNewsletterMessage(t('footer.subscribeErrorFallback', 'Unable to subscribe right now. Please try again shortly.'))
+    } finally {
+      setNewsletterSubmitting(false)
+    }
+  }
 
   return (
     <footer className="footer">
       <div className="container">
-        <div className="footer__grid">
-          <div className="footer__grid-left">
-            <div className="footer__about">
-              <div className="footer__logo">
-                <img src="./assets/logos/logo-white.png" alt="Foursquare Logo" className="footer__brand-mark" />
-                <span className="footer__brand-divider" aria-hidden="true"></span>
-                <div className="footer__brand-text">
-                  <picture>
-                    <source media="(min-width: 769px)" srcSet="./assets/logos/upper_left_align_white.png" />
-                    <img src="./assets/logos/upper_white.png" alt="Upperroom Mgbuoba" className="footer__brand-wordmark" />
-                  </picture>
-                  <span>Raising Kingdom Youths!</span>
-                </div>
-              </div>
-              <p>
-                A vibrant youth fellowship under the Foursquare Gospel Church, 
-                Mgbuoba Zonal HQ. Raising young people who know God and make Him known.
-              </p>
+        <div className="footer__main">
+          <section className="footer__brand-column">
+            <div className="footer__symbol-row" aria-label="Foursquare symbols">
+              <img src="./assets/icons/icon-cross.png" alt="Cross symbol" className="footer__symbol" />
+              <img src="./assets/icons/icon-dove.png" alt="Dove symbol" className="footer__symbol" />
+              <img src="./assets/icons/icon-cup.png" alt="Cup symbol" className="footer__symbol" />
+              <img src="./assets/icons/icon-crown.png" alt="Crown symbol" className="footer__symbol" />
             </div>
+            <p className="footer__church-name">{t('footer.churchName', 'THE FOURSQUARE CHURCH')}</p>
+            <span className="footer__line" aria-hidden="true"></span>
+            <img src="./assets/logos/upper_left_align_white.png" alt="The Upperroom" className="footer__wordmark" />
+            <p className="footer__tagline">{t('footer.tagline', 'Raising Kingdom Youths!')}</p>
+            <p className="footer__description">
+              {t('footer.description', 'A vibrant youth fellowship under the Foursquare Gospel Church, Mgbuoba Zonal HQ. Raising young people who know God and make Him known.')}
+            </p>
 
+            <div className="footer__socials">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.url}
+                  className="footer__social"
+                  title={social.label}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <social.Icon size={18} />
+                </a>
+              ))}
+            </div>
+          </section>
+
+          <section className="footer__menu-column">
             <div className="footer__section">
-              <h4>Quick Links</h4>
+              <h4>{t('footer.quickLinks', 'Quick Links')}</h4>
               <ul>
                 {quickLinks.map((link) => (
                   <li key={link.path}>
@@ -67,7 +127,7 @@ const Footer = () => {
             </div>
 
             <div className="footer__section">
-              <h4>Resources</h4>
+              <h4>{t('footer.resources', 'Resources')}</h4>
               <ul>
                 {resources.map((link) => (
                   <li key={link.label}>
@@ -76,58 +136,107 @@ const Footer = () => {
                 ))}
               </ul>
             </div>
+          </section>
 
+          <section className="footer__service-column">
             <div className="footer__section">
-              <h4>Service Times</h4>
-              <ul>
-                {serviceTimes.map((time, index) => (
-                  <li key={index} className="footer__time">{time}</li>
-                ))}
+              <h4>{t('footer.serviceTimes', 'Service Times')}</h4>
+              <ul className="footer__service-times">
+                <li>
+                  <strong>{t('footer.firstSunday', '1st Sunday:')}</strong>
+                  <span>{t('footer.firstSundayTime', 'Communion Service - 7:30 AM')}</span>
+                </li>
+                <li>
+                  <strong>{t('footer.otherSundays', 'Other Sundays:')}</strong>
+                  <span>{t('footer.otherSundaysTime', 'Youth Service - 8:00 AM')}</span>
+                </li>
+                <li>
+                  <strong>{t('footer.wednesday', 'Wednesday:')}</strong>
+                  <span>{t('footer.wednesdayTime', '5:00 PM (Coming Soon)')}</span>
+                </li>
               </ul>
             </div>
-          </div>
 
-          <div className="footer__map">
-            <h4>Visit Us</h4>
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3967.1234567890123!2d7.0147!3d4.7731!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x107f3e5a5a5a5a5d%3A0x5a5a5a5a5a5a5a5!2s36%20Shell%20Location%20Rd%2C%20Mgbuoba%2C%20Port%20Harcourt!5e0!3m2!1sen!2sng!4v1234567890"
-              width="100%"
-              height="300"
-              style={{ border: 0, borderRadius: 'var(--radius-md)' }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            ></iframe>
-            <p className="footer__address">
-              36 Shell Location Road, Mgbuoba<br />
-              Port Harcourt, Rivers State, Nigeria
-            </p>
-          </div>
+            <div className="footer__newsletter">
+              <h4>{t('footer.emailUpdates', 'Email Updates')}</h4>
+              <p>{t('footer.emailUpdatesDesc', 'Get event communication and ministry updates by email.')}</p>
+              <form className="footer__newsletter-form" onSubmit={handleNewsletterSubmit}>
+                <label className="sr-only" htmlFor="footer-newsletter-name">{t('footer.yourName', 'Your name')}</label>
+                <input
+                  id="footer-newsletter-name"
+                  type="text"
+                  name="name"
+                  value={newsletterForm.name}
+                  onChange={handleNewsletterChange}
+                  className="footer__newsletter-input"
+                  placeholder={t('footer.yourName', 'Your name')}
+                  autoComplete="name"
+                  disabled={newsletterSubmitting}
+                  required
+                />
+                <label className="sr-only" htmlFor="footer-newsletter-email">{t('footer.emailAddress', 'Email address')}</label>
+                <input
+                  id="footer-newsletter-email"
+                  type="email"
+                  name="email"
+                  value={newsletterForm.email}
+                  onChange={handleNewsletterChange}
+                  className="footer__newsletter-input"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  disabled={newsletterSubmitting}
+                  required
+                />
+                <button
+                  type="submit"
+                  className="footer__newsletter-button"
+                  disabled={newsletterSubmitting}
+                >
+                  {newsletterSubmitting ? t('footer.saving', 'Saving...') : t('footer.subscribe', 'Subscribe')}
+                </button>
+              </form>
+              {newsletterStatus && (
+                <p
+                  className={`footer__newsletter-status footer__newsletter-status--${newsletterStatus}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {newsletterMessage}
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="footer__visit-column">
+            <h4>{t('footer.visitUs', 'Visit Us')}</h4>
+            <div className="footer__map-shell">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3967.1234567890123!2d7.0147!3d4.7731!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x107f3e5a5a5a5a5d%3A0x5a5a5a5a5a5a5a5!2s36%20Shell%20Location%20Rd%2C%20Mgbuoba%2C%20Port%20Harcourt!5e0!3m2!1sen!2sng!4v1234567890"
+                width="100%"
+                height="250"
+                style={{ border: 0 }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="FGC Upper Room map location"
+              ></iframe>
+            </div>
+            <div className="footer__address-wrap">
+              <i className="fa-solid fa-location-dot" aria-hidden="true"></i>
+              <div>
+                <p className="footer__address-title">{t('footer.addressTitle', 'Foursquare Gospel Church, Mgbuoba Zonal HQ')}</p>
+                <p className="footer__address-line">{t('footer.addressLine1', '36 Shell Location Road, Mgbuoba')}</p>
+                <p className="footer__address-line">{t('footer.addressLine2', 'Port Harcourt, Rivers State, Nigeria')}</p>
+              </div>
+            </div>
+          </section>
         </div>
 
         <div className="footer__bottom">
-          <div className="footer__socials">
-            {socialLinks.map((social) => (
-              <a 
-                key={social.label}
-                href={social.url}
-                className="footer__social"
-                title={social.label}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <social.Icon size={18} />
-              </a>
-            ))}
-          </div>
-          
-          <p className="footer__copyright">
-            © {new Date().getFullYear()} FGC Upper Room Mgbuoba. All rights reserved.
-          </p>
-          
           <p className="footer__scripture">
-            "Jesus Christ the same yesterday, and today, and forever." — Hebrews 13:8
+            {t('footer.scripture', '"Jesus Christ the same yesterday, and today, and forever."')} — Hebrews 13:8
           </p>
+          <p className="footer__copyright">© {new Date().getFullYear()} FGC Upper Room Mgbuoba. {t('footer.rightsReserved', 'All rights reserved.')}</p>
         </div>
       </div>
     </footer>

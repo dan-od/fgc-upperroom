@@ -21,6 +21,12 @@ const checks = {
   warnings: []
 }
 
+const isPlaceholderValue = (value) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return true
+  return /x{6,}/i.test(normalized) || /replace_me/i.test(normalized) || /your[_-]/i.test(normalized)
+}
+
 const checkDatabase = async () => {
   try {
     initDatabase()
@@ -72,7 +78,7 @@ const checkEnvironment = () => {
   }
 
   for (const key of recommended) {
-    if (env[key]) {
+    if (!isPlaceholderValue(env[key])) {
       checks.passed.push(`✓ ${key} is set`)
     } else {
       checks.warnings.push(`⚠ ${key} not set (stub mode will be used)`)

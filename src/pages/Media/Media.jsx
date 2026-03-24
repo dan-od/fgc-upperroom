@@ -8,6 +8,7 @@ import {
   Users,
   Calendar,
   Clock,
+  Search,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
@@ -23,6 +24,8 @@ import {
 import './Media.css'
 
 const ITEMS_PER_PAGE = 6
+const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+const toApiUrl = (path) => `${BASE_URL}${path}`
 
 const CATEGORIES = [
   { id: 'all', label: 'All Content', icon: Camera },
@@ -287,6 +290,7 @@ const Media = () => {
   const [activeDateFilter, setActiveDateFilter] = useState('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [apiSermons, setApiSermons] = useState([])
   const [adminMediaItems, setAdminMediaItems] = useState([])
   const [setupRequired, setSetupRequired] = useState(false)
@@ -297,24 +301,27 @@ const Media = () => {
   const [touchStart, setTouchStart] = useState(0)
 
   useEffect(() => {
-    const hydrateAdminMedia = () => {
-      setAdminMediaItems(readAdminMediaItems())
+    const hydrateAdminMedia = async () => {
+      const items = await readAdminMediaItems()
+      setAdminMediaItems(items)
+    }
+
+    const handleFocus = () => {
+      hydrateAdminMedia()
     }
 
     hydrateAdminMedia()
-    window.addEventListener('storage', hydrateAdminMedia)
-    window.addEventListener('focus', hydrateAdminMedia)
+    window.addEventListener('focus', handleFocus)
 
     return () => {
-      window.removeEventListener('storage', hydrateAdminMedia)
-      window.removeEventListener('focus', hydrateAdminMedia)
+      window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
   useEffect(() => {
     const fetchSermons = async () => {
       try {
-        const response = await fetch('/api/sermons')
+        const response = await fetch(toApiUrl('/api/sermons'))
         if (!response.ok) {
           setApiSermons([])
           return
@@ -419,6 +426,11 @@ const Media = () => {
 
   const filteredMediaItems = useMemo(() => {
     const now = Date.now()
+    const terms = String(searchQuery || '')
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
 
     return allMediaItems.filter((item) => {
       const categoryMatch = activeCategory === 'all'
@@ -426,6 +438,30 @@ const Media = () => {
         : getItemFilterCategory(item) === activeCategory
 
       if (!categoryMatch) {
+        return false
+      }
+
+      const dateValue = new Date(item.timestamp)
+      const isoDate = Number.isNaN(dateValue.getTime()) ? '' : dateValue.toISOString().slice(0, 10)
+      const readableDate = Number.isNaN(dateValue.getTime())
+        ? ''
+        : dateValue.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+
+      const searchIndex = [
+        item.title,
+        item.description,
+        item.keypoint,
+        item.speaker,
+        item.category,
+        isoDate,
+        readableDate
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      const searchMatch = terms.length === 0 || terms.every((term) => searchIndex.includes(term))
+      if (!searchMatch) {
         return false
       }
 
@@ -463,7 +499,7 @@ const Media = () => {
 
       return true
     })
-  }, [allMediaItems, activeCategory, activeDateFilter, startDate, endDate])
+  }, [allMediaItems, activeCategory, activeDateFilter, startDate, endDate, searchQuery])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -727,7 +763,7 @@ const Media = () => {
   }
 
   return (
-    <main className="media-page">
+    <main id="main-content" className="media-page">
       <section className="page-banner bg-purple">
         <div className="container">
           <h1>Media</h1>
@@ -740,6 +776,20 @@ const Media = () => {
           <SectionHeader tag="Gallery" title="Our Moments" subtitle="Capturing God's work in our midst" />
 
           <div className="media-filters-shell">
+            <div className="media-search-row">
+              <label className="media-search-input-wrap" htmlFor="media-search-input">
+                <Search className="media-search-icon" size={16} strokeWidth={1.8} aria-hidden="true" />
+                <input
+                  id="media-search-input"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search media by title, topic, speaker, or date..."
+                  aria-label="Search media"
+                />
+              </label>
+            </div>
+
             <div className="category-filters">
               {CATEGORIES.map((category) => {
                 const Icon = category.icon

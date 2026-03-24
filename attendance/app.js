@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 
 import attendanceRoutes from './routes/attendance.js'
-import { autoGenerateSundaySession } from './services/attendance.service.js'
+import { autoGenerateSundaySession, getSocialLinkRedirectTarget } from './services/attendance.service.js'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') })
 
@@ -16,6 +16,15 @@ app.use(express.json({ limit: '1mb' }))
 
 app.get('/attendance/health', (req, res) => {
   res.json({ status: 'ok', service: 'attendance', now: new Date().toISOString() })
+})
+
+app.get('/attendance/go/:socialKey', (req, res) => {
+  const result = getSocialLinkRedirectTarget({ socialKey: req.params.socialKey })
+  if (!result.ok) {
+    return res.status(result.status).send(result.payload.message || 'Social link not found.')
+  }
+
+  return res.redirect(result.status, result.targetUrl)
 })
 
 app.use('/attendance/api', attendanceRoutes)

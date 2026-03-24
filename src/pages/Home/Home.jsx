@@ -1,14 +1,15 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button, SectionHeader, Card } from '../../components/common'
 import { subscribeVisitor, hasSubscribed } from '../../utils/subscribeApi'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../components/common/SocialIcons'
-import { ServiceBar } from '../../components/layout'
+import ServiceBar from '../../components/layout/ServiceBar/ServiceBar'
 import { Countdown, FoursquareIcons, Testimonials } from '../../components/features'
+import { useI18n } from '../../i18n/LanguageContext'
 import './Home.css'
 
 // Hero Section
-const Hero = () => (
+const Hero = ({ t }) => (
   <section className="hero">
     <div className="hero__overlay" />
     <div className="hero__content">
@@ -19,21 +20,21 @@ const Hero = () => (
         <img src="./assets/icons/icon-crown.png" alt="Jesus the Coming King symbol" className="hero__logo-icon" />
       </div>
       <p className="hero__welcome">
-        Welcome to<br />
+        {t('home.heroWelcome', 'Welcome to')}<br />
         The
       </p>
       <img src="./assets/logos/upper_white.png" alt="Upperroom Mgbuoba" className="hero__title" />
-      <p className="hero__tagline">Raising Kingdom Youths!</p>
+      <p className="hero__tagline">{t('home.heroTagline', 'Raising Kingdom Youths!')}</p>
 
       <Countdown variant="hero" />
 
       <div className="hero__actions">
-        <Button href="#new-here" variant="white" size="lg">Join Us</Button>
-        <Button href="/about" variant="outline-light" size="lg">About Us</Button>
+        <Button href="#new-here" variant="white" size="lg">{t('home.joinUs', 'Join Us')}</Button>
+        <Button href="/about" variant="outline-light" size="lg">{t('home.aboutUs', 'About Us')}</Button>
       </div>
     </div>
     <div className="hero__scroll">
-      <span>Scroll</span>
+      <span>{t('home.scroll', 'Scroll')}</span>
       <div className="hero__scroll-line" />
     </div>
   </section>
@@ -45,7 +46,7 @@ const PastorWelcome = () => (
     <div className="container">
       <div className="pastor-welcome__grid">
         <div className="pastor-welcome__image">
-          <img src='assets/media/Senior Pastor.jpeg' alt="Pastor Photo" />
+          <img src='assets/media/pictures/Senior Pastor_Home.jpeg' alt="Pastor Photo" />
         </div>
         <div className="pastor-welcome__content">
           <span className="pastor-welcome__tag">From Our Senior Pastor</span>
@@ -220,12 +221,15 @@ const SocialMedia = () => {
 
 // Main Home Page
 const Home = () => {
+  const { t } = useI18n()
   const location = useLocation()
   const [showNewsletter, setShowNewsletter] = useState(false)
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState(null) // null | 'success' | 'error'
   const [statusMessage, setStatusMessage] = useState('')
+  const newsletterModalRef = useRef(null)
+  const newsletterModalCloseRef = useRef(null)
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -274,6 +278,56 @@ const Home = () => {
     setStatusMessage('')
   }
 
+  useEffect(() => {
+    if (!showNewsletter) {
+      document.body.classList.remove('modal-open')
+      return
+    }
+
+    document.body.classList.add('modal-open')
+
+    const focusTimer = window.setTimeout(() => {
+      newsletterModalCloseRef.current?.focus()
+    }, 40)
+
+    const handleModalKeydown = (event) => {
+      if (event.key === 'Escape') {
+        handleCloseNewsletter()
+        return
+      }
+
+      if (event.key !== 'Tab') {
+        return
+      }
+
+      const panel = newsletterModalRef.current
+      if (!panel) return
+
+      const focusable = panel.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusable.length) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleModalKeydown)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+      document.body.classList.remove('modal-open')
+      document.removeEventListener('keydown', handleModalKeydown)
+    }
+  }, [showNewsletter])
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -300,61 +354,83 @@ const Home = () => {
   }
 
   return (
-    <main className="home-page">
+    <main id="main-content" className="home-page">
       {/* Newsletter Modal — only renders if not already subscribed */}
       {showNewsletter && (
         <div className="newsletter-modal-overlay" onClick={handleCloseNewsletter}>
-          <div className="newsletter-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="newsletter-modal__close" onClick={handleCloseNewsletter}>
+          <div
+            ref={newsletterModalRef}
+            className="newsletter-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="newsletter-modal-title"
+          >
+            <button
+              ref={newsletterModalCloseRef}
+              className="newsletter-modal__close"
+              onClick={handleCloseNewsletter}
+              aria-label={t('home.closeNewsletterModal', 'Close newsletter sign-up modal')}
+            >
               <i className="fa-solid fa-xmark"></i>
             </button>
             <div className="newsletter-modal__content">
               {submitStatus === 'success' ? (
-                <div className="newsletter-modal__success">
+                <div className="newsletter-modal__success" aria-live="polite">
                   <i className="fa-solid fa-circle-check"></i>
-                  <h2>You&apos;re In!</h2>
+                  <h2 id="newsletter-modal-title">{t('home.newsletterSuccessTitle', "You're In!")}</h2>
                   <p>{statusMessage}</p>
                 </div>
               ) : (
                 <>
-                  <h2>Never Miss an Event</h2>
-                  <p>Get personalized WhatsApp messages about upcoming events and weekly services. Never miss out on what&apos;s happening at Upper Room!</p>
+                  <h2 id="newsletter-modal-title">{t('home.newsletterTitle', 'Never Miss an Event')}</h2>
+                  <p>{t('home.newsletterIntro', "Get personalized WhatsApp messages about upcoming events and weekly services. Never miss out on what's happening at Upper Room!")}</p>
                   {submitStatus === 'error' && (
-                    <p className="newsletter-modal__error">{statusMessage}</p>
+                    <p className="newsletter-modal__error" role="alert">{statusMessage}</p>
                   )}
                   <form className="newsletter-modal__form" onSubmit={handleSubscribe}>
+                    <label className="sr-only" htmlFor="home-newsletter-name">Full name</label>
                     <input
+                      id="home-newsletter-name"
                       type="text"
                       name="name"
-                      placeholder="Your Full Name"
+                      placeholder={t('home.newsletterNamePlaceholder', 'Your Full Name')}
                       className="newsletter-modal__input"
                       value={formData.name}
                       onChange={handleInputChange}
+                      autoComplete="name"
                       required
                       disabled={submitting}
                     />
+                    <label className="sr-only" htmlFor="home-newsletter-phone">WhatsApp number</label>
                     <input
+                      id="home-newsletter-phone"
                       type="tel"
                       name="phone"
-                      placeholder="WhatsApp Number (e.g., +234 8123456789)"
+                      placeholder={t('home.newsletterPhonePlaceholder', 'WhatsApp Number (e.g., +234 8123456789)')}
                       className="newsletter-modal__input"
                       value={formData.phone}
                       onChange={handleInputChange}
+                      inputMode="tel"
+                      autoComplete="tel"
                       required
                       disabled={submitting}
                     />
+                    <label className="sr-only" htmlFor="home-newsletter-email">Email address</label>
                     <input
+                      id="home-newsletter-email"
                       type="email"
                       name="email"
-                      placeholder="Your Email Address"
+                      placeholder={t('home.newsletterEmailPlaceholder', 'Your Email Address')}
                       className="newsletter-modal__input"
                       value={formData.email}
                       onChange={handleInputChange}
+                      autoComplete="email"
                       required
                       disabled={submitting}
                     />
                     <Button type="submit" variant="primary" size="lg" disabled={submitting}>
-                      {submitting ? 'Subscribing…' : 'Subscribe & Get Updates'}
+                      {submitting ? t('home.newsletterSubmitting', 'Subscribing...') : t('home.newsletterSubmit', 'Subscribe & Get Updates')}
                     </Button>
                   </form>
                 </>
@@ -364,7 +440,7 @@ const Home = () => {
         </div>
       )}
 
-      <Hero />
+      <Hero t={t} />
       <ServiceBar />
       <PastorWelcome />
       <WhatWeBelieve />

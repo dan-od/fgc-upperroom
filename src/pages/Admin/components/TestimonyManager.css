@@ -116,6 +116,12 @@
   font-style: italic;
 }
 
+.admin-testimony__meta {
+  margin: var(--space-md) 0 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
 .admin-testimony__actions {
   display: flex;
   flex-direction: column;
@@ -229,4 +235,67 @@
   display: flex;
   gap: var(--space-sm);
   flex-wrap: wrap;
+}
+
+.admin-dark .admin-testimony__head h1,
+.admin-dark .admin-testimony__editor-head h1,
+.admin-dark .admin-testimony__body h3 {
+  color: #e2e8f0;
+}
+
+.admin-dark .admin-testimony__head p,
+.admin-dark .admin-testimony__stat-card span,
+.admin-dark .admin-testimony__role,
+.admin-dark .admin-testimony__meta,
+.admin-dark .admin-testimony__empty,
+.admin-dark .admin-testimony__body blockquote {
+  color: #93a7c7;
+}
+
+.admin-dark .admin-testimony__stat-card,
+.admin-dark .admin-testimony__item {
+  background: linear-gradient(155deg, #1a2235, #172033);
+  border-color: #2a3550;
+}
+
+.admin-dark .admin-testimony__search {
+  background: #131b2e;
+  border-color: #3a4866;
+  color: #c3d4ef;
+}
+
+.admin-dark .admin-testimony__search input {
+  color: #e2e8f0;
+}
+
+.admin-dark .admin-testimony__search input::placeholder {
+  color: #7f93b3;
+}
+
+.admin-dark .admin-testimony__icon-btn,
+.admin-dark .admin-testimony__ghost-btn {
+  background: #1f2940;
+  border-color: #35507c;
+  color: #c3d4ef;
+}
+
+.admin-dark .admin-testimony__field span {
+  color: #c3d4ef;
+}
+
+.admin-dark .admin-testimony__field input,
+.admin-dark .admin-testimony__field textarea {
+  background: #131b2e;
+  border-color: #3a4866;
+  color: #e2e8f0;
+}
+
+.admin-dark .admin-testimony__field input::placeholder,
+.admin-dark .admin-testimony__field textarea::placeholder {
+  color: #7f93b3;
+}
+
+.admin-dark .admin-testimony__empty {
+  border-color: #3a4866;
+  background: #131b2e;
 }

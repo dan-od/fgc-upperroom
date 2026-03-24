@@ -2,6 +2,7 @@ import pg from 'pg'
 
 import { env } from '../config/env.js'
 import { logger } from '../lib/logger.js'
+import { recordDbMetric } from '../services/telemetry.service.js'
 
 const { Pool } = pg
 
@@ -28,8 +29,26 @@ export const getPool = () => {
 
 export const query = async (sql, values = []) => {
   const client = await getPool().connect()
+  const startedAt = process.hrtime.bigint()
   try {
-    return await client.query(sql, values)
+    const result = await client.query(sql, values)
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000
+    recordDbMetric({ durationMs, isError: false, slowThresholdMs: env.MONITORING_SLOW_QUERY_MS })
+
+    if (durationMs >= env.MONITORING_SLOW_QUERY_MS) {
+      const statement = String(sql || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 180)
+      logger.warn('Slow DB query', { durationMs: Number(durationMs.toFixed(2)), rows: result.rowCount, sql: statement })
+    }
+
+    return result
+  } catch (error) {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000
+    recordDbMetric({ durationMs, isError: true, slowThresholdMs: env.MONITORING_SLOW_QUERY_MS })
+    logger.error('DB query failed', { durationMs: Number(durationMs.toFixed(2)), error: error.message })
+    throw error
   } finally {
     client.release()
   }

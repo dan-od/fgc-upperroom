@@ -1,12 +1,17 @@
 import QRCode from 'qrcode'
 
+import { getSocialLinkByKey, listSocialLinks } from '../config/social-links.js'
 import { attendanceStore } from '../store/attendance.store.js'
 import { generateAttendanceCode, sha256 } from '../utils/id.js'
 import { formatServiceDate, getWindowStatus, isAttendanceWindowOpen, lagosNow } from '../utils/time.js'
+import { syncAttendanceCheckin, syncAttendanceSession } from './attendance-history-sync.js'
 
 const RATE_LIMIT_WINDOW_MS = 20 * 60 * 1000
 const SELF_IP_LIMIT_PER_WINDOW = 5
 const ASSISTED_IP_LIMIT_PER_WINDOW = 8
+const SOCIAL_REDIRECT_BASE_PATH = '/attendance/go'
+
+const buildSocialRedirectUrl = ({ origin, key }) => `${origin}${SOCIAL_REDIRECT_BASE_PATH}/${key}`
 
 const trimWindowHits = (entries, nowMs) => entries.filter((entry) => nowMs - entry < RATE_LIMIT_WINDOW_MS)
 
@@ -17,13 +22,16 @@ const getSessionForNow = () => {
 }
 
 const createSessionForServiceDate = (serviceDate) => {
-  return attendanceStore.saveSession(serviceDate, {
+  const session = attendanceStore.saveSession(serviceDate, {
     id: `session-${serviceDate}`,
     serviceDate,
     code: generateAttendanceCode(),
     qrToken: sha256(`qr:${serviceDate}:${Date.now()}:${Math.random()}`).slice(0, 24),
     createdAt: new Date().toISOString()
   })
+
+  void syncAttendanceSession(session)
+  return session
 }
 
 const getSessionCount = (sessionId) => attendanceStore.listCheckinsBySession(sessionId).length
@@ -201,7 +209,7 @@ export const submitSelfCheckin = ({ name, browserToken, ip, code, qrToken }) => 
     }
   }
 
-  attendanceStore.addCheckin({
+  const checkin = attendanceStore.addCheckin({
     id: `self-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     sessionId: session.id,
     type: 'self',
@@ -211,6 +219,7 @@ export const submitSelfCheckin = ({ name, browserToken, ip, code, qrToken }) => 
     ipHash,
     createdAt: new Date().toISOString()
   })
+  void syncAttendanceCheckin(checkin)
 
   return {
     success: true,
@@ -254,7 +263,7 @@ export const submitAssistedCheckin = ({ helperName, assistedName, assistedPhone,
     }
   }
 
-  attendanceStore.addCheckin({
+  const checkin = attendanceStore.addCheckin({
     id: `assist-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     sessionId: session.id,
     type: 'assisted',
@@ -264,6 +273,7 @@ export const submitAssistedCheckin = ({ helperName, assistedName, assistedPhone,
     ipHash: sha256(ip),
     createdAt: new Date().toISOString()
   })
+  void syncAttendanceCheckin(checkin)
 
   return {
     success: true,
@@ -310,7 +320,7 @@ export const submitScanCheckin = ({ qrToken, fingerprint, ip }) => {
     }
   }
 
-  attendanceStore.addCheckin({
+  const checkin = attendanceStore.addCheckin({
     id: `scan-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     sessionId: session.id,
     type: 'scan',
@@ -318,6 +328,7 @@ export const submitScanCheckin = ({ qrToken, fingerprint, ip }) => {
     ipHash: sha256(ip),
     createdAt: new Date().toISOString()
   })
+  void syncAttendanceCheckin(checkin)
 
   return {
     success: true,
@@ -482,5 +493,87 @@ export const getAdminQrPngBuffer = async ({ origin }) => {
     status: 200,
     buffer: pngBuffer,
     fileName: `attendance-${session.serviceDate}.png`
+  }
+}
+
+export const getSocialLinkRedirectTarget = ({ socialKey }) => {
+  const link = getSocialLinkByKey(socialKey)
+  if (!link) {
+    return {
+      ok: false,
+      status: 404,
+      payload: {
+        success: false,
+        reason: 'not_found',
+        message: 'Social link not found.'
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    status: 302,
+    targetUrl: link.targetUrl
+  }
+}
+
+export const getAdminSocialQrs = async ({ origin }) => {
+  const socialLinks = listSocialLinks()
+  const links = await Promise.all(
+    socialLinks.map(async (link) => {
+      const permanentUrl = buildSocialRedirectUrl({ origin, key: link.key })
+      const qrPngDataUrl = await QRCode.toDataURL(permanentUrl, {
+        width: 280,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      })
+
+      return {
+        key: link.key,
+        label: link.label,
+        targetUrl: link.targetUrl,
+        permanentUrl,
+        qrPngDataUrl
+      }
+    })
+  )
+
+  return {
+    ok: true,
+    status: 200,
+    payload: {
+      success: true,
+      links
+    }
+  }
+}
+
+export const getAdminSocialQrPngBuffer = async ({ origin, socialKey }) => {
+  const link = getSocialLinkByKey(socialKey)
+  if (!link) {
+    return {
+      ok: false,
+      status: 404,
+      payload: {
+        success: false,
+        reason: 'not_found',
+        message: 'Social link not found.'
+      }
+    }
+  }
+
+  const permanentUrl = buildSocialRedirectUrl({ origin, key: link.key })
+  const pngBuffer = await QRCode.toBuffer(permanentUrl, {
+    type: 'png',
+    width: 280,
+    margin: 1,
+    errorCorrectionLevel: 'M'
+  })
+
+  return {
+    ok: true,
+    status: 200,
+    buffer: pngBuffer,
+    fileName: `social-${link.key}.png`
   }
 }

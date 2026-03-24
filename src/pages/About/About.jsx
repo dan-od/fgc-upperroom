@@ -1,7 +1,11 @@
 import { SectionHeader, Button } from '../../components/common'
+import { useI18n } from '../../i18n/LanguageContext'
 import './About.css'
 
 const About = () => {
+  const { t } = useI18n()
+  const baseUrl = String(import.meta.env.BASE_URL || '/')
+  const youthPhoto = `${baseUrl}assets/media/pictures/IMG_1769.png`
   const beliefs = [
     {
       title: 'Jesus the Savior',
@@ -30,12 +34,12 @@ const About = () => {
   ]
 
   return (
-    <main className="about-page">
+    <main id="main-content" className="about-page">
       {/* Hero Banner */}
       <section className="page-banner bg-blue">
         <div className="container">
-          <h1>About Us</h1>
-          <p>Discover who we are and what we believe</p>
+          <h1>{t('about.bannerTitle', 'About Us')}</h1>
+          <p>{t('about.bannerSubtitle', 'Discover who we are and what we believe')}</p>
         </div>
       </section>
 
@@ -45,7 +49,7 @@ const About = () => {
           <div className="about-intro__grid">
             <div className="about-intro__content">
               <span className="tag">Who We Are</span>
-              <h2>The Upperroom</h2>
+              <h2 bold>The Upperroom</h2>
               <p>
                 We are the youth fellowship of the Foursquare Gospel Church, 
                 Mgbuoba Zonal Headquarters.<br />We are a vibrant community of young 
@@ -64,7 +68,7 @@ const About = () => {
               </p>
             </div>
             <div className="about-intro__image">
-              <div className="placeholder">Youth Photo</div>
+              <img src={youthPhoto} alt="Upperroom Youth Church" />
             </div>
           </div>
         </div>
@@ -172,7 +176,7 @@ const About = () => {
               </div>
             </div>
             <div className="anthem-card">
-              <h3>Upper Room Anthem</h3>
+              <h3>Upperroom Anthem</h3>
               <div className="anthem-lyrics">
                 <p>
                   We are youthful people,<br />
