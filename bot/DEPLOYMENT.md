@@ -287,6 +287,10 @@ curl https://bot.yourchurch.org/bot/monitoring/health
 
 # Check system stats
 curl https://bot.yourchurch.org/bot/api/admin/stats
+
+# TLS/HTTPS verification
+curl -I https://bot.yourchurch.org/bot/health
+openssl s_client -connect bot.yourchurch.org:443 -servername bot.yourchurch.org </dev/null 2>/dev/null | openssl x509 -noout -dates -issuer -subject
 ```
 
 ### Step 9: Import Initial Data
@@ -354,6 +358,8 @@ fi
 ```bash
 pg_dump $DATABASE_URL | gzip > backup-$(date +%Y%m%d).sql.gz
 ```
+
+For production retention policy, Redis persistence backup, and recovery drills, use [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md).
 
 ---
 

@@ -7,6 +7,38 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: church_bot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d church_bot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/church_bot
+      REDIS_URL: redis://localhost:6379
+      WHATSAPP_PROVIDER: stub
+      ENABLE_SCHEDULER: false
+      BOT_ADMIN_API_KEY: ci-admin-key
+      VITE_ADMIN_PASSWORD: ci-admin-key
+      VITE_RUM_ENABLED: true
+      VITE_RUM_ENDPOINT: /fgc-testing/api/observability/rum
 
     steps:
       - name: Checkout code
@@ -21,8 +53,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test --if-present
+      - name: Check env parity
+        run: npm run env:parity
+
+      - name: Ensure bot schema
+        run: npm run bot:schema:ensure
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Run security smoke checks
+        run: npm run qa:security
+
+      - name: Run performance smoke checks
+        run: npm run qa:performance
+
+      - name: Run load checks
+        run: npm run qa:load -- 25
 
       - name: Build
         run: npm run build

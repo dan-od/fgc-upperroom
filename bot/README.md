@@ -13,6 +13,9 @@ vim .env
 
 npm install
 
+# Check env-template parity across dev/staging/prod
+npm run env:parity
+
 # Validate environment + DB schema
 npm run bot:validate
 
@@ -159,3 +162,5 @@ npm run bot:load-test 100   # simulate 100-visitor send batch
 ## Production Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) — covers PM2, Docker, systemd, Nginx, Meta webhook registration, and rollback.
+
+Backup/recovery and TLS verification runbook: [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md).

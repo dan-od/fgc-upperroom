@@ -1,231 +1,369 @@
-import { TrendingUp, TrendingDown, Users, Eye, MessageCircle, Calendar } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Activity, Eye, Mail, MessageCircle, RefreshCw, TrendingDown, TrendingUp, Users } from 'lucide-react'
+import { useAdminTheme } from '../AdminThemeContext'
+import { fetchAdminAnalytics } from '../../../utils/adminApi'
+
+const WINDOW_OPTIONS = [7, 14, 30, 90]
+
+const formatTrend = (value) => {
+  if (value == null || Number.isNaN(value)) {
+    return { label: 'No baseline', direction: 'flat' }
+  }
+  if (value === 0) {
+    return { label: '0.0%', direction: 'flat' }
+  }
+  if (value > 0) {
+    return { label: `+${value.toFixed(1)}%`, direction: 'up' }
+  }
+  return { label: `${value.toFixed(1)}%`, direction: 'down' }
+}
+
+const formatNumber = (value) => {
+  if (!Number.isFinite(Number(value))) return '0'
+  return Number(value).toLocaleString()
+}
+
+const SegmentCard = ({ title, items, darkMode, emptyLabel }) => {
+  const surface = darkMode ? '#1a2235' : 'white'
+  const borderColor = darkMode ? '#2a3550' : '#e5e7eb'
+  const textPrimary = darkMode ? '#e2e8f0' : '#111827'
+  const textSecondary = darkMode ? '#7f93b3' : '#6b7280'
+  const rowBg = darkMode ? '#151e2e' : '#f9fafb'
+  const barTrack = darkMode ? '#2a3550' : '#e5e7eb'
+
+  return (
+    <section
+      style={{
+        background: surface,
+        border: `1px solid ${borderColor}`,
+        borderRadius: '0.75rem',
+        padding: '1.25rem'
+      }}
+    >
+      <h2 style={{ margin: '0 0 1rem', fontSize: '1.05rem', color: textPrimary }}>
+        {title}
+      </h2>
+      {!items.length ? (
+        <p style={{ margin: 0, fontSize: '0.9rem', color: textSecondary }}>{emptyLabel}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {items.map((item) => (
+            <div key={item.label} style={{ background: rowBg, borderRadius: '0.5rem', padding: '0.65rem 0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem', color: textPrimary, fontWeight: 600 }}>{item.label}</span>
+                <span style={{ fontSize: '0.8rem', color: textSecondary }}>
+                  {formatNumber(item.count)} ({item.share.toFixed(1)}%)
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '7px', borderRadius: '999px', background: barTrack, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${Math.max(2, Math.min(100, item.share))}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #5a4494, #2d3a7a)'
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
 
 const Analytics = () => {
-  const stats = [
-    {
-      label: 'Total Page Views',
-      value: '12,543',
-      change: '+12.5%',
-      trend: 'up',
-      icon: Eye,
-      color: '#5a4494'
-    },
-    {
-      label: 'Unique Visitors',
-      value: '3,421',
-      change: '+8.2%',
-      trend: 'up',
-      icon: Users,
-      color: '#2d3a7a'
-    },
-    {
-      label: 'WhatsApp Subscribers',
-      value: '856',
-      change: '+15.3%',
-      trend: 'up',
-      icon: MessageCircle,
-      color: '#10b981'
-    },
-    {
-      label: 'Event Registrations',
-      value: '124',
-      change: '-3.1%',
-      trend: 'down',
-      icon: Calendar,
-      color: '#d4a82e'
+  const { darkMode } = useAdminTheme()
+  const [windowDays, setWindowDays] = useState(30)
+  const [analytics, setAnalytics] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (silent) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
     }
-  ]
+    setError('')
 
-  const topPages = [
-    { page: '/media', views: 3421, percentage: 27 },
-    { page: '/', views: 2987, percentage: 24 },
-    { page: '/events', views: 2145, percentage: 17 },
-    { page: '/blog', views: 1876, percentage: 15 },
-    { page: '/testimonies', views: 1234, percentage: 10 }
-  ]
+    try {
+      const payload = await fetchAdminAnalytics({ windowDays })
+      setAnalytics(payload || null)
+    } catch (err) {
+      setError(err?.message || 'Unable to load analytics data.')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [windowDays])
 
-  const recentActivity = [
-    { type: 'blog', title: 'New blog post published: "Walking in Faith"', time: '2 hours ago', color: '#d4a82e' },
-    { type: 'event', title: 'Event "Youth Summit 2026" created', time: '5 hours ago', color: '#5a4494' },
-    { type: 'media', title: '12 new media items uploaded', time: '1 day ago', color: '#2d3a7a' },
-    { type: 'subscriber', title: '23 new WhatsApp subscribers', time: '1 day ago', color: '#10b981' },
-    { type: 'event', title: 'Event "Prayer Night" completed', time: '2 days ago', color: '#6b7280' }
-  ]
+  useEffect(() => {
+    void load({ silent: false })
+  }, [load])
+
+  const surface = darkMode ? '#1a2235' : 'white'
+  const borderColor = darkMode ? '#2a3550' : '#e5e7eb'
+  const textPrimary = darkMode ? '#e2e8f0' : '#111827'
+  const textSecondary = darkMode ? '#7f93b3' : '#6b7280'
+  const textLabel = darkMode ? '#94afd4' : '#374151'
+  const inputBg = darkMode ? '#151e2e' : '#f9fafb'
+
+  const stats = useMemo(() => {
+    if (!analytics?.overview) return []
+    return [
+      {
+        label: 'Page Views',
+        value: analytics.overview.pageViews,
+        trend: analytics?.trends?.pageViews,
+        icon: Eye,
+        color: '#5a4494'
+      },
+      {
+        label: 'Unique Routes',
+        value: analytics.overview.uniqueRoutes,
+        trend: analytics?.trends?.uniqueRoutes,
+        icon: Activity,
+        color: '#2d3a7a'
+      },
+      {
+        label: 'Active Subscribers',
+        value: analytics.overview.activeSubscribers,
+        trend: analytics?.trends?.newSubscribers,
+        icon: MessageCircle,
+        color: '#10b981'
+      },
+      {
+        label: 'Contact Submissions',
+        value: analytics.overview.contactSubmissions,
+        trend: analytics?.trends?.contactSubmissions,
+        icon: Mail,
+        color: '#d4a82e'
+      }
+    ]
+  }, [analytics])
+
+  const timeline = Array.isArray(analytics?.timeline) ? analytics.timeline : []
+  const timelineMax = Math.max(1, ...timeline.map((item) => Math.max(item.pageViews || 0, item.contacts || 0)))
+
+  const lastUpdated = analytics?.generatedAt ? new Date(analytics.generatedAt).toLocaleString() : '--'
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: '#111827' }}>
-          Analytics
-        </h1>
-        <p style={{ margin: 0, color: '#6b7280' }}>
-          Track website performance and engagement metrics
-        </p>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ margin: '0 0 0.45rem', fontSize: '2rem', color: textPrimary }}>
+            Analytics
+          </h1>
+          <p style={{ margin: 0, color: textSecondary }}>
+            Performance, engagement, and audience segmentation for admin operations.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <label htmlFor="analytics-window" style={{ fontSize: '0.82rem', color: textSecondary }}>Window</label>
+          <select
+            id="analytics-window"
+            value={windowDays}
+            onChange={(event) => setWindowDays(Number(event.target.value))}
+            style={{
+              background: inputBg,
+              color: textPrimary,
+              border: `1px solid ${borderColor}`,
+              borderRadius: '0.5rem',
+              padding: '0.5rem 0.6rem',
+              fontSize: '0.85rem'
+            }}
+          >
+            {WINDOW_OPTIONS.map((days) => (
+              <option key={days} value={days}>{days} days</option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => void load({ silent: true })}
+            style={{
+              border: `1px solid ${borderColor}`,
+              background: inputBg,
+              color: textPrimary,
+              borderRadius: '0.5rem',
+              padding: '0.5rem 0.65rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.82rem',
+              cursor: 'pointer'
+            }}
+          >
+            <RefreshCw size={14} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          const TrendIcon = stat.trend === 'up' ? TrendingUp : TrendingDown
-          return (
-            <div
-              key={stat.label}
-              style={{
-                background: 'white',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '1px solid #e5e7eb'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <div
+      <div style={{ marginBottom: '1.2rem', color: textSecondary, fontSize: '0.8rem' }}>
+        Last updated: {lastUpdated}
+      </div>
+
+      {loading ? (
+        <section
+          style={{
+            background: surface,
+            border: `1px solid ${borderColor}`,
+            borderRadius: '0.75rem',
+            padding: '1.4rem',
+            color: textSecondary
+          }}
+        >
+          Loading analytics...
+        </section>
+      ) : null}
+
+      {!loading && error ? (
+        <section
+          style={{
+            background: surface,
+            border: `1px solid #ef4444`,
+            borderRadius: '0.75rem',
+            padding: '1.4rem',
+            color: '#ef4444',
+            marginBottom: '1.5rem'
+          }}
+        >
+          {error}
+        </section>
+      ) : null}
+
+      {!loading && !error ? (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '1rem',
+              marginBottom: '1.5rem'
+            }}
+          >
+            {stats.map((stat) => {
+              const Icon = stat.icon
+              const trend = formatTrend(stat.trend)
+              const TrendIcon = trend.direction === 'down' ? TrendingDown : trend.direction === 'up' ? TrendingUp : Users
+              return (
+                <article
+                  key={stat.label}
                   style={{
-                    width: '48px',
-                    height: '48px',
+                    background: surface,
+                    border: `1px solid ${borderColor}`,
                     borderRadius: '0.75rem',
-                    background: `${stat.color}15`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: stat.color
+                    padding: '1rem'
                   }}
                 >
-                  <Icon size={24} />
-                </div>
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: stat.trend === 'up' ? '#10b981' : '#ef4444'
-                  }}
-                >
-                  <TrendIcon size={16} />
-                  {stat.change}
-                </span>
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                {stat.label}
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: '#111827' }}>
-                {stat.value}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-        {/* Top Pages */}
-        <div style={{
-          background: 'white',
-          padding: '1.5rem',
-          borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb'
-        }}>
-          <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', color: '#111827' }}>
-            Top Pages
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {topPages.map((page, index) => (
-              <div key={page.page}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>
-                    {page.page}
-                  </span>
-                  <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                    {page.views.toLocaleString()} views
-                  </span>
-                </div>
-                <div style={{ width: '100%', height: '8px', background: '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: `${page.percentage}%`,
-                      height: '100%',
-                      background: `linear-gradient(90deg, #5a4494, #2d3a7a)`,
-                      transition: 'width 0.3s'
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div style={{
-          background: 'white',
-          padding: '1.5rem',
-          borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb'
-        }}>
-          <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', color: '#111827' }}>
-            Recent Activity
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {recentActivity.map((activity, index) => (
-              <div key={index} style={{ display: 'flex', gap: '0.75rem' }}>
-                <div
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: activity.color,
-                    marginTop: '0.5rem',
-                    flexShrink: 0
-                  }}
-                />
-                <div>
-                  <div style={{ fontSize: '0.875rem', color: '#111827', marginBottom: '0.25rem' }}>
-                    {activity.title}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.9rem' }}>
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '0.65rem',
+                        background: `${stat.color}1f`,
+                        color: stat.color,
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}
+                    >
+                      <Icon size={20} />
+                    </div>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        color: trend.direction === 'down' ? '#ef4444' : trend.direction === 'up' ? '#10b981' : textSecondary
+                      }}
+                    >
+                      <TrendIcon size={14} />
+                      {trend.label}
+                    </span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                    {activity.time}
-                  </div>
-                </div>
-              </div>
-            ))}
+                  <p style={{ margin: '0 0 0.2rem', color: textSecondary, fontSize: '0.83rem' }}>{stat.label}</p>
+                  <p style={{ margin: 0, color: textPrimary, fontSize: '1.7rem', fontWeight: 700 }}>{formatNumber(stat.value)}</p>
+                </article>
+              )
+            })}
           </div>
-        </div>
-      </div>
 
-      {/* Weekly Engagement Chart Placeholder */}
-      <div style={{
-        background: 'white',
-        padding: '1.5rem',
-        borderRadius: '0.75rem',
-        border: '1px solid #e5e7eb',
-        marginTop: '1.5rem'
-      }}>
-        <h2 style={{ margin: '0 0 1rem', fontSize: '1.25rem', color: '#111827' }}>
-          Weekly Engagement
-        </h2>
-        <div style={{
-          height: '300px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#f9fafb',
-          borderRadius: '0.5rem',
-          color: '#6b7280'
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <TrendingUp size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-            <p style={{ margin: 0 }}>Chart visualization placeholder</p>
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem' }}>
-              Integrate with Chart.js or Recharts for full visualization
+          <section
+            style={{
+              background: surface,
+              border: `1px solid ${borderColor}`,
+              borderRadius: '0.75rem',
+              padding: '1.25rem',
+              marginBottom: '1.5rem'
+            }}
+          >
+            <h2 style={{ margin: '0 0 0.8rem', color: textPrimary, fontSize: '1.08rem' }}>Trend Timeline</h2>
+            <p style={{ margin: '0 0 1rem', color: textSecondary, fontSize: '0.83rem' }}>
+              Daily page views and contact submissions in the selected window.
             </p>
+            {!timeline.length ? (
+              <p style={{ margin: 0, color: textSecondary }}>No timeline data yet.</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                {timeline.map((item) => (
+                  <div key={item.day} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr auto', gap: '0.55rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', color: textSecondary }}>{item.day.slice(5)}</span>
+                    <div style={{ background: inputBg, borderRadius: '999px', overflow: 'hidden', height: '8px' }}>
+                      <div style={{ width: `${(Math.max(0, item.pageViews || 0) / timelineMax) * 100}%`, height: '100%', background: '#5a4494' }} />
+                    </div>
+                    <div style={{ background: inputBg, borderRadius: '999px', overflow: 'hidden', height: '8px' }}>
+                      <div style={{ width: `${(Math.max(0, item.contacts || 0) / timelineMax) * 100}%`, height: '100%', background: '#d4a82e' }} />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: textLabel }}>
+                      {formatNumber(item.pageViews)} pv / {formatNumber(item.contacts)} c
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            <SegmentCard
+              title="Traffic Segments by Route"
+              items={analytics?.segments?.trafficByRoute || []}
+              darkMode={darkMode}
+              emptyLabel="No route-level traffic data yet."
+            />
+            <SegmentCard
+              title="Performance Rating Mix"
+              items={analytics?.segments?.performanceRatings || []}
+              darkMode={darkMode}
+              emptyLabel="No performance samples yet."
+            />
+            <SegmentCard
+              title="Traffic Source Mix"
+              items={analytics?.segments?.trafficSources || []}
+              darkMode={darkMode}
+              emptyLabel="No source breakdown data yet."
+            />
+            <SegmentCard
+              title="Contact Intent Segments"
+              items={analytics?.segments?.contactSubjects || []}
+              darkMode={darkMode}
+              emptyLabel="No contact submissions in this window."
+            />
+            <SegmentCard
+              title="Subscriber Source Segments"
+              items={analytics?.segments?.subscriberSources || []}
+              darkMode={darkMode}
+              emptyLabel="No active subscribers yet."
+            />
           </div>
-        </div>
-      </div>
+        </>
+      ) : null}
     </div>
   )
 }

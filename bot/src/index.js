@@ -4,6 +4,7 @@ import { logger } from './lib/logger.js'
 import { initDatabase } from './db/connection.js'
 import { registerSchedulerJobs, startEventCacheRefresh } from './scheduler/reminder.scheduler.js'
 import { checkAlertThresholds, triggerWebhookAlert } from './services/monitoring.service.js'
+import { sendOpenClawAlertDigest } from './services/openclaw.service.js'
 
 const app = createBotApp()
 
@@ -26,10 +27,17 @@ if (env.ENABLE_SCHEDULER) {
 setInterval(async () => {
   try {
     const alertCheck = await checkAlertThresholds()
-    if (alertCheck.hasAlerts && env.ALERT_WEBHOOK_URL) {
-      for (const alert of alertCheck.alerts) {
-        await triggerWebhookAlert(alert, env.ALERT_WEBHOOK_URL)
+    if (alertCheck.hasAlerts) {
+      if (env.ALERT_WEBHOOK_URL) {
+        for (const alert of alertCheck.alerts) {
+          await triggerWebhookAlert(alert, env.ALERT_WEBHOOK_URL)
+        }
       }
+
+      await sendOpenClawAlertDigest({
+        alerts: alertCheck.alerts,
+        telemetry: alertCheck.telemetry
+      })
     }
   } catch (error) {
     logger.error('Alert check interval error', { error: error.message })

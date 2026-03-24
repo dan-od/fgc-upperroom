@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "description": "OpenClaw-to-bot policy map for FGC Upper Room",
+  "profiles": {
+    "ops_readonly": {
+      "allow": [
+        "GET /bot/health",
+        "GET /bot/monitoring/health",
+        "GET /bot/monitoring/alerts",
+        "GET /bot/monitoring/errors",
+        "GET /bot/monitoring/metrics",
+        "GET /bot/api/admin/stats",
+        "GET /bot/api/admin/activity",
+        "GET /bot/api/admin/engagement",
+        "GET /bot/api/messages",
+        "GET /bot/api/events",
+        "GET /bot/api/events/:id",
+        "GET /bot/api/events/:id/rsvp-summary"
+      ]
+    },
+    "ops_write_limited": {
+      "allow": [
+        "PATCH /bot/api/prayer-requests/:id/status",
+        "PATCH /bot/api/members/:id/lifecycle",
+        "PATCH /bot/api/visitors/:phoneNumber/subscription",
+        "POST /bot/api/visitors/:phoneNumber/do-not-contact",
+        "POST /bot/api/events/:id/rsvp"
+      ],
+      "requiresExplicitConfirmation": true
+    },
+    "content_preview": {
+      "allow": [
+        "POST /bot/api/preview/service",
+        "POST /bot/api/preview/event",
+        "POST /bot/api/preview/bulk-service",
+        "POST /bot/api/preview/bulk-event"
+      ]
+    },
+    "breakglass_admin": {
+      "allow": [
+        "POST /bot/api/privacy/visitors/:id/soft-delete",
+        "POST /bot/api/privacy/visitors/:id/erase",
+        "POST /bot/api/privacy/retention/run",
+        "DELETE /bot/api/events/:id",
+        "DELETE /bot/api/events/:id/rsvps/:rsvpId",
+        "POST /bot/api/import-csv",
+        "POST /bot/api/members/sync-from-visitors"
+      ],
+      "humanApprovalOnly": true
+    }
+  },
+  "deny": [
+    "POST /bot/api/visitors",
+    "PATCH /bot/api/events/:id"
+  ]
+}
+

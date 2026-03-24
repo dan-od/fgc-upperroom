@@ -9,6 +9,11 @@
 import { query, initDatabase, closeDatabase } from '../src/db/connection.js'
 import { logger } from '../src/lib/logger.js'
 
+const isInfraBlocked = (error) => {
+  const code = error?.code || error?.errors?.[0]?.code
+  return ['EPERM', 'EACCES', 'ECONNREFUSED', 'ENOTFOUND'].includes(code)
+}
+
 const createTestVisitors = async (count) => {
   console.log(`\n📊 Creating ${count} test visitors...`)
 
@@ -24,6 +29,9 @@ const createTestVisitors = async (count) => {
       )
       visitors.push(result.rows[0])
     } catch (error) {
+      if (isInfraBlocked(error)) {
+        throw error
+      }
       console.error(`Failed to create visitor ${i}:`, error.message)
     }
   }
@@ -62,7 +70,7 @@ const simulateMessageBatch = async (visitors) => {
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(2)
-  const rate = (sent / duration).toFixed(2)
+  const rate = duration === '0.00' ? '0.00' : (sent / Number(duration)).toFixed(2)
 
   console.log(`\n\n✅ Batch complete:`)
   console.log(`   Total sent: ${sent}`)
@@ -97,7 +105,12 @@ const runLoadTest = async () => {
 
     console.log('\n✅ Load test complete\n')
   } catch (error) {
+    if (process.env.CI !== 'true' && isInfraBlocked(error)) {
+      console.log(`\n[load] SKIP: infrastructure unavailable (${error?.code || error?.errors?.[0]?.code || 'unknown'})\n`)
+      return
+    }
     console.error('\n❌ Load test failed:', error)
+    throw error
   } finally {
     await closeDatabase()
   }

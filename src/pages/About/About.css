@@ -5,25 +5,6 @@
   --hero-primary: var(--cup-blue);
 }
 
-/* Page Banner */
-.page-banner {
-  padding: var(--space-4xl) 0;
-  text-align: center;
-}
-
-.page-banner h1 {
-  font-family: var(--font-heading);
-  font-size: var(--text-5xl);
-  color: var(--white);
-  margin-bottom: var(--space-sm);
-}
-
-.page-banner p {
-  font-size: var(--text-lg);
-  color: rgba(255, 255, 255, 0.8);
-  margin: 0;
-}
-
 /* Intro Section */
 .about-intro {
   padding: var(--space-5xl) 0;
@@ -62,14 +43,22 @@
   line-height: 1.8;
 }
 
-.about-intro__image .placeholder {
-  aspect-ratio: 4/3;
-  background: var(--gray-200);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--gray-500);
+.about-intro__image {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  background: var(--gray-100);
+}
+
+.about-intro__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 /* Vision & Mission */
@@ -235,17 +224,12 @@
   
   .about-intro__image {
     order: -1;
-    max-width: 500px;
+    max-width: 640px;
     margin: 0 auto;
   }
 }
 
 @media (max-width: 768px) {
-  .page-banner {
-    text-align: center;
-    padding: var(--space-3xl) 0;
-  }
-
   .about-intro,
   .beliefs-full,
   .anthems-section {
@@ -281,6 +265,12 @@
     text-align: center;
     width: fit-content;
     margin: 0 auto var(--space-md);
+  }
+
+  .about-intro__image {
+    max-width: 420px;
+    aspect-ratio: 4 / 3;
+    margin: 0 auto;
   }
 
   .vision-mission__grid,

@@ -1,3 +1,4 @@
+import { getAdminSessionToken } from './adminApi'
 export const ADMIN_MEDIA_STORAGE_KEY = 'admin_media'
 export const DEFAULT_MEDIA_THUMBNAIL = '/assets/media/Senior Pastor.jpeg'
 
@@ -12,6 +13,13 @@ export const MEDIA_CATEGORIES = [
 
 const MEDIA_TYPES = new Set(['image', 'video', 'audio'])
 const MEDIA_CATEGORY_SET = new Set(MEDIA_CATEGORIES.map((item) => item.value))
+const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+const toApiUrl = (path) => `${BASE_URL}${path}`
+const buildAuthHeaders = (headers = {}) => {
+  const token = getAdminSessionToken()
+  if (!token) return headers
+  return { ...headers, Authorization: `Bearer ${token}` }
+}
 
 export const normalizeTitleKey = (value = '') => {
   return String(value)
@@ -101,7 +109,8 @@ export const normalizeMediaAsset = (asset, index = 0, fallbackType = 'image') =>
     audioUrl: '',
     alt: normalizeText(source.alt),
     name: normalizeText(source.name),
-    mimeType: normalizeText(source.mimeType)
+    mimeType: normalizeText(source.mimeType),
+    fileSize: Number(source.fileSize) || 0
   }
 
   if (baseType === 'video') {
@@ -216,36 +225,98 @@ export const normalizeAdminMediaItem = (rawItem, index = 0) => {
 
 export const readAdminMediaItems = () => {
   if (typeof window === 'undefined') {
-    return []
+    return Promise.resolve([])
   }
 
-  const raw = window.localStorage.getItem(ADMIN_MEDIA_STORAGE_KEY)
-  if (!raw) {
-    return []
-  }
+  return fetch(toApiUrl('/api/admin/media'), {
+    headers: buildAuthHeaders()
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch admin media')
+      }
 
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
+      const payload = await response.json()
+      if (!Array.isArray(payload?.data)) {
+        return []
+      }
 
-    return parsed
-      .map((item, index) => normalizeAdminMediaItem(item, index))
-      .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-  } catch {
-    return []
-  }
+      return payload.data
+        .map((item, index) => normalizeAdminMediaItem(item, index))
+        .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+    })
+    .catch(() => {
+      const raw = window.localStorage.getItem(ADMIN_MEDIA_STORAGE_KEY)
+      if (!raw) {
+        return []
+      }
+
+      try {
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed)) {
+          return []
+        }
+
+        return parsed
+          .map((item, index) => normalizeAdminMediaItem(item, index))
+          .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+      } catch {
+        return []
+      }
+    })
 }
 
 export const writeAdminMediaItems = (items) => {
   if (typeof window === 'undefined') {
-    return
+    return Promise.resolve()
   }
 
   const normalized = (Array.isArray(items) ? items : [])
     .map((item, index) => normalizeAdminMediaItem(item, index))
     .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
 
-  window.localStorage.setItem(ADMIN_MEDIA_STORAGE_KEY, JSON.stringify(normalized))
+  return fetch(toApiUrl('/api/admin/media'), {
+    method: 'PUT',
+    headers: buildAuthHeaders({
+      'Content-Type': 'application/json'
+    }),
+    body: JSON.stringify({ items: normalized })
+  }).then(async (response) => {
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      throw new Error(payload?.error || 'Unable to save media to server.')
+    }
+
+    return response.json()
+  })
+}
+
+export const uploadAdminMediaFiles = (files) => {
+  const selected = Array.from(files || [])
+  if (!selected.length) {
+    return Promise.resolve([])
+  }
+
+  const formData = new FormData()
+  selected.forEach((file) => {
+    formData.append('files', file)
+  })
+
+  return fetch(toApiUrl('/api/admin/media/upload'), {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    body: formData
+  }).then(async (response) => {
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      throw new Error(payload?.error || 'Failed to upload media files.')
+    }
+
+    const payload = await response.json()
+    if (!Array.isArray(payload?.data)) {
+      return []
+    }
+
+    return payload.data.map((asset, index) => normalizeMediaAsset(asset, index))
+  })
 }

@@ -6,14 +6,17 @@ Modern React-based website and WhatsApp bot for FGC Upper Room Mgbuoba - the you
 
 ```bash
 npm install                  # Install dependencies
-npm run dev                  # Start website + bot + worker + attendance together
+npm run dev                  # Start backend services (media API + bot + worker + attendance)
 npm run dev:web              # Start website only (localhost:3000)
+npm run env:parity           # Verify env template parity (dev/staging/prod)
+npm run ops:backup-drill     # Run PostgreSQL + Redis backup/restore drill
 ```
 
 ## 📦 What's Inside
 
 - **Website**: Multi-page React app with advanced media gallery, blog, events, and contact
 - **WhatsApp Bot**: Automated service reminders and event notifications with Redis queue
+- **OpenClaw Sidecar (Optional)**: Operator-facing AI gateway that can ingest bot alert digests
 - **Admin Center**: Content management at `/admin` (events, media, blog posts)
 - **YouTube Integration**: Auto-sync sermons from YouTube channel
 - **Full-Stack**: Express + Vite with TypeScript support
@@ -36,6 +39,44 @@ bot/
 │   ├── services/        # WhatsApp, LLM, analytics services
 │   └── workers/         # Queue workers for reminders
 └── db/schema.sql        # PostgreSQL database schema
+```
+
+## 🧭 Architecture Diagrams
+
+```mermaid
+flowchart LR
+  U[Users]
+  W[React Website<br/>Vite SPA]
+  API[Website API<br/>server.ts]
+  BOT[Bot API<br/>Express]
+  WORKER[Reminder Worker<br/>BullMQ]
+  REDIS[(Redis)]
+  PG[(PostgreSQL)]
+  META[Meta WhatsApp Cloud]
+
+  U --> W
+  W --> API
+  W --> BOT
+  API --> BOT
+  BOT --> PG
+  BOT --> REDIS
+  WORKER --> REDIS
+  WORKER --> PG
+  WORKER --> META
+```
+
+```mermaid
+flowchart TD
+  V[Visitor Created] --> M[Member Profile Sync]
+  V --> D[Duplicate Scan + Links]
+  V --> MSG[Welcome Message Log]
+  E[Event Created] --> R[RSVPs]
+  R --> CAP[Capacity + Waitlist]
+  C[Attendance Session + Checkins] --> HIST[Attendance History]
+  P[Privacy Action] --> SD[Soft Delete]
+  P --> ER[Erase + Redact]
+  SD --> PURGE[Retention Purge Job]
+  ER --> PURGE
 ```
 
 ## 🎨 Key Features
@@ -88,6 +129,9 @@ GEMINI_API_KEY=AIza...
 ```
 
 See [`bot/ENV_SECRETS_SETUP.md`](bot/ENV_SECRETS_SETUP.md) for detailed setup instructions.
+See [`bot/BACKUP_RECOVERY.md`](bot/BACKUP_RECOVERY.md) for backup + HTTPS verification runbook.
+See [`OPERATIONS.md`](OPERATIONS.md) for concise P3 observability, QA, schema/API notes, and hardening baseline.
+OpenClaw templates and policy map: `openclaw/gateway.example.jsonc`, `openclaw/bot-api-policy.json`.
 Edit `src/pages/Team/Team.jsx` with real names and photos
 
 ## 🌐 Deployment

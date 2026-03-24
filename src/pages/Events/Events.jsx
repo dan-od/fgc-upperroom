@@ -1,7 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { SectionHeader, Button } from '../../components/common'
 import { subscribeVisitor } from '../../utils/subscribeApi'
+import {
+  createDefaultRegistrationMethods,
+  normalizeRegistrationMethods,
+  fetchBotEvents,
+  mapBotEventToPublicEvent
+} from '../../utils/eventsApi'
 import './Events.css'
+
+const toWhatsAppLink = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '')
+  return digits ? `https://wa.me/${digits}` : ''
+}
 
 const Events = () => {
   // Countdown timer for featured event
@@ -14,14 +25,43 @@ const Events = () => {
   const [selectedEventForModal, setSelectedEventForModal] = useState(null)
   const [showEventModal, setShowEventModal] = useState(false)
   const [showShareDropdown, setShowShareDropdown] = useState(false)
+  const [eventModalStatus, setEventModalStatus] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(true)
+  const eventModalRef = useRef(null)
+  const eventModalCloseRef = useRef(null)
+  const activeModalTriggerRef = useRef(null)
 
   // Subscribe form state
   const [subForm, setSubForm] = useState({ name: '', phone: '', email: '' })
   const [subSubmitting, setSubSubmitting] = useState(false)
   const [subStatus, setSubStatus] = useState(null) // null | 'success' | 'error'
   const [subMessage, setSubMessage] = useState('')
+  const [subReminderFrequency, setSubReminderFrequency] = useState('weekly')
+  const [subReminderScope, setSubReminderScope] = useState('all') // all | selected
+  const [subReminderEventIds, setSubReminderEventIds] = useState([])
+  const [events, setEvents] = useState([])
+
+  const validateSubscription = () => {
+    const name = subForm.name.trim()
+    const phone = subForm.phone.trim()
+    const email = subForm.email.trim()
+
+    if (!name || !phone || !email) {
+      return 'Please fill in your name, phone number, and email.'
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailPattern.test(email)) {
+      return 'Enter a valid email address.'
+    }
+
+    if (phone.replace(/\D/g, '').length < 10) {
+      return 'Enter a valid WhatsApp phone number.'
+    }
+
+    return null
+  }
 
   // Detect mobile viewport
   useEffect(() => {
@@ -33,76 +73,122 @@ const Events = () => {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  const events = [
-    { 
-      title: 'Upper Room Week', 
-      date: 'September 15-21, 2026',
-      startDate: new Date('2026-09-15'),
-      time: '5:00 PM - 8:00 PM Daily',
-      description: 'A week of intensive programs for young people', 
-      location: 'FGC Mgbuoba',
-      category: 'Conference',
-      price: 'Free',
-      organizer: 'Youth Ministry',
-      contact: 'upperroom@fgcmgbuoba.org',
-      image: './assets/media/Senior Pastor.jpeg'
-    },
-    { 
-      title: 'Youth Camp', 
-      date: 'August 19-21, 2026',
-      startDate: new Date('2026-08-19'),
-      time: '3 Day Event',
-      description: 'Fellowship, fun, and spiritual renewal', 
-      location: 'Uyo',
-      category: 'Retreat',
-      price: '₦5,000',
-      organizer: 'Youth Ministry',
-      contact: 'theupperroom4sq@gmail.com',
-      image: './assets/media/Senior Pastor.jpeg'
-    },
-    { 
-      title: 'Thanksgiving & Carol', 
-      date: 'December 20, 2026',
-      startDate: new Date('2026-12-20'),
-      time: '10:00 AM - 2:00 PM',
-      description: "Celebrating God's faithfulness", 
-      location: 'FGC Mgbuoba',
-      category: 'Worship',
-      price: 'Free',
-      organizer: 'Praise & Worship Team',
-      contact: 'upperroom@fgcmgbuoba.org',
-      image: './assets/media/Senior Pastor.jpeg'
-    },
-    { 
-      title: 'New Year Praise Night', 
-      date: 'January 1, 2026',
-      startDate: new Date('2026-01-01'),
-      time: '11:00 PM - 1:00 AM',
-      description: 'Welcome the new year with praise and worship', 
-      location: 'FGC Mgbuoba',
-      category: 'Worship',
-      price: 'Free',
-      organizer: 'Praise & Worship Team',
-      contact: 'upperroom@fgcmgbuoba.org',
-      image: './assets/media/Senior Pastor.jpeg'
-    },
-    { 
-      title: 'Teens — Impact Summit', 
-      date: 'March 14, 2026',
-      startDate: new Date('2026-03-14'),
-      time: '10:00 AM',
-      description: 'Next-Gen Architects: Mentoring Teenagers in this Generation', 
-      location: 'FGC Mgbuoba',
-      category: 'Worship, Talk Shows, Discussions',
-      price: 'Free',
-      organizer: 'Teen Ministry',
-      contact: 'upperroom@fgcmgbuoba.org',
-      image: './assets/media/events/images/teens_summit2026.png'
+  useEffect(() => {
+    const toTitleCase = (value) => {
+      const text = String(value || '').trim()
+      if (!text) {
+        return 'General'
+      }
+      return text.charAt(0).toUpperCase() + text.slice(1)
     }
-  ]
 
-  // Sort all events by date chronologically
-  events.sort((a, b) => a.startDate - b.startDate)
+    const toDisplayDate = (dateObj) => {
+      return dateObj.toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    }
+
+    const normalizeAdminEvent = (item) => {
+      const parsedDate = new Date(item?.date)
+      const safeDate = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate
+
+      return {
+        title: String(item?.title || 'Untitled Event').trim() || 'Untitled Event',
+        date: toDisplayDate(safeDate),
+        startDate: safeDate,
+        time: String(item?.time || 'Time TBA').trim() || 'Time TBA',
+        description: String(item?.description || '').trim() || 'Details coming soon.',
+        whatToExpect: Array.isArray(item?.whatToExpect)
+          ? item.whatToExpect.map((tag) => String(tag || '').trim()).filter(Boolean)
+          : [],
+        registrationRequired: Boolean(item?.registrationRequired),
+        registrationMethods: normalizeRegistrationMethods(item?.registrationMethods),
+        location: String(item?.location || 'FGC Mgbuoba').trim() || 'FGC Mgbuoba',
+        category: toTitleCase(item?.category || 'general'),
+        price: String(item?.price || 'Free').trim() || 'Free',
+        organizer: String(item?.organizer || 'Youth Ministry').trim() || 'Youth Ministry',
+        contact: String(item?.contact || 'upperroom@fgcmgbuoba.org').trim() || 'upperroom@fgcmgbuoba.org',
+        image: String(item?.imageUrl || item?.image || './assets/media/Senior Pastor.jpeg').trim() || './assets/media/Senior Pastor.jpeg',
+        registrationLink: String(item?.registrationLink || '/contact').trim() || '/contact'
+      }
+    }
+
+    const loadEvents = async () => {
+      try {
+        const botEvents = await fetchBotEvents()
+        setEvents(botEvents.map(mapBotEventToPublicEvent))
+        return
+      } catch {
+        // Fallback to local cache so the page still works when the bot is offline.
+      }
+
+      try {
+        const raw = localStorage.getItem('admin_events')
+        if (!raw) {
+          setEvents([])
+          return
+        }
+
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          setEvents([])
+          return
+        }
+
+        setEvents(parsed.map(normalizeAdminEvent))
+      } catch {
+        setEvents([])
+      }
+    }
+
+    loadEvents()
+    const handleRefresh = () => {
+      loadEvents()
+    }
+
+    window.addEventListener('adminEventsUpdated', handleRefresh)
+    window.addEventListener('storage', handleRefresh)
+    return () => {
+      window.removeEventListener('adminEventsUpdated', handleRefresh)
+      window.removeEventListener('storage', handleRefresh)
+    }
+  }, [])
+
+  const sortedEvents = [...events].sort((a, b) => a.startDate - b.startDate)
+
+  const getWhatToExpectText = (event) => {
+    const tags = Array.isArray(event?.whatToExpect) ? event.whatToExpect.filter(Boolean) : []
+    if (tags.length === 0) {
+      return event?.description || 'Details coming soon.'
+    }
+    return tags.map((tag) => `\`${tag}\``).join(', ')
+  }
+
+  const getRegistrationOptions = (event) => {
+    if (!event?.registrationRequired) {
+      return [{ label: 'Register for Free', href: event?.registrationLink || '/contact' }]
+    }
+
+    const options = []
+    const methods = normalizeRegistrationMethods(event?.registrationMethods)
+    const whatsappHref = toWhatsAppLink(methods.whatsapp.phone)
+
+    if (methods.whatsapp.enabled && whatsappHref) {
+      options.push({ label: methods.whatsapp.label, href: whatsappHref })
+    }
+
+    if (methods.payment.enabled && /^https?:\/\//i.test(methods.payment.url)) {
+      options.push({ label: methods.payment.label, href: methods.payment.url })
+    }
+
+    if (options.length === 0) {
+      options.push({ label: 'Register for Free', href: event?.registrationLink || '/contact' })
+    }
+
+    return options
+  }
 
   // Filter state - Define 'today' first since it's used below
   const today = new Date()
@@ -111,16 +197,23 @@ const Events = () => {
   const [displayedMonth, setDisplayedMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
 
   // Get the earliest upcoming event as featured event
-  const upcomingEvents = events
+  const upcomingEvents = sortedEvents
     .filter(event => event.startDate >= today)
     .sort((a, b) => a.startDate - b.startDate)
-  const featuredEvents = (upcomingEvents.length > 0 ? upcomingEvents : events).slice(0, 3)
-  const baseEvent = featuredEvents.length > 0 ? featuredEvents[featuredIndex % featuredEvents.length] : events[0]
-  const featuredEvent = {
-    ...baseEvent,
-    subtitle: baseEvent.category || 'Featured Event',
-    registrationLink: baseEvent.registrationLink || '/contact'
-  }
+  const featuredEvents = (upcomingEvents.length > 0 ? upcomingEvents : sortedEvents).slice(0, 3)
+  const baseEvent = featuredEvents.length > 0 ? featuredEvents[featuredIndex % featuredEvents.length] : sortedEvents[0]
+  const featuredEvent = baseEvent
+    ? {
+      ...baseEvent,
+      subtitle: baseEvent.category || 'Featured Event',
+      registrationLink: baseEvent.registrationLink || '/contact'
+    }
+    : null
+
+  const featuredRegistrationOptions = featuredEvent ? getRegistrationOptions(featuredEvent) : []
+  const reminderPreferenceEvents = upcomingEvents
+    .filter((event) => Boolean(event?.id))
+    .slice(0, 8)
 
   useEffect(() => {
     if (featuredEvents.length <= 1) {
@@ -156,6 +249,11 @@ const Events = () => {
 
   // Countdown timer for featured event
   useEffect(() => {
+    if (!featuredEvent?.startDate) {
+      setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+      return
+    }
+
     const targetDate = new Date(featuredEvent.startDate).getTime()
     
     const interval = setInterval(() => {
@@ -171,7 +269,57 @@ const Events = () => {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [featuredEvent.startDate])
+  }, [featuredEvent?.startDate])
+
+  useEffect(() => {
+    if (!showEventModal) {
+      document.body.classList.remove('modal-open')
+      return
+    }
+
+    document.body.classList.add('modal-open')
+    const focusTimer = window.setTimeout(() => {
+      eventModalCloseRef.current?.focus()
+    }, 40)
+
+    const handleKeydown = (event) => {
+      if (event.key === 'Escape') {
+        closeEventModal()
+        return
+      }
+
+      if (event.key !== 'Tab') {
+        return
+      }
+
+      const panel = eventModalRef.current
+      if (!panel) return
+
+      const focusable = panel.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeydown)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+      document.body.classList.remove('modal-open')
+      document.removeEventListener('keydown', handleKeydown)
+    }
+  }, [showEventModal])
 
   // Filter logic
   const filterEvents = () => {
@@ -181,16 +329,16 @@ const Events = () => {
 
     switch (activeFilter) {
       case 'upcoming':
-        return events.filter(event => event.startDate >= now)
+        return sortedEvents.filter(event => event.startDate >= now)
       case 'thisMonth':
-        return events.filter(event => 
+        return sortedEvents.filter(event => 
           event.startDate.getMonth() === currentMonth && 
           event.startDate.getFullYear() === currentYear
         )
       case 'past':
-        return events.filter(event => event.startDate < now)
+        return sortedEvents.filter(event => event.startDate < now)
       default:
-        return events
+        return sortedEvents
     }
   }
 
@@ -246,7 +394,7 @@ const Events = () => {
   const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   const availableYears = Array.from(
-    new Set([today.getFullYear(), ...events.map((event) => event.startDate.getFullYear())])
+    new Set([today.getFullYear(), ...sortedEvents.map((event) => event.startDate.getFullYear())])
   ).sort((a, b) => a - b)
 
   const displayedMonthYear = displayedMonth.getFullYear()
@@ -254,7 +402,7 @@ const Events = () => {
   const firstDayOfMonth = new Date(displayedMonthYear, displayedMonthIndex, 1).getDay()
   const totalDaysInMonth = new Date(displayedMonthYear, displayedMonthIndex + 1, 0).getDate()
 
-  const calendarEvents = events.filter((event) => {
+  const calendarEvents = sortedEvents.filter((event) => {
     return (
       event.startDate.getMonth() === displayedMonthIndex &&
       event.startDate.getFullYear() === displayedMonthYear
@@ -290,10 +438,26 @@ const Events = () => {
     setDisplayedMonth(new Date(Number(event.target.value), displayedMonthIndex, 1))
   }
 
-  const handleCalendarDayClick = (dayEvents) => {
+  const openEventModal = (eventItem, triggerEl = null) => {
+    activeModalTriggerRef.current = triggerEl
+    setSelectedEventForModal(eventItem)
+    setShowEventModal(true)
+    setShowShareDropdown(false)
+    setEventModalStatus('')
+  }
+
+  const closeEventModal = () => {
+    setShowEventModal(false)
+    setShowShareDropdown(false)
+    setEventModalStatus('')
+    requestAnimationFrame(() => {
+      activeModalTriggerRef.current?.focus()
+    })
+  }
+
+  const handleCalendarDayClick = (dayEvents, triggerEl = null) => {
     if (dayEvents && dayEvents.length > 0) {
-      setSelectedEventForModal(dayEvents[0])
-      setShowEventModal(true)
+      openEventModal(dayEvents[0], triggerEl)
     }
   }
 
@@ -320,7 +484,7 @@ const Events = () => {
   ]
 
   // Helper functions
-  const shareEvent = (event, platform) => {
+  const shareEvent = async (event, platform) => {
     const url = encodeURIComponent(window.location.href)
     const text = encodeURIComponent(`Check out ${event.title} at Upper Room Mgbuoba!`)
     
@@ -331,33 +495,117 @@ const Events = () => {
       email: `mailto:?subject=${encodeURIComponent(event.title)}&body=${text}%20${url}`
     }
     
+    if (platform === 'copy') {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setEventModalStatus('Event link copied to clipboard.')
+      } catch {
+        setEventModalStatus('Unable to copy link automatically. Please copy the URL from your browser.')
+      }
+      return
+    }
+
     if (shareUrls[platform]) {
       window.open(shareUrls[platform], '_blank', 'width=600,height=400')
+      setEventModalStatus(`Sharing to ${platform}...`)
     }
   }
 
+  const toCalendarUtcStamp = (value) => {
+    return value.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+  }
+
+  const escapeIcsText = (value) => {
+    return String(value || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;')
+  }
+
+  const getEventDateRange = (event) => {
+    const start = new Date(event.startDate)
+    const timeText = String(event.time || '')
+      .toLowerCase()
+      .trim()
+
+    // Try parsing "7:30 pm" / "7 pm" / "19:30" patterns from event.time.
+    const amPmMatch = timeText.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/)
+    const twentyFourHourMatch = timeText.match(/\b(\d{1,2}):(\d{2})\b/)
+
+    if (amPmMatch) {
+      let hours = Number(amPmMatch[1])
+      const minutes = Number(amPmMatch[2] || 0)
+      const period = amPmMatch[3]
+
+      if (period === 'pm' && hours !== 12) hours += 12
+      if (period === 'am' && hours === 12) hours = 0
+
+      start.setHours(hours, minutes, 0, 0)
+    } else if (twentyFourHourMatch) {
+      const hours = Number(twentyFourHourMatch[1])
+      const minutes = Number(twentyFourHourMatch[2])
+      start.setHours(hours, minutes, 0, 0)
+    } else {
+      // Fallback when time is unavailable (e.g., "Time TBA").
+      start.setHours(9, 0, 0, 0)
+    }
+
+    const end = new Date(start.getTime() + (2 * 60 * 60 * 1000))
+    return { start, end }
+  }
+
+  const buildCalendarDetails = (event) => {
+    const lines = [event.description]
+    if (event.organizer) lines.push(`Organizer: ${event.organizer}`)
+    if (event.contact) lines.push(`Contact: ${event.contact}`)
+
+    if (event.registrationLink) {
+      const registrationHref = String(event.registrationLink).startsWith('http')
+        ? event.registrationLink
+        : `${window.location.origin}${String(event.registrationLink).startsWith('/') ? event.registrationLink : `/${event.registrationLink}`}`
+      lines.push(`Registration: ${registrationHref}`)
+    }
+
+    return lines.filter(Boolean).join('\n\n')
+  }
+
   const exportToCalendar = (event, format) => {
-    const startDate = event.startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-    
+    const { start, end } = getEventDateRange(event)
+    const startDate = toCalendarUtcStamp(start)
+    const endDate = toCalendarUtcStamp(end)
+    const details = buildCalendarDetails(event)
+
     if (format === 'google') {
-      const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${startDate}/${startDate}&details=${encodeURIComponent(event.description)}&location=${encodeURIComponent(event.location)}`
+      const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${startDate}/${endDate}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(event.location)}`
       window.open(googleUrl, '_blank')
+    } else if (format === 'outlook') {
+      const outlookUrl = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(event.title)}&startdt=${encodeURIComponent(start.toISOString())}&enddt=${encodeURIComponent(end.toISOString())}&body=${encodeURIComponent(details)}&location=${encodeURIComponent(event.location)}`
+      window.open(outlookUrl, '_blank')
     } else if (format === 'ical') {
-      const icalContent = `BEGIN:VCALENDAR
-        VERSION:2.0
-        BEGIN:VEVENT
-        DTSTART:${startDate}
-        SUMMARY:${event.title}
-        DESCRIPTION:${event.description}
-        LOCATION:${event.location}
-        END:VEVENT
-        END:VCALENDAR`
-      
+      const icalContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//FGC Upper Room//Events//EN',
+        'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${Date.now()}-${Math.random().toString(36).slice(2)}@fgcupperroom.local`,
+        `DTSTAMP:${toCalendarUtcStamp(new Date())}`,
+        `DTSTART:${startDate}`,
+        `DTEND:${endDate}`,
+        `SUMMARY:${escapeIcsText(event.title)}`,
+        `DESCRIPTION:${escapeIcsText(details)}`,
+        `LOCATION:${escapeIcsText(event.location)}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\n')
+
       const blob = new Blob([icalContent], { type: 'text/calendar' })
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
       link.download = `${event.title.replace(/\s+/g, '-')}.ics`
       link.click()
+      URL.revokeObjectURL(link.href)
     }
   }
 
@@ -366,24 +614,81 @@ const Events = () => {
     setSubForm(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleReminderScopeChange = (scope) => {
+    setSubReminderScope(scope)
+    if (scope === 'all') {
+      setSubReminderEventIds([])
+    }
+  }
+
+  const handleReminderEventToggle = (eventId, isChecked) => {
+    setSubReminderEventIds((current) => {
+      const normalizedId = String(eventId || '').trim()
+      if (!normalizedId) {
+        return current
+      }
+
+      if (isChecked) {
+        return current.includes(normalizedId) ? current : [...current, normalizedId]
+      }
+
+      return current.filter((id) => id !== normalizedId)
+    })
+  }
+
   const handleSubSubmit = async (e) => {
     e.preventDefault()
-    setSubSubmitting(true)
     setSubStatus(null)
 
-    const result = await subscribeVisitor(subForm)
+    const validationError = validateSubscription()
+    if (validationError) {
+      setSubMessage(validationError)
+      setSubStatus('error')
+      return
+    }
 
-    setSubSubmitting(false)
-    setSubMessage(result.message)
-    setSubStatus(result.ok ? 'success' : 'error')
+    if (subReminderScope === 'selected' && reminderPreferenceEvents.length > 0 && subReminderEventIds.length === 0) {
+      setSubMessage('Select at least one event or switch to "All upcoming events".')
+      setSubStatus('error')
+      return
+    }
 
-    if (result.ok) {
-      setSubForm({ name: '', phone: '', email: '' })
+    setSubSubmitting(true)
+
+    try {
+      const reminderPreferences = {
+        serviceReminders: true,
+        eventReminders: true,
+        eventReminderFrequency: subReminderFrequency,
+        eventIds: subReminderScope === 'selected' ? subReminderEventIds : []
+      }
+
+      const result = await subscribeVisitor({
+        name: subForm.name.trim(),
+        phone: subForm.phone.trim(),
+        email: subForm.email.trim(),
+        reminderPreferences
+      })
+
+      setSubMessage(result.message)
+      setSubStatus(result.ok ? 'success' : 'error')
+
+      if (result.ok) {
+        setSubForm({ name: '', phone: '', email: '' })
+        setSubReminderFrequency('weekly')
+        setSubReminderScope('all')
+        setSubReminderEventIds([])
+      }
+    } catch {
+      setSubStatus('error')
+      setSubMessage('Subscription failed. Please try again in a moment.')
+    } finally {
+      setSubSubmitting(false)
     }
   }
 
   return (
-    <main className="events-page">
+    <main id="main-content" className="events-page">
       <section className="page-banner bg-red">
         <div className="container">
           <h1>Events</h1>
@@ -392,69 +697,97 @@ const Events = () => {
       </section>
 
       {/* Featured Event Hero */}
-      <section className="featured-event">
-        <div className="container">
-          <div className="featured-event__card">
-            <div className="featured-event__image">
-              <img src={featuredEvent.image} alt={featuredEvent.title} />
-              <div className="featured-event__overlay" />
-            </div>
-            <div className={`featured-event__content ${contentFlipState === 'out' ? 'featured-event__content--flip-out' : ''} ${contentFlipState === 'in' ? 'featured-event__content--flip-in' : ''}`}>
-              <span className="featured-event__tag">Next Major Event</span>
-              <h2>{featuredEvent.title}</h2>
-              <p className="featured-event__subtitle">
-                {featuredEvent.subtitle.split(',').map((cat, idx) => (
-                  <code key={idx}>{cat.trim()}</code>
-                ))}
-              </p>
-              
-              <div className="featured-event__countdown">
-                <div className="countdown-item">
-                  <span className="countdown-number">{countdown.days}</span>
-                  <span className="countdown-label">Days</span>
+      {featuredEvent ? (
+        <section className="featured-event">
+          <div className="container">
+            <div className="featured-event__card">
+              <div className="featured-event__image">
+                <img src={featuredEvent.image} alt={featuredEvent.title} />
+                <div className="featured-event__overlay" />
+              </div>
+              <div className={`featured-event__content ${contentFlipState === 'out' ? 'featured-event__content--flip-out' : ''} ${contentFlipState === 'in' ? 'featured-event__content--flip-in' : ''}`}>
+                <span className="featured-event__tag">Next Major Event</span>
+                <h2>{featuredEvent.title}</h2>
+                <p className="featured-event__subtitle">
+                  {featuredEvent.subtitle.split(',').map((cat, idx) => (
+                    <code key={idx}>{cat.trim()}</code>
+                  ))}
+                </p>
+
+                <div className="featured-event__countdown">
+                  <div className="countdown-item">
+                    <span className="countdown-number">{countdown.days}</span>
+                    <span className="countdown-label">Days</span>
+                  </div>
+                  <div className="countdown-item">
+                    <span className="countdown-number">{countdown.hours}</span>
+                    <span className="countdown-label">Hours</span>
+                  </div>
+                  <div className="countdown-item">
+                    <span className="countdown-number">{countdown.minutes}</span>
+                    <span className="countdown-label">Minutes</span>
+                  </div>
+                  <div className="countdown-item">
+                    <span className="countdown-number">{countdown.seconds}</span>
+                    <span className="countdown-label">Seconds</span>
+                  </div>
                 </div>
-                <div className="countdown-item">
-                  <span className="countdown-number">{countdown.hours}</span>
-                  <span className="countdown-label">Hours</span>
+
+                <p className="featured-event__description">{getWhatToExpectText(featuredEvent)}</p>
+
+                <div className="featured-event__details">
+                  <div className="featured-event__detail">
+                    <i className="fa-solid fa-calendar"></i>
+                    <span>{featuredEvent.date}</span>
+                  </div>
+                  <div className="featured-event__detail">
+                    <i className="fa-solid fa-clock"></i>
+                    <span>{featuredEvent.time}</span>
+                  </div>
+                  <div className="featured-event__detail">
+                    <i className="fa-solid fa-location-dot"></i>
+                    <span>{featuredEvent.location}</span>
+                  </div>
+                  <div className="featured-event__detail">
+                    <i className="fa-solid fa-ticket"></i>
+                    <span>{featuredEvent.price}</span>
+                  </div>
                 </div>
-                <div className="countdown-item">
-                  <span className="countdown-number">{countdown.minutes}</span>
-                  <span className="countdown-label">Minutes</span>
-                </div>
-                <div className="countdown-item">
-                  <span className="countdown-number">{countdown.seconds}</span>
-                  <span className="countdown-label">Seconds</span>
+
+                <div className="featured-event__registration-actions">
+                  {featuredRegistrationOptions.map((option, index) => (
+                    <Button
+                      key={`${option.label}-${index}`}
+                      href={option.href}
+                      variant={index === 0 ? 'primary' : 'outline'}
+                      size="lg"
+                      external={option.href.startsWith('http')}
+                      target={option.href.startsWith('http') ? '_blank' : undefined}
+                      rel={option.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
-
-              <p className="featured-event__description">{featuredEvent.description}</p>
-              
-              <div className="featured-event__details">
-                <div className="featured-event__detail">
-                  <i className="fa-solid fa-calendar"></i>
-                  <span>{featuredEvent.date}</span>
-                </div>
-                <div className="featured-event__detail">
-                  <i className="fa-solid fa-clock"></i>
-                  <span>{featuredEvent.time}</span>
-                </div>
-                <div className="featured-event__detail">
-                  <i className="fa-solid fa-location-dot"></i>
-                  <span>{featuredEvent.location}</span>
-                </div>
-                <div className="featured-event__detail">
-                  <i className="fa-solid fa-ticket"></i>
-                  <span>{featuredEvent.price}</span>
-                </div>
-              </div>
-
-              <Button href={featuredEvent.registrationLink} variant="primary" size="lg">
-                Register for Free
-              </Button>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className="featured-event">
+          <div className="container">
+            <div className="featured-event__card">
+              <div className="featured-event__content">
+                <span className="featured-event__tag">Events</span>
+                <h2>No Events Published Yet</h2>
+                <p className="featured-event__description">
+                  Upcoming events will appear here as soon as they are created in the Admin dashboard.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="events-section">
         <div className="container">
@@ -464,22 +797,28 @@ const Events = () => {
             {viewMode === 'grid' && (
               <div className="events-filters">
                 <button 
+                  type="button"
                   className={`filter-tab ${activeFilter === 'upcoming' ? 'filter-tab--active' : ''}`}
                   onClick={() => setActiveFilter('upcoming')}
+                  aria-pressed={activeFilter === 'upcoming'}
                 >
                   <i className="fa-solid fa-calendar-days"></i>
                   <span>Upcoming Events</span>
                 </button>
                 <button 
+                  type="button"
                   className={`filter-tab ${activeFilter === 'thisMonth' ? 'filter-tab--active' : ''}`}
                   onClick={() => setActiveFilter('thisMonth')}
+                  aria-pressed={activeFilter === 'thisMonth'}
                 >
                   <i className="fa-solid fa-calendar-week"></i>
                   <span>This Month</span>
                 </button>
                 <button 
+                  type="button"
                   className={`filter-tab ${activeFilter === 'past' ? 'filter-tab--active' : ''}`}
                   onClick={() => setActiveFilter('past')}
+                  aria-pressed={activeFilter === 'past'}
                 >
                   <i className="fa-solid fa-clock-rotate-left"></i>
                   <span>Past Events</span>
@@ -489,7 +828,7 @@ const Events = () => {
 
             {viewMode === 'calendar' && (
               <div className="calendar-toolbar">
-                <button className="calendar-nav-btn" onClick={previousMonth} aria-label="Previous month">
+                <button type="button" className="calendar-nav-btn" onClick={previousMonth} aria-label="Previous month">
                   <i className="fa-solid fa-chevron-left"></i>
                 </button>
 
@@ -517,11 +856,11 @@ const Events = () => {
                   </select>
                 </div>
 
-                <button className="calendar-nav-btn" onClick={nextMonth} aria-label="Next month">
+                <button type="button" className="calendar-nav-btn" onClick={nextMonth} aria-label="Next month">
                   <i className="fa-solid fa-chevron-right"></i>
                 </button>
 
-                <button className="calendar-today-btn" onClick={goToCurrentMonth}>
+                <button type="button" className="calendar-today-btn" onClick={goToCurrentMonth}>
                   Today
                 </button>
               </div>
@@ -530,16 +869,22 @@ const Events = () => {
             {/* View Toggle */}
             <div className="view-toggle">
               <button 
+                type="button"
                 className={`view-toggle__btn ${viewMode === 'grid' ? 'view-toggle__btn--active' : ''}`}
                 onClick={() => setViewMode('grid')}
                 title="Grid View"
+                aria-label="Switch to grid view"
+                aria-pressed={viewMode === 'grid'}
               >
                 <i className="fa-solid fa-border-all"></i>
               </button>
               <button 
+                type="button"
                 className={`view-toggle__btn ${viewMode === 'calendar' ? 'view-toggle__btn--active' : ''}`}
                 onClick={() => setViewMode('calendar')}
                 title="Calendar View"
+                aria-label="Switch to calendar view"
+                aria-pressed={viewMode === 'calendar'}
               >
                 <i className="fa-solid fa-calendar-days"></i>
               </button>
@@ -560,6 +905,12 @@ const Events = () => {
                   {carouselEvents.map((event, i) => (
                     <div key={i} className="carousel-grid-card">
                       <div>
+                        {(() => {
+                          const cardRegistrationOptions = getRegistrationOptions(event)
+                          const primaryRegistration = cardRegistrationOptions[0]
+
+                          return (
+                            <>
                         <div className="carousel-grid-card__header">
                           <div className="carousel-grid-card__date">{event.date}</div>
                         </div>
@@ -585,18 +936,28 @@ const Events = () => {
                         </div>
                         <div className="carousel-grid-card__actions">
                           <button 
-                            onClick={() => {
-                              setSelectedEventForModal(event)
-                              setShowEventModal(true)
+                            type="button"
+                            onClick={(clickEvent) => {
+                              openEventModal(event, clickEvent.currentTarget)
                             }}
                             className="carousel-grid-card__read-more"
                           >
                             Read More
                           </button>
-                          <Button href="/contact" variant="primary" size="sm">
-                            Register
+                          <Button
+                            href={primaryRegistration?.href || '/contact'}
+                            variant="primary"
+                            size="sm"
+                            external={(primaryRegistration?.href || '').startsWith('http')}
+                            target={(primaryRegistration?.href || '').startsWith('http') ? '_blank' : undefined}
+                            rel={(primaryRegistration?.href || '').startsWith('http') ? 'noopener noreferrer' : undefined}
+                          >
+                            {primaryRegistration?.label || 'Register'}
                           </Button>
                         </div>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -620,64 +981,93 @@ const Events = () => {
             </div>
           )}
 
+          {viewMode === 'grid' && filteredEvents.length === 0 && (
+            <div className="calendar-empty-state">
+              No events match this filter yet.
+            </div>
+          )}
+
           {/* Event Detail Modal */}
           {showEventModal && selectedEventForModal && (
-            <div className="event-modal-overlay" onClick={() => setShowEventModal(false)}>
-              <div className="event-modal" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="event-modal-overlay"
+              onClick={closeEventModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="event-modal-title"
+            >
+              <div ref={eventModalRef} className="event-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="event-modal__header">
-                  <h2>{selectedEventForModal.title}</h2>
+                  <h2 id="event-modal-title">{selectedEventForModal.title}</h2>
                   <div className="event-modal__header-actions">
                     <div className="event-modal__share-dropdown-wrapper">
                       <button 
+                        type="button"
                         className="event-modal__share-btn"
                         onClick={() => setShowShareDropdown(!showShareDropdown)}
                         title="Share event"
+                        aria-label="Share this event"
+                        aria-haspopup="menu"
+                        aria-expanded={showShareDropdown}
                       >
                         <i className="fa-solid fa-share-nodes"></i>
                       </button>
                       {showShareDropdown && (
-                        <div className="event-modal__share-dropdown">
+                        <div className="event-modal__share-dropdown" role="menu" aria-label="Share options">
                           <button 
+                            type="button"
                             onClick={() => {
                               shareEvent(selectedEventForModal, 'facebook')
                               setShowShareDropdown(false)
                             }}
                             className="share-dropdown-item"
+                            role="menuitem"
                           >
                             <i className="fa-brands fa-facebook"></i> Facebook
                           </button>
                           <button 
+                            type="button"
                             onClick={() => {
                               shareEvent(selectedEventForModal, 'twitter')
                               setShowShareDropdown(false)
                             }}
                             className="share-dropdown-item"
+                            role="menuitem"
                           >
                             <i className="fa-brands fa-x-twitter"></i> X (Twitter)
                           </button>
                           <button 
+                            type="button"
                             onClick={() => {
                               shareEvent(selectedEventForModal, 'whatsapp')
                               setShowShareDropdown(false)
                             }}
                             className="share-dropdown-item"
+                            role="menuitem"
                           >
                             <i className="fa-brands fa-whatsapp"></i> WhatsApp
                           </button>
                           <button 
+                            type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText(window.location.href)
-                              alert('Event link copied to clipboard!')
+                              shareEvent(selectedEventForModal, 'copy')
                               setShowShareDropdown(false)
                             }}
                             className="share-dropdown-item share-dropdown-item--copy"
+                            role="menuitem"
                           >
                             <i className="fa-solid fa-copy"></i> Copy Link
                           </button>
                         </div>
                       )}
                     </div>
-                    <button className="event-modal__close" onClick={() => setShowEventModal(false)}>
+                    <button
+                      ref={eventModalCloseRef}
+                      type="button"
+                      className="event-modal__close"
+                      onClick={closeEventModal}
+                      aria-label="Close event details"
+                    >
                       <i className="fa-solid fa-xmark"></i>
                     </button>
                   </div>
@@ -688,6 +1078,14 @@ const Events = () => {
                 </div>
                 
                 <div className="event-modal__content">
+                  <p className="event-modal__status" aria-live="polite">
+                    {eventModalStatus}
+                  </p>
+                  {(() => {
+                    const registrationOptions = getRegistrationOptions(selectedEventForModal)
+
+                    return (
+                      <>
                   <p className="event-modal__category">
                     {selectedEventForModal.category.split(',').map((cat, idx) => (
                       <code key={idx}>{cat.trim()}</code>
@@ -713,15 +1111,58 @@ const Events = () => {
                     </div>
                   </div>
 
-                  <p className="event-modal__description">{selectedEventForModal.description}</p>
+                  <p className="event-modal__description">{getWhatToExpectText(selectedEventForModal)}</p>
 
                   <div className="event-modal__organizer">
                     <strong>Organizer:</strong> {selectedEventForModal.organizer}
                   </div>
 
-                  <Button href="/contact" variant="primary" size="lg" className="event-modal__register">
-                    Register for Free
-                  </Button>
+                  <div className="event-modal__calendar-actions">
+                    <button
+                      type="button"
+                      className="event-modal__calendar-btn"
+                      onClick={() => exportToCalendar(selectedEventForModal, 'google')}
+                    >
+                      <i className="fa-brands fa-google"></i>
+                      Add to Google Calendar
+                    </button>
+                    <button
+                      type="button"
+                      className="event-modal__calendar-btn event-modal__calendar-btn--outline"
+                      onClick={() => exportToCalendar(selectedEventForModal, 'outlook')}
+                    >
+                      <i className="fa-brands fa-microsoft"></i>
+                      Add to Outlook
+                    </button>
+                    <button
+                      type="button"
+                      className="event-modal__calendar-btn event-modal__calendar-btn--outline"
+                      onClick={() => exportToCalendar(selectedEventForModal, 'ical')}
+                    >
+                      <i className="fa-solid fa-download"></i>
+                      Download .ics
+                    </button>
+                  </div>
+
+                  <div className="event-modal__registration-actions">
+                    {registrationOptions.map((option, index) => (
+                      <Button
+                        key={`${option.label}-${index}`}
+                        href={option.href}
+                        variant={index === 0 ? 'primary' : 'outline'}
+                        size="lg"
+                        className="event-modal__register"
+                        external={option.href.startsWith('http')}
+                        target={option.href.startsWith('http') ? '_blank' : undefined}
+                        rel={option.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
@@ -748,7 +1189,16 @@ const Events = () => {
                     <div
                       key={cell.key}
                       className={`calendar-day ${hasEvents ? 'calendar-day--has-events' : ''} ${cell.isToday ? 'calendar-day--today' : ''}`}
-                      onClick={() => handleCalendarDayClick(cell.dayEvents)}
+                      onClick={(event) => handleCalendarDayClick(cell.dayEvents, event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          handleCalendarDayClick(cell.dayEvents, event.currentTarget)
+                        }
+                      }}
+                      role={hasEvents ? 'button' : undefined}
+                      tabIndex={hasEvents ? 0 : undefined}
+                      aria-label={hasEvents ? `Open event details for ${monthNames[displayedMonthIndex]} ${cell.day}` : undefined}
                       style={hasEvents ? { cursor: 'pointer' } : {}}
                     >
                       <span className="calendar-day__number">{cell.day}</span>
@@ -817,6 +1267,7 @@ const Events = () => {
                   className="event-newsletter__input"
                   value={subForm.name}
                   onChange={handleSubChange}
+                  autoComplete="name"
                   required
                   disabled={subSubmitting}
                 />
@@ -827,6 +1278,8 @@ const Events = () => {
                   className="event-newsletter__input"
                   value={subForm.phone}
                   onChange={handleSubChange}
+                  inputMode="tel"
+                  autoComplete="tel"
                   required
                   disabled={subSubmitting}
                 />
@@ -837,9 +1290,78 @@ const Events = () => {
                   className="event-newsletter__input"
                   value={subForm.email}
                   onChange={handleSubChange}
+                  autoComplete="email"
                   required
                   disabled={subSubmitting}
                 />
+                <fieldset className="event-newsletter__preferences">
+                  <legend className="event-newsletter__preferences-title">Reminder Preferences</legend>
+                  <label className="event-newsletter__preferences-label" htmlFor="event-reminder-frequency">
+                    How often should we remind you?
+                  </label>
+                  <select
+                    id="event-reminder-frequency"
+                    className="event-newsletter__select"
+                    value={subReminderFrequency}
+                    onChange={(event) => setSubReminderFrequency(event.target.value)}
+                    disabled={subSubmitting}
+                  >
+                    <option value="daily">Daily (closer countdown updates)</option>
+                    <option value="weekly">Weekly (recommended)</option>
+                    <option value="key-dates">Key dates only (30/14/7/3/1 days)</option>
+                  </select>
+
+                  <div className="event-newsletter__scope">
+                    <label className="event-newsletter__scope-option">
+                      <input
+                        type="radio"
+                        name="event-reminder-scope"
+                        value="all"
+                        checked={subReminderScope === 'all'}
+                        onChange={() => handleReminderScopeChange('all')}
+                        disabled={subSubmitting}
+                      />
+                      <span>All upcoming events</span>
+                    </label>
+                    <label className="event-newsletter__scope-option">
+                      <input
+                        type="radio"
+                        name="event-reminder-scope"
+                        value="selected"
+                        checked={subReminderScope === 'selected'}
+                        onChange={() => handleReminderScopeChange('selected')}
+                        disabled={subSubmitting || reminderPreferenceEvents.length === 0}
+                      />
+                      <span>Only selected events</span>
+                    </label>
+                  </div>
+
+                  {subReminderScope === 'selected' && (
+                    reminderPreferenceEvents.length > 0 ? (
+                      <div className="event-newsletter__event-picks">
+                        {reminderPreferenceEvents.map((eventItem) => {
+                          const eventId = String(eventItem.id || '')
+                          return (
+                            <label key={eventId} className="event-newsletter__event-option">
+                              <input
+                                type="checkbox"
+                                checked={subReminderEventIds.includes(eventId)}
+                                onChange={(event) => handleReminderEventToggle(eventId, event.target.checked)}
+                                disabled={subSubmitting}
+                              />
+                              <span>
+                                {eventItem.title}
+                                <small>{eventItem.date}</small>
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="event-newsletter__hint">No upcoming events available yet for specific selection.</p>
+                    )
+                  )}
+                </fieldset>
                 <Button type="submit" variant="white" size="lg" disabled={subSubmitting}>
                   {subSubmitting ? 'Subscribing…' : 'Subscribe'}
                 </Button>

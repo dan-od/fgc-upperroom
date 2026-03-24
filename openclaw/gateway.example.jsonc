@@ -1,0 +1,40 @@
+{
+  // Reference template for OpenClaw gateway setup.
+  // Copy to your local OpenClaw config location and adapt to your OpenClaw version.
+  // Policy source for bot endpoints: ./bot-api-policy.json
+  "gateway": {
+    "host": "0.0.0.0",
+    "port": 8787
+  },
+  "auth": {
+    "token": "${OPENCLAW_GATEWAY_TOKEN}"
+  },
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "allowFrom": [
+        "234XXXXXXXXXX"
+      ],
+      "groupPolicy": "allowlist",
+      "allowGroups": []
+    }
+  },
+  "hooks": {
+    "enabled": true,
+    "token": "${OPENCLAW_HOOK_TOKEN}",
+    "path": "/hooks",
+    "mappings": [
+      {
+        "match": {
+          "path": "wake"
+        },
+        "action": "agent",
+        "agentId": "ops-readonly",
+        "wakeMode": "now",
+        "name": "FGC Bot Alert Ingest"
+      }
+    ]
+  }
+}
+

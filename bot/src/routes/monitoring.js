@@ -1,6 +1,6 @@
 import express from 'express'
 
-import { getHealthMetrics, checkAlertThresholds, getErrorSummary } from '../services/monitoring.service.js'
+import { getHealthMetrics, checkAlertThresholds, getErrorSummary, getMonitoringMetrics } from '../services/monitoring.service.js'
 import { logger } from '../lib/logger.js'
 
 const router = express.Router()
@@ -34,6 +34,16 @@ router.get('/errors', async (req, res) => {
   } catch (error) {
     logger.error('Error summary endpoint error', { error: error.message })
     res.status(500).json({ error: 'Failed to get error summary' })
+  }
+})
+
+router.get('/metrics', async (req, res) => {
+  try {
+    const metrics = await getMonitoringMetrics()
+    res.json(metrics)
+  } catch (error) {
+    logger.error('Metrics endpoint error', { error: error.message })
+    res.status(500).json({ error: 'Failed to get metrics' })
   }
 })
 

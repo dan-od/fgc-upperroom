@@ -1,20 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useI18n } from '../../../i18n/LanguageContext'
 import './Header.css'
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { language, setLanguage, languages, t } = useI18n()
   const location = useLocation()
+  const navRef = useRef(null)
+  const toggleRef = useRef(null)
+  const navId = 'primary-navigation'
 
   const navLinks = [
-    { path: '/', label: 'Home' },
-    { path: '/about', label: 'About' },
-    { path: '/team', label: 'Team' },
-    { path: '/events', label: 'Events' },
-    { path: '/media', label: 'Media' },
-    { path: '/blog', label: 'Blog' },
-    { path: '/contact', label: 'Contact' },
+    { path: '/', label: t('header.nav.home', 'Home') },
+    { path: '/about', label: t('header.nav.about', 'About') },
+    { path: '/team', label: t('header.nav.team', 'Team') },
+    { path: '/events', label: t('header.nav.events', 'Events') },
+    { path: '/media', label: t('header.nav.media', 'Media') },
+    { path: '/blog', label: t('header.nav.blog', 'Blog') },
+    { path: '/contact', label: t('header.nav.contact', 'Contact') }
   ]
 
   useEffect(() => {
@@ -35,6 +40,35 @@ const Header = () => {
     setMobileMenuOpen(false)
   }, [location])
 
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      document.body.classList.remove('modal-open')
+      return
+    }
+
+    document.body.classList.add('modal-open')
+
+    const focusTimer = window.setTimeout(() => {
+      const firstLink = navRef.current?.querySelector('a')
+      firstLink?.focus()
+    }, 60)
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false)
+        toggleRef.current?.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+      document.removeEventListener('keydown', handleEscape)
+      document.body.classList.remove('modal-open')
+    }
+  }, [mobileMenuOpen])
+
   return (
     <header className={`header ${isScrolled ? 'header--visible' : ''} ${location.pathname !== '/' ? 'header--always' : ''}`}>
       <div className="header__container">
@@ -46,22 +80,76 @@ const Header = () => {
           </div>
         </Link>
 
-        <nav className={`header__nav ${mobileMenuOpen ? 'header__nav--open' : ''}`}>
+        <nav
+          id={navId}
+          ref={navRef}
+          aria-label={t('header.primaryNavigation', 'Primary navigation')}
+          className={`header__nav ${mobileMenuOpen ? 'header__nav--open' : ''}`}
+        >
           {navLinks.map((link) => (
             <Link
               key={link.path}
               to={link.path}
               className={`header__link ${location.pathname === link.path ? 'header__link--active' : ''}`}
+              aria-current={location.pathname === link.path ? 'page' : undefined}
             >
               {link.label}
             </Link>
           ))}
+          <div className="header__lang-mobile">
+            <label className="sr-only" htmlFor="header-language-mobile">
+              {t('header.languageLabel', 'Language')}
+            </label>
+            <select
+              id="header-language-mobile"
+              className="header__lang-select"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+            >
+              {languages.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </nav>
 
+        {mobileMenuOpen && (
+          <button
+            type="button"
+            className="header__backdrop"
+            aria-label={t('header.closeBackdrop', 'Close menu')}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
+        <div className="header__lang-desktop">
+          <label className="sr-only" htmlFor="header-language-desktop">
+            {t('header.languageLabel', 'Language')}
+          </label>
+          <select
+            id="header-language-desktop"
+            className="header__lang-select"
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+          >
+            {languages.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
+          ref={toggleRef}
+          type="button"
           className={`header__mobile-toggle ${mobileMenuOpen ? 'header__mobile-toggle--active' : ''}`}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
+          aria-label={mobileMenuOpen ? t('header.closeMenu', 'Close menu') : t('header.openMenu', 'Open menu')}
+          aria-expanded={mobileMenuOpen}
+          aria-controls={navId}
         >
           <span></span>
           <span></span>
