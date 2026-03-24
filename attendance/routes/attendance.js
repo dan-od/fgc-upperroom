@@ -1,6 +1,8 @@
 import express from 'express'
 
 import {
+  getAdminSocialQrPngBuffer,
+  getAdminSocialQrs,
   generateAdminSession,
   getAdminQrPngBuffer,
   getAdminSessionInfo,
@@ -33,6 +35,26 @@ const resolveClientIp = (req) => {
     return forwarded.split(',')[0].trim()
   }
   return req.socket.remoteAddress || 'unknown'
+}
+
+const resolveOrigin = (req) => {
+  const configuredBase = String(process.env.ATTENDANCE_PUBLIC_BASE_URL || '').trim()
+  if (configuredBase) {
+    try {
+      const url = new URL(configuredBase)
+      return url.origin
+    } catch {
+      // Invalid override; fall back to request-derived origin.
+    }
+  }
+
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim()
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim()
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`
+  }
+
+  return `${req.protocol}://${req.get('host')}`
 }
 
 router.get('/health', (req, res) => {
@@ -122,7 +144,7 @@ router.get('/scan/:qrToken', (req, res) => {
 router.get('/admin/session', async (req, res) => {
   if (!assertAdmin(req, res)) return
 
-  const origin = `${req.protocol}://${req.get('host')}`
+  const origin = resolveOrigin(req)
   const result = await getAdminSessionInfo({ origin })
   res.status(result.status).json(result.payload)
 })
@@ -130,7 +152,7 @@ router.get('/admin/session', async (req, res) => {
 router.post('/admin/session/generate', async (req, res) => {
   if (!assertAdmin(req, res)) return
 
-  const origin = `${req.protocol}://${req.get('host')}`
+  const origin = resolveOrigin(req)
   const force = Boolean(req.body?.force)
   const result = await generateAdminSession({ origin, force })
   res.status(result.status).json(result.payload)
@@ -139,9 +161,31 @@ router.post('/admin/session/generate', async (req, res) => {
 router.get('/admin/qr.png', async (req, res) => {
   if (!assertAdmin(req, res)) return
 
-  const origin = `${req.protocol}://${req.get('host')}`
+  const origin = resolveOrigin(req)
   const result = await getAdminQrPngBuffer({ origin })
 
+  if (!result.ok) {
+    return res.status(result.status).json(result.payload)
+  }
+
+  res.setHeader('Content-Type', 'image/png')
+  res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`)
+  return res.status(200).send(result.buffer)
+})
+
+router.get('/admin/social-links/qr', async (req, res) => {
+  if (!assertAdmin(req, res)) return
+
+  const origin = resolveOrigin(req)
+  const result = await getAdminSocialQrs({ origin })
+  return res.status(result.status).json(result.payload)
+})
+
+router.get('/admin/social-links/:socialKey/qr.png', async (req, res) => {
+  if (!assertAdmin(req, res)) return
+
+  const origin = resolveOrigin(req)
+  const result = await getAdminSocialQrPngBuffer({ origin, socialKey: req.params.socialKey })
   if (!result.ok) {
     return res.status(result.status).json(result.payload)
   }

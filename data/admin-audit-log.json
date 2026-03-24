@@ -1,0 +1,16 @@
+[
+  {
+    "id": "211757bf-b73a-4825-8704-834903916972",
+    "actorUserId": "c3bb8ceb-01f7-4fdf-bfd8-2d5f94d00522",
+    "actorEmail": "admin@upperroom.local",
+    "actorRole": "super_admin",
+    "action": "auth.login",
+    "resource": "admin.auth",
+    "ip": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "details": {
+      "twoFactorEnabled": false
+    },
+    "createdAt": "2026-03-24T21:21:40.223Z"
+  }
+]

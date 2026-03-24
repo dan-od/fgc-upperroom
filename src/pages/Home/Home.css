@@ -70,19 +70,11 @@
   margin-bottom: var(--space-sm);
 }
 
-.hero__tagline {
-  font-family: var(--font-heading);
-  font-size: var(--text-xl);
-  font-style: italic;
-  color: var(--dove-yellow);
-  margin-bottom: var(--space-2xl);
-}
-
 .hero__title {
   font-family: var(--font-heading);
   font-size: var(--text-6xl);
   font-weight: 700;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-lg);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -92,7 +84,7 @@
   font-size: var(--text-xl);
   font-style: italic;
   color: var(--dove-yellow);
-  margin-bottom: var(--space-2xl);
+  margin-bottom: var(--space-lg);
 }
 
 .hero__actions {
@@ -426,6 +418,14 @@
   .new-here__grid,
   .social-section__grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .social-section__card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: min(100%, 320px);
   }
 }
 

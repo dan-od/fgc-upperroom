@@ -8,6 +8,38 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: church_bot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d church_bot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/church_bot
+      REDIS_URL: redis://localhost:6379
+      WHATSAPP_PROVIDER: stub
+      ENABLE_SCHEDULER: false
+      BOT_ADMIN_API_KEY: ci-admin-key
+      VITE_ADMIN_PASSWORD: ci-admin-key
+      VITE_RUM_ENABLED: true
+      VITE_RUM_ENDPOINT: /fgc-testing/api/observability/rum
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,8 +50,10 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Run tests
-        run: npm test --if-present
+      - name: Check env parity
+        run: npm run env:parity
+      - name: Run full QA gate
+        run: npm run test:unit && npm run qa:ci
 
   build-and-deploy:
     needs: test

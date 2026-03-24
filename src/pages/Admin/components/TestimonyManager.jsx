@@ -31,7 +31,6 @@ const TestimonyManager = () => {
   const resetForm = () => {
     setFormData(createEmptyTestimony())
     setView('list')
-    setNotice(null)
   }
 
   const openCreate = () => {
@@ -49,16 +48,17 @@ const TestimonyManager = () => {
     const name = formData.name.trim()
     const quote = formData.quote.trim()
     const role = formData.role.trim()
+    const resolvedName = name || 'Anonymous'
 
-    if (!name || !quote) {
-      setNotice({ tone: 'error', text: 'Name and quote are required.' })
+    if (!quote) {
+      setNotice({ tone: 'error', text: 'Testimony text is required.' })
       return
     }
 
     const now = new Date().toISOString()
     const payload = {
       ...formData,
-      name,
+      name: resolvedName,
       role,
       quote,
       updatedAt: now
@@ -73,7 +73,10 @@ const TestimonyManager = () => {
       }
 
       persist([newTestimony, ...testimonies])
-      setNotice({ tone: 'success', text: 'Testimony added.' })
+      setNotice({
+        tone: 'success',
+        text: name ? 'Testimony added.' : 'Testimony added as Anonymous.'
+      })
       resetForm()
       return
     }
@@ -84,7 +87,10 @@ const TestimonyManager = () => {
     })
 
     persist(updated)
-    setNotice({ tone: 'success', text: 'Testimony updated.' })
+    setNotice({
+      tone: 'success',
+      text: name ? 'Testimony updated.' : 'Testimony updated as Anonymous.'
+    })
     resetForm()
   }
 
@@ -95,9 +101,28 @@ const TestimonyManager = () => {
   }
 
   const handleDelete = (id) => {
-    if (!window.confirm('Delete this testimony?')) return
+    const selected = testimonies.find((item) => item.id === id)
+    const confirmMessage = selected
+      ? `Delete testimony from ${selected.name}? This cannot be undone.`
+      : 'Delete this testimony? This cannot be undone.'
+
+    if (!window.confirm(confirmMessage)) return
+
     persist(testimonies.filter((item) => item.id !== id))
     setNotice({ tone: 'success', text: 'Testimony removed.' })
+  }
+
+  const formatStamp = (value) => {
+    if (!value) {
+      return 'Not updated yet'
+    }
+
+    const stamp = new Date(value)
+    if (Number.isNaN(stamp.getTime())) {
+      return 'Unknown'
+    }
+
+    return stamp.toLocaleString()
   }
 
   const filtered = useMemo(() => {
@@ -144,8 +169,7 @@ const TestimonyManager = () => {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              required
-              placeholder="Member Name"
+              placeholder="Member Name (optional)"
             />
           </label>
 
@@ -232,6 +256,9 @@ const TestimonyManager = () => {
                 <h3>{item.name}</h3>
                 <p className="admin-testimony__role">{item.role}</p>
                 <blockquote>{item.quote}</blockquote>
+                <p className="admin-testimony__meta">
+                  Last updated: {formatStamp(item.updatedAt || item.createdAt)}
+                </p>
               </div>
               <div className="admin-testimony__actions">
                 <button onClick={() => handleEdit(item)} className="admin-testimony__icon-btn" title="Edit">

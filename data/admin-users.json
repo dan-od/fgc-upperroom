@@ -1,0 +1,17 @@
+[
+  {
+    "id": "c3bb8ceb-01f7-4fdf-bfd8-2d5f94d00522",
+    "email": "admin@upperroom.local",
+    "name": "Primary Admin",
+    "role": "super_admin",
+    "passwordHash": "24a8fb2113fbcc5e8071a079f3e0f097904b3ad44db26b8faf8e69d46d381789df7497884512ffa4a15cf41610636d41cf73a7a3f265dacc0e276460110505ee",
+    "passwordSalt": "8eefb05732a5127d6c939e110db0a23d",
+    "isActive": true,
+    "twoFactorEnabled": false,
+    "twoFactorSecret": null,
+    "pendingTwoFactorSecret": null,
+    "createdAt": "2026-03-24T20:23:29.726Z",
+    "updatedAt": "2026-03-24T21:21:40.221Z",
+    "lastLoginAt": "2026-03-24T21:21:40.221Z"
+  }
+]

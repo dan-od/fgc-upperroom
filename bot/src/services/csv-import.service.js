@@ -1,6 +1,8 @@
 import { parse } from 'csv-parse/sync'
 
 import { createVisitor } from './visitor.repository.js'
+import { isValidPhoneNumber, normalizePhoneNumber } from './identity.service.js'
+import { syncMemberProfileFromVisitor } from './member.repository.js'
 import { logger } from '../lib/logger.js'
 
 export const parseVisitorsCsv = (fileBuffer) => {
@@ -16,13 +18,14 @@ export const parseVisitorsCsv = (fileBuffer) => {
 
 export const validateVisitorRecord = (record, rowNumber) => {
   const errors = []
+  const normalizedPhone = normalizePhoneNumber(record.phone_number || '')
 
   if (!record.phone_number || !record.phone_number.trim()) {
     errors.push(`Row ${rowNumber}: phone_number is required`)
   }
 
-  if (record.phone_number && !/^[\d+\-\s()]+$/.test(record.phone_number)) {
-    errors.push(`Row ${rowNumber}: phone_number format invalid`)
+  if (record.phone_number && !isValidPhoneNumber(normalizedPhone)) {
+    errors.push(`Row ${rowNumber}: phone_number must be valid E.164 format`)
   }
 
   if (record.first_visit_date && isNaN(Date.parse(record.first_visit_date))) {
@@ -59,11 +62,15 @@ export const importVisitorsCsv = async (fileBuffer) => {
     try {
       const visitor = await createVisitor({
         name: record.name || '',
-        phoneNumber: record.phone_number.trim(),
+        phoneNumber: normalizePhoneNumber(record.phone_number),
         firstVisitDate: record.first_visit_date ? new Date(record.first_visit_date) : undefined,
         tags: record.tags ? record.tags.split(',').map((t) => t.trim()) : [],
         timezone: record.timezone || 'Africa/Lagos',
         consentedAt: new Date()
+      })
+
+      await syncMemberProfileFromVisitor(visitor).catch((error) => {
+        logger.warn('Failed to sync member profile during CSV import', { visitorId: visitor.id, error: error.message })
       })
 
       results.imported++

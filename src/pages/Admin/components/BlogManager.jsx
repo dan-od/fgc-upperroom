@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BookOpen,
   Edit2,
   FileText,
   GraduationCap,
@@ -13,19 +12,22 @@ import {
 } from 'lucide-react'
 import {
   BLOG_CATEGORIES,
+  BLOG_WORKFLOW_STATUSES,
+  applyBlogPublishingSchedule,
   estimateReadTime,
   formatBlogCategory,
   getTagList,
+  pushBlogVersion,
   seedBlogPostsIfEmpty,
   writeBlogPosts
 } from '../../../utils/blogStorage'
+import { recordAdminAudit } from '../../../utils/adminApi'
 import './BlogManager.css'
 
 const categoryIcons = {
   article: FileText,
   devotional: Heart,
-  'sunday-school': GraduationCap,
-  testimony: BookOpen
+  'sunday-school': GraduationCap
 }
 
 const createEmptyPost = () => ({
@@ -37,10 +39,18 @@ const createEmptyPost = () => ({
   excerpt: '',
   tags: '',
   featured: false,
-  status: 'published',
+  status: 'draft',
+  scheduledFor: '',
   image: '',
   createdAt: null,
-  updatedAt: null
+  updatedAt: null,
+  versions: [],
+  workflow: {
+    submittedAt: null,
+    reviewedBy: null,
+    approvedBy: null,
+    rejectedReason: null
+  }
 })
 
 const buildExcerpt = (content) => {
@@ -56,7 +66,7 @@ const buildExcerpt = (content) => {
   return `${plain.slice(0, 167)}...`
 }
 
-const BlogManager = () => {
+const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
   const [view, setView] = useState('list')
   const [posts, setPosts] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -64,14 +74,46 @@ const BlogManager = () => {
   const [filterStatus, setFilterStatus] = useState('all')
   const [formData, setFormData] = useState(createEmptyPost)
   const [notice, setNotice] = useState(null)
+  const [selectedPosts, setSelectedPosts] = useState([])
+  const canWrite = hasPermission('content:blog:write') || hasPermission('content:blog:publish')
+  const canApprove = hasPermission('content:blog:approve') || hasPermission('content:blog:publish')
+  const audit = (action, details = {}) => {
+    recordAdminAudit({ action, resource: 'content.blog', details }).catch(() => {})
+  }
 
   useEffect(() => {
-    setPosts(seedBlogPostsIfEmpty())
+    const seeded = seedBlogPostsIfEmpty()
+    const scheduled = applyBlogPublishingSchedule(seeded)
+    setPosts(scheduled.posts)
+    if (scheduled.changed) {
+      writeBlogPosts(scheduled.posts)
+    }
   }, [])
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setPosts((prev) => {
+        const result = applyBlogPublishingSchedule(prev)
+        if (result.changed) {
+          writeBlogPosts(result.posts)
+          setNotice({ tone: 'success', text: 'Scheduled blog post published automatically.' })
+        }
+        return result.posts
+      })
+    }, 60_000)
+
+    return () => window.clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const valid = new Set(posts.map((post) => post.id))
+    setSelectedPosts((prev) => prev.filter((id) => valid.has(id)))
+  }, [posts])
+
   const persistPosts = (updatedPosts) => {
-    setPosts(updatedPosts)
-    writeBlogPosts(updatedPosts)
+    const result = applyBlogPublishingSchedule(updatedPosts)
+    setPosts(result.posts)
+    writeBlogPosts(result.posts)
   }
 
   const resetForm = () => {
@@ -94,6 +136,11 @@ const BlogManager = () => {
   }
 
   const savePost = (targetStatus = formData.status) => {
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot modify blog posts.' })
+      return
+    }
+
     const title = formData.title.trim()
     const author = formData.author.trim()
     const content = formData.content.trim()
@@ -113,6 +160,23 @@ const BlogManager = () => {
       excerpt: formData.excerpt.trim() || buildExcerpt(content),
       tags: getTagList(formData.tags).join(', '),
       status: targetStatus,
+      scheduledFor: formData.scheduledFor ? new Date(formData.scheduledFor).toISOString() : null,
+      publishedAt: targetStatus === 'published' ? now : formData.publishedAt || null,
+      workflow: {
+        ...(formData.workflow || {}),
+        submittedAt:
+          targetStatus === 'pending_review'
+            ? now
+            : formData.workflow?.submittedAt || null,
+        approvedBy:
+          targetStatus === 'approved' || targetStatus === 'published'
+            ? currentUser?.email || null
+            : formData.workflow?.approvedBy || null,
+        reviewedBy:
+          targetStatus === 'approved' || targetStatus === 'published'
+            ? currentUser?.email || null
+            : formData.workflow?.reviewedBy || null
+      },
       image: formData.image.trim(),
       updatedAt: now
     }
@@ -127,6 +191,7 @@ const BlogManager = () => {
 
       persistPosts([newPost, ...posts])
       setNotice({ tone: 'success', text: targetStatus === 'draft' ? 'Draft saved.' : 'Post published.' })
+      audit('blog.create', { id: newPost.id, status: targetStatus })
       resetForm()
       return
     }
@@ -136,7 +201,9 @@ const BlogManager = () => {
         return post
       }
 
+      const withVersion = pushBlogVersion(post, 'manual_update')
       return {
+        ...withVersion,
         ...payload,
         id: post.id,
         createdAt: post.createdAt || now
@@ -145,12 +212,17 @@ const BlogManager = () => {
 
     persistPosts(updatedPosts)
     setNotice({ tone: 'success', text: 'Post updated successfully.' })
+    audit('blog.update', { id: formData.id, status: targetStatus })
     resetForm()
   }
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    savePost('published')
+    if (canApprove) {
+      savePost('published')
+      return
+    }
+    savePost('pending_review')
   }
 
   const handleSaveDraft = () => {
@@ -169,15 +241,31 @@ const BlogManager = () => {
   }
 
   const handleDelete = (id) => {
-    if (!window.confirm('Delete this blog post?')) {
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot delete blog posts.' })
+      return
+    }
+
+    const postToDelete = posts.find((post) => post.id === id)
+    const confirmMessage = postToDelete
+      ? `Delete \"${postToDelete.title}\"? This cannot be undone.`
+      : 'Delete this blog post? This cannot be undone.'
+
+    if (!window.confirm(confirmMessage)) {
       return
     }
 
     persistPosts(posts.filter((post) => post.id !== id))
     setNotice({ tone: 'success', text: 'Post deleted.' })
+    audit('blog.delete', { id })
   }
 
   const handleQuickPublish = (post) => {
+    if (!canApprove) {
+      setNotice({ tone: 'error', text: 'Your role cannot publish posts directly.' })
+      return
+    }
+
     if (post.status === 'published') {
       return
     }
@@ -188,14 +276,213 @@ const BlogManager = () => {
       }
 
       return {
+        ...pushBlogVersion(item, 'quick_publish'),
         ...item,
         status: 'published',
+        publishedAt: new Date().toISOString(),
+        scheduledFor: null,
+        workflow: {
+          ...(item.workflow || {}),
+          reviewedBy: currentUser?.email || null,
+          approvedBy: currentUser?.email || null
+        },
         updatedAt: new Date().toISOString()
       }
     })
 
     persistPosts(updatedPosts)
     setNotice({ tone: 'success', text: 'Draft published successfully.' })
+    audit('blog.publish', { id: post.id })
+  }
+
+  const handleSubmitForReview = (post) => {
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot submit posts for review.' })
+      return
+    }
+
+    const now = new Date().toISOString()
+    const updatedPosts = posts.map((item) => {
+      if (item.id !== post.id) return item
+      return {
+        ...pushBlogVersion(item, 'submit_for_review'),
+        ...item,
+        status: 'pending_review',
+        workflow: {
+          ...(item.workflow || {}),
+          submittedAt: now,
+          reviewedBy: null,
+          approvedBy: null
+        },
+        updatedAt: now
+      }
+    })
+
+    persistPosts(updatedPosts)
+    setNotice({ tone: 'success', text: 'Post submitted for review.' })
+    audit('blog.submit_review', { id: post.id })
+  }
+
+  const handleApprove = (post) => {
+    if (!canApprove) {
+      setNotice({ tone: 'error', text: 'Your role cannot approve posts.' })
+      return
+    }
+
+    const now = new Date().toISOString()
+    const updatedPosts = posts.map((item) => {
+      if (item.id !== post.id) return item
+      return {
+        ...pushBlogVersion(item, 'approved'),
+        ...item,
+        status: 'approved',
+        workflow: {
+          ...(item.workflow || {}),
+          reviewedBy: currentUser?.email || null,
+          approvedBy: currentUser?.email || null
+        },
+        updatedAt: now
+      }
+    })
+
+    persistPosts(updatedPosts)
+    setNotice({ tone: 'success', text: 'Post approved.' })
+    audit('blog.approve', { id: post.id })
+  }
+
+  const handleSchedulePost = (post) => {
+    if (!canApprove) {
+      setNotice({ tone: 'error', text: 'Your role cannot schedule posts.' })
+      return
+    }
+
+    const input = window.prompt('Schedule publish date/time (ISO format, e.g. 2026-03-28T09:30)')
+    if (!input) return
+    const scheduled = new Date(input)
+    if (Number.isNaN(scheduled.getTime())) {
+      setNotice({ tone: 'error', text: 'Invalid schedule format.' })
+      return
+    }
+
+    const updatedPosts = posts.map((item) => {
+      if (item.id !== post.id) return item
+      return {
+        ...pushBlogVersion(item, 'scheduled_publish'),
+        ...item,
+        status: 'scheduled',
+        scheduledFor: scheduled.toISOString(),
+        workflow: {
+          ...(item.workflow || {}),
+          approvedBy: currentUser?.email || null
+        },
+        updatedAt: new Date().toISOString()
+      }
+    })
+
+    persistPosts(updatedPosts)
+    setNotice({ tone: 'success', text: 'Post scheduled for publishing.' })
+    audit('blog.schedule', { id: post.id, scheduledFor: scheduleDate.toISOString() })
+  }
+
+  const handleRollback = (post) => {
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot roll back posts.' })
+      return
+    }
+
+    const latestVersion = Array.isArray(post.versions) ? post.versions[0] : null
+    if (!latestVersion?.snapshot) {
+      setNotice({ tone: 'error', text: 'No saved version available for rollback.' })
+      return
+    }
+
+    const confirmed = window.confirm(`Rollback "${post.title}" to previous version?`)
+    if (!confirmed) return
+
+    const updatedPosts = posts.map((item) => {
+      if (item.id !== post.id) return item
+      return {
+        ...latestVersion.snapshot,
+        versions: (post.versions || []).slice(1),
+        updatedAt: new Date().toISOString()
+      }
+    })
+
+    persistPosts(updatedPosts)
+    setNotice({ tone: 'success', text: 'Post rolled back to previous version.' })
+    audit('blog.rollback', { id: post.id })
+  }
+
+  const handleSelectPost = (id) => {
+    setSelectedPosts((prev) => (
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    ))
+  }
+
+  const handleSelectAllPosts = (checked) => {
+    if (!checked) {
+      setSelectedPosts([])
+      return
+    }
+    setSelectedPosts(filteredPosts.map((post) => post.id))
+  }
+
+  const handleBulkAction = (action) => {
+    if (!selectedPosts.length) return
+
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot run bulk blog actions.' })
+      return
+    }
+
+    const now = new Date().toISOString()
+    const selected = new Set(selectedPosts)
+    let updated = posts.map((post) => {
+      if (!selected.has(post.id)) return post
+
+      if (action === 'delete') {
+        return null
+      }
+
+      if (action === 'publish' && !canApprove) {
+        return post
+      }
+
+      const withVersion = pushBlogVersion(post, `bulk_${action}`)
+      if (action === 'publish') {
+        return {
+          ...withVersion,
+          status: 'published',
+          publishedAt: now,
+          scheduledFor: null,
+          updatedAt: now
+        }
+      }
+      if (action === 'review') {
+        return {
+          ...withVersion,
+          status: 'pending_review',
+          workflow: { ...(withVersion.workflow || {}), submittedAt: now },
+          updatedAt: now
+        }
+      }
+      return {
+        ...withVersion,
+        status: 'draft',
+        updatedAt: now
+      }
+    }).filter(Boolean)
+
+    if (action === 'delete') {
+      const confirmed = window.confirm(`Delete ${selectedPosts.length} selected post(s)?`)
+      if (!confirmed) return
+      updated = updated
+    }
+
+    persistPosts(updated)
+    setSelectedPosts([])
+    setNotice({ tone: 'success', text: `Bulk action "${action}" completed.` })
+    audit('blog.bulk_action', { action, count: selectedPosts.length })
   }
 
   const filteredPosts = useMemo(() => {
@@ -204,7 +491,7 @@ const BlogManager = () => {
       const matchesSearch =
         post.title.toLowerCase().includes(term) ||
         post.author.toLowerCase().includes(term) ||
-        post.tags.toLowerCase().includes(term)
+        String(post.tags || '').toLowerCase().includes(term)
 
       const matchesCategory = filterCategory === 'all' || post.category === filterCategory
       const matchesStatus = filterStatus === 'all' || post.status === filterStatus
@@ -371,11 +658,26 @@ const BlogManager = () => {
               <label className="admin-blog__field">
                 <span>Status</span>
                 <select name="status" value={formData.status} onChange={handleChange}>
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
+                  {BLOG_WORKFLOW_STATUSES.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
+
+            {formData.status === 'scheduled' && (
+              <label className="admin-blog__field admin-blog__field--full">
+                <span>Scheduled Publish Time</span>
+                <input
+                  type="datetime-local"
+                  name="scheduledFor"
+                  value={formData.scheduledFor ? formData.scheduledFor.slice(0, 16) : ''}
+                  onChange={handleChange}
+                />
+              </label>
+            )}
 
             <label className="admin-blog__checkbox">
               <input
@@ -397,7 +699,7 @@ const BlogManager = () => {
 
             <div className="admin-blog__editor-actions">
               <button type="submit" className="admin-blog__primary-btn">
-                {view === 'create' ? 'Publish Post' : 'Update Post'}
+                {canApprove ? (view === 'create' ? 'Save Post' : 'Update Post') : 'Submit For Review'}
               </button>
 
               <button type="button" onClick={handleSaveDraft} className="admin-blog__secondary-btn">
@@ -469,7 +771,7 @@ const BlogManager = () => {
           <h1>Blog Management</h1>
           <p>Create, update, and publish church blog content.</p>
         </div>
-        <button type="button" onClick={openCreate} className="admin-blog__primary-btn">
+        <button type="button" onClick={openCreate} className="admin-blog__primary-btn" disabled={!canWrite}>
           <Plus size={16} />
           <span>New Post</span>
         </button>
@@ -517,11 +819,48 @@ const BlogManager = () => {
 
           <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
             <option value="all">All Status</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
+            {BLOG_WORKFLOW_STATUSES.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
           </select>
         </div>
       </section>
+
+      {filteredPosts.length > 0 && (
+        <section className="admin-blog__panel">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={selectedPosts.length > 0 && selectedPosts.length === filteredPosts.length}
+                onChange={(event) => handleSelectAllPosts(event.target.checked)}
+              />
+              Select all filtered posts
+            </label>
+
+            {selectedPosts.length > 0 && (
+              <div style={{ display: 'inline-flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => handleBulkAction('draft')} className="admin-blog__icon-btn">
+                  Mark Draft
+                </button>
+                <button type="button" onClick={() => handleBulkAction('review')} className="admin-blog__icon-btn">
+                  Submit Review
+                </button>
+                {canApprove && (
+                  <button type="button" onClick={() => handleBulkAction('publish')} className="admin-blog__icon-btn admin-blog__icon-btn--publish">
+                    Publish
+                  </button>
+                )}
+                <button type="button" onClick={() => handleBulkAction('delete')} className="admin-blog__icon-btn admin-blog__icon-btn--danger">
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <div className="admin-blog__post-list">
         {filteredPosts.map((post) => {
@@ -532,6 +871,14 @@ const BlogManager = () => {
             <article key={post.id} className="admin-blog__post-card">
               <div className="admin-blog__post-main">
                 <div className="admin-blog__post-meta-top">
+                  <label className="admin-blog__post-category" style={{ cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedPosts.includes(post.id)}
+                      onChange={() => handleSelectPost(post.id)}
+                    />
+                    Select
+                  </label>
                   <span className="admin-blog__post-category">
                     <Icon size={14} />
                     {formatBlogCategory(post.category)}
@@ -555,6 +902,15 @@ const BlogManager = () => {
                   <span>{estimateReadTime(post.content)} min read</span>
                 </div>
 
+                <p className="admin-blog__post-updated-meta">
+                  Last updated: {new Date(post.updatedAt || post.createdAt).toLocaleString()}
+                </p>
+                {post.scheduledFor && post.status === 'scheduled' && (
+                  <p className="admin-blog__post-updated-meta">
+                    Scheduled for: {new Date(post.scheduledFor).toLocaleString()}
+                  </p>
+                )}
+
                 {tags.length > 0 && (
                   <div className="admin-blog__tag-preview">
                     {tags.map((tag) => (
@@ -565,12 +921,34 @@ const BlogManager = () => {
               </div>
 
               <div className="admin-blog__post-actions">
-                <button type="button" onClick={() => handleEdit(post)} className="admin-blog__icon-btn">
+                <button type="button" onClick={() => handleEdit(post)} className="admin-blog__icon-btn" disabled={!canWrite}>
                   <Edit2 size={14} />
                   <span>Edit</span>
                 </button>
 
                 {post.status === 'draft' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSubmitForReview(post)}
+                    className="admin-blog__icon-btn"
+                  >
+                    <Sparkles size={14} />
+                    <span>Submit</span>
+                  </button>
+                )}
+
+                {(post.status === 'pending_review' || post.status === 'approved') && canApprove && (
+                  <button
+                    type="button"
+                    onClick={() => handleApprove(post)}
+                    className="admin-blog__icon-btn"
+                  >
+                    <Sparkles size={14} />
+                    <span>Approve</span>
+                  </button>
+                )}
+
+                {canApprove && (
                   <button
                     type="button"
                     onClick={() => handleQuickPublish(post)}
@@ -580,6 +958,25 @@ const BlogManager = () => {
                     <span>Publish</span>
                   </button>
                 )}
+
+                {canApprove && (
+                  <button
+                    type="button"
+                    onClick={() => handleSchedulePost(post)}
+                    className="admin-blog__icon-btn"
+                  >
+                    <span>Schedule</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleRollback(post)}
+                  className="admin-blog__icon-btn"
+                  disabled={!Array.isArray(post.versions) || post.versions.length === 0}
+                >
+                  <span>Rollback</span>
+                </button>
 
                 <button
                   type="button"

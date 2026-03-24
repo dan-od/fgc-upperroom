@@ -21,8 +21,11 @@ import {
   normalizeTitleKey,
   readAdminMediaItems,
   toYouTubeEmbedUrl,
+  uploadAdminMediaFiles,
   writeAdminMediaItems
 } from '../../../utils/mediaStorage'
+import { recordAdminAudit } from '../../../utils/adminApi'
+import { useAdminTheme } from '../AdminThemeContext'
 
 const createEmptyForm = () => ({
   id: '',
@@ -36,57 +39,22 @@ const createEmptyForm = () => ({
   media: []
 })
 
-const fileToDataUrl = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(new Error(`Could not read ${file.name}`))
-    reader.readAsDataURL(file)
-  })
-}
-
-const toAssetFromFile = async (file) => {
-  const dataUrl = await fileToDataUrl(file)
-
-  if (file.type.startsWith('video/')) {
-    return {
-      id: `asset-${Date.now()}-${file.name}`,
-      type: 'video',
-      src: String(dataUrl),
-      thumbnail: DEFAULT_MEDIA_THUMBNAIL,
-      alt: file.name,
-      name: file.name,
-      mimeType: file.type
-    }
+const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
+  const { darkMode } = useAdminTheme()
+  const ui = {
+    panel: darkMode ? '#1a2235' : 'white',
+    panelAlt: darkMode ? '#131b2e' : '#f8fafc',
+    panelSubtle: darkMode ? '#222c40' : '#f3f4f6',
+    border: darkMode ? '#2a3550' : '#e5e7eb',
+    borderSoft: darkMode ? '#3a4866' : '#d1d5db',
+    textPrimary: darkMode ? '#e2e8f0' : '#111827',
+    textSecondary: darkMode ? '#94afd4' : '#6b7280',
+    textMuted: darkMode ? '#c3d4ef' : '#374151',
+    textFaint: darkMode ? '#7f93b3' : '#9ca3af'
   }
-
-  if (file.type.startsWith('audio/')) {
-    return {
-      id: `asset-${Date.now()}-${file.name}`,
-      type: 'audio',
-      audioUrl: String(dataUrl),
-      src: '',
-      thumbnail: DEFAULT_MEDIA_THUMBNAIL,
-      alt: file.name,
-      name: file.name,
-      mimeType: file.type
-    }
-  }
-
-  return {
-    id: `asset-${Date.now()}-${file.name}`,
-    type: 'image',
-    src: String(dataUrl),
-    thumbnail: String(dataUrl),
-    alt: file.name,
-    name: file.name,
-    mimeType: file.type
-  }
-}
-
-const MediaManager = () => {
   const [view, setView] = useState('list')
   const [mediaItems, setMediaItems] = useState([])
+  const [selectedMedia, setSelectedMedia] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
@@ -94,14 +62,35 @@ const MediaManager = () => {
   const [notice, setNotice] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef(null)
+  const canWrite = hasPermission('content:media:write')
+  const audit = (action, details = {}) => {
+    recordAdminAudit({ action, resource: 'content.media', details }).catch(() => {})
+  }
 
   useEffect(() => {
-    setMediaItems(readAdminMediaItems())
+    const hydrate = async () => {
+      const items = await readAdminMediaItems()
+      setMediaItems(items)
+    }
+
+    hydrate()
   }, [])
 
-  const persistMedia = (updatedMedia) => {
-    writeAdminMediaItems(updatedMedia)
-    setMediaItems(readAdminMediaItems())
+  useEffect(() => {
+    const validIds = new Set(mediaItems.map((item) => String(item.id)))
+    setSelectedMedia((prev) => prev.filter((id) => validIds.has(String(id))))
+  }, [mediaItems])
+
+  const persistMedia = async (updatedMedia) => {
+    try {
+      await writeAdminMediaItems(updatedMedia)
+      const latest = await readAdminMediaItems()
+      setMediaItems(latest)
+      return true
+    } catch (err) {
+      setNotice({ tone: 'error', text: err.message || 'Failed to save. Please try again.' })
+      return false
+    }
   }
 
   const resetForm = () => {
@@ -132,13 +121,28 @@ const MediaManager = () => {
     setView('edit')
   }
 
-  const handleDelete = (id) => {
-    if (!window.confirm('Delete this media item?')) {
+  const handleDelete = async (id) => {
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot delete media items.' })
       return
     }
 
-    persistMedia(mediaItems.filter((item) => item.id !== id))
+    const selected = mediaItems.find((item) => item.id === id)
+    const confirmMessage = selected
+      ? `Delete \"${selected.title}\"? This cannot be undone.`
+      : 'Delete this media item? This cannot be undone.'
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    const saved = await persistMedia(mediaItems.filter((item) => item.id !== id))
+    if (!saved) {
+      return
+    }
+
     setNotice({ tone: 'success', text: 'Media item deleted.' })
+    audit('media.delete', { id })
   }
 
   const handleChange = (event) => {
@@ -173,9 +177,22 @@ const MediaManager = () => {
       return
     }
 
+    const SAFE_TOTAL_BYTES = 200 * 1024 * 1024
+    const existingSize = formData.media.reduce((sum, asset) => {
+      return sum + Number(asset.fileSize || 0)
+    }, 0)
+    const incomingSize = allowedFiles.reduce((sum, f) => sum + f.size, 0)
+    if (existingSize + incomingSize > SAFE_TOTAL_BYTES) {
+      setNotice({
+        tone: 'error',
+        text: 'Total file size for this item exceeds 200MB. Upload fewer or smaller files, or use YouTube links for videos.'
+      })
+      return
+    }
+
     try {
       setIsUploading(true)
-      const assets = await Promise.all(allowedFiles.map((file) => toAssetFromFile(file)))
+      const assets = await uploadAdminMediaFiles(allowedFiles)
       setFormData((prev) => ({
         ...prev,
         media: [...prev.media, ...assets]
@@ -230,8 +247,12 @@ const MediaManager = () => {
     setNotice({ tone: 'success', text: 'YouTube video attached.' })
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot modify media items.' })
+      return
+    }
 
     const title = String(formData.title || '').trim()
     if (!title) {
@@ -270,12 +291,16 @@ const MediaManager = () => {
     })
 
     if (view === 'create') {
-      persistMedia([payload, ...mediaItems])
+      const saved = await persistMedia([payload, ...mediaItems])
+      if (!saved) return
       setNotice({ tone: 'success', text: 'Media uploaded successfully.' })
+      audit('media.create', { id: payload.id, category: payload.category, assets: payload.media.length })
     } else {
       const updated = mediaItems.map((item) => (item.id === payload.id ? payload : item))
-      persistMedia(updated)
+      const saved = await persistMedia(updated)
+      if (!saved) return
       setNotice({ tone: 'success', text: 'Media updated successfully.' })
+      audit('media.update', { id: payload.id, category: payload.category, assets: payload.media.length })
     }
 
     setView('list')
@@ -301,6 +326,61 @@ const MediaManager = () => {
       return inText && inType && inCategory
     })
   }, [mediaItems, searchTerm, filterType, filterCategory])
+
+  const handleSelectMediaItem = (id) => {
+    setSelectedMedia((prev) => (
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    ))
+  }
+
+  const handleSelectAllMedia = (checked) => {
+    if (!checked) {
+      setSelectedMedia([])
+      return
+    }
+    setSelectedMedia(filteredMedia.map((item) => String(item.id)))
+  }
+
+  const handleBulkMediaAction = async (action) => {
+    if (!selectedMedia.length) return
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot run bulk media actions.' })
+      return
+    }
+
+    const selectedSet = new Set(selectedMedia.map(String))
+    if (action === 'delete') {
+      const confirmed = window.confirm(`Delete ${selectedMedia.length} selected media item(s)?`)
+      if (!confirmed) return
+      const updated = mediaItems.filter((item) => !selectedSet.has(String(item.id)))
+      const saved = await persistMedia(updated)
+      if (!saved) return
+      setSelectedMedia([])
+      setNotice({ tone: 'success', text: 'Selected media items deleted.' })
+      audit('media.bulk_delete', { count: selectedMedia.length })
+      return
+    }
+
+    if (action === 'category') {
+      const category = window.prompt('Enter category (worship/youth/sermons/audio/community/events):')
+      if (!category) return
+      const normalizedCategory = String(category).trim().toLowerCase()
+      const updated = mediaItems.map((item) => {
+        if (!selectedSet.has(String(item.id))) return item
+        return {
+          ...item,
+          category: normalizedCategory,
+          mediaCategory: normalizedCategory,
+          updatedAt: new Date().toISOString()
+        }
+      })
+      const saved = await persistMedia(updated)
+      if (!saved) return
+      setSelectedMedia([])
+      setNotice({ tone: 'success', text: 'Selected media category updated.' })
+      audit('media.bulk_category', { count: selectedMedia.length, category: normalizedCategory })
+    }
+  }
 
   const getTypeIcon = (type) => {
     if (type === 'video') {
@@ -362,8 +442,8 @@ const MediaManager = () => {
       <div
         style={{
           height: '180px',
-          background: '#f3f4f6',
-          color: '#9ca3af',
+          background: ui.panelSubtle,
+          color: ui.textFaint,
           display: 'grid',
           placeItems: 'center'
         }}
@@ -371,6 +451,19 @@ const MediaManager = () => {
         <ImageIcon size={44} />
       </div>
     )
+  }
+
+  const formatStamp = (value) => {
+    if (!value) {
+      return 'Not updated yet'
+    }
+
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
+      return 'Unknown'
+    }
+
+    return date.toLocaleString()
   }
 
   const renderNotice = () => {
@@ -405,9 +498,9 @@ const MediaManager = () => {
             onClick={resetForm}
             style={{
               padding: '0.5rem 1rem',
-              background: 'white',
-              color: '#374151',
-              border: '1px solid #d1d5db',
+              background: ui.panel,
+              color: ui.textMuted,
+              border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
               fontSize: '0.875rem',
               fontWeight: 600,
@@ -417,10 +510,10 @@ const MediaManager = () => {
           >
             ← Back to Media
           </button>
-          <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: '#111827' }}>
+          <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: ui.textPrimary }}>
             {view === 'create' ? 'Upload New Media' : 'Edit Media'}
           </h1>
-          <p style={{ margin: 0, color: '#6b7280' }}>
+          <p style={{ margin: 0, color: ui.textSecondary }}>
             Upload multiple images and/or videos in one entry. No scheduling is required.
           </p>
         </div>
@@ -429,16 +522,16 @@ const MediaManager = () => {
 
         <div
           style={{
-            background: 'white',
+            background: ui.panel,
             padding: '2rem',
             borderRadius: '0.75rem',
-            border: '1px solid #e5e7eb'
+            border: `1px solid ${ui.border}`
           }}
         >
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Title *</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: ui.textMuted }}>Title *</span>
                 <input
                   type="text"
                   name="title"
@@ -448,7 +541,7 @@ const MediaManager = () => {
                   placeholder="e.g., Sunday Worship Session"
                   style={{
                     padding: '0.75rem',
-                    border: '1px solid #d1d5db',
+                    border: `1px solid ${ui.borderSoft}`,
                     borderRadius: '0.5rem',
                     fontSize: '1rem'
                   }}
@@ -456,14 +549,14 @@ const MediaManager = () => {
               </label>
 
               <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Category *</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: ui.textMuted }}>Category *</span>
                 <select
                   name="mediaCategory"
                   value={formData.mediaCategory}
                   onChange={handleChange}
                   style={{
                     padding: '0.75rem',
-                    border: '1px solid #d1d5db',
+                    border: `1px solid ${ui.borderSoft}`,
                     borderRadius: '0.5rem',
                     fontSize: '1rem'
                   }}
@@ -478,7 +571,7 @@ const MediaManager = () => {
             </div>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Description</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: ui.textMuted }}>Description</span>
               <textarea
                 name="description"
                 value={formData.description}
@@ -487,7 +580,7 @@ const MediaManager = () => {
                 placeholder="Add context for this media set"
                 style={{
                   padding: '0.75rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${ui.borderSoft}`,
                   borderRadius: '0.5rem',
                   fontSize: '1rem',
                   resize: 'vertical'
@@ -497,10 +590,10 @@ const MediaManager = () => {
 
             <div
               style={{
-                border: '1px dashed #9ca3af',
+                border: `1px dashed ${ui.textFaint}`,
                 borderRadius: '0.75rem',
                 padding: '1rem',
-                background: '#f8fafc'
+                background: ui.panelAlt
               }}
             >
               <input
@@ -531,7 +624,7 @@ const MediaManager = () => {
                 <Camera size={18} />
                 {isUploading ? 'Processing files...' : 'Select Media Files'}
               </button>
-              <p style={{ margin: '0.6rem 0 0', color: '#6b7280', fontSize: '0.825rem' }}>
+              <p style={{ margin: '0.6rem 0 0', color: ui.textSecondary, fontSize: '0.825rem' }}>
                 Upload multiple images and videos with one click (max 20MB per file).
               </p>
             </div>
@@ -545,7 +638,7 @@ const MediaManager = () => {
                 placeholder="Optional YouTube URL (attach sermon video)"
                 style={{
                   padding: '0.75rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${ui.borderSoft}`,
                   borderRadius: '0.5rem',
                   fontSize: '1rem'
                 }}
@@ -554,11 +647,11 @@ const MediaManager = () => {
                 type="button"
                 onClick={handleAddYouTubeVideo}
                 style={{
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${ui.borderSoft}`,
                   borderRadius: '0.5rem',
                   padding: '0.75rem 1rem',
-                  background: 'white',
-                  color: '#374151',
+                  background: ui.panel,
+                  color: ui.textMuted,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.4rem',
@@ -571,102 +664,141 @@ const MediaManager = () => {
               </button>
             </div>
 
-            {formData.mediaCategory === 'sermons' && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <input
-                    type="text"
-                    name="speaker"
-                    value={formData.speaker}
-                    onChange={handleChange}
-                    placeholder="Speaker *"
-                    style={{
-                      padding: '0.75rem',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      fontSize: '1rem'
-                    }}
-                  />
-                  <input
-                    type="text"
-                    name="keypoint"
-                    value={formData.keypoint}
-                    onChange={handleChange}
-                    placeholder="Key point"
-                    style={{
-                      padding: '0.75rem',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      fontSize: '1rem'
-                    }}
-                  />
-                </div>
+            {formData.mediaCategory !== 'events' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <input
+                  type="text"
+                  name="speaker"
+                  value={formData.speaker}
+                  onChange={handleChange}
+                  placeholder={formData.mediaCategory === 'sermons' ? 'Speaker *' : 'Speaker (optional)'}
+                  style={{
+                    padding: '0.75rem',
+                    border: `1px solid ${ui.borderSoft}`,
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem'
+                  }}
+                />
+                <input
+                  type="text"
+                  name="keypoint"
+                  value={formData.keypoint}
+                  onChange={handleChange}
+                  placeholder="Key point (optional)"
+                  style={{
+                    padding: '0.75rem',
+                    border: `1px solid ${ui.borderSoft}`,
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+            )}
 
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>
-                    Sermon Sync Key (optional)
-                  </span>
-                  <input
-                    type="text"
-                    name="syncKey"
-                    value={formData.syncKey}
-                    onChange={handleChange}
-                    placeholder="If empty, title will be used to merge with YouTube sermons"
-                    style={{
-                      padding: '0.75rem',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      fontSize: '1rem'
-                    }}
-                  />
-                </label>
-              </>
+            {formData.mediaCategory === 'sermons' && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: ui.textMuted }}>
+                  Sermon Sync Key (optional)
+                </span>
+                <input
+                  type="text"
+                  name="syncKey"
+                  value={formData.syncKey}
+                  onChange={handleChange}
+                  placeholder="If empty, title will be used to merge with YouTube sermons"
+                  style={{
+                    padding: '0.75rem',
+                    border: `1px solid ${ui.borderSoft}`,
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem'
+                  }}
+                />
+              </label>
             )}
 
             <div>
-              <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: '#374151', fontWeight: 600 }}>
+              <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: ui.textMuted, fontWeight: 600 }}>
                 Attached Assets ({formData.media.length})
               </p>
               {formData.media.length === 0 ? (
-                <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.825rem' }}>
+                <p style={{ margin: 0, color: ui.textFaint, fontSize: '0.825rem' }}>
                   No media files attached yet.
                 </p>
               ) : (
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
                   {formData.media.map((asset) => {
                     const AssetIcon = getTypeIcon(asset.type)
+                    const preview = asset.type === 'image'
+                      ? (asset.src || asset.thumbnail)
+                      : asset.type === 'video'
+                        ? (asset.thumbnail || null)
+                        : null
                     return (
                       <div
                         key={asset.id}
                         style={{
+                          position: 'relative',
+                          border: `1px solid ${ui.border}`,
+                          borderRadius: '0.5rem',
+                          overflow: 'hidden',
+                          background: ui.panelAlt
+                        }}
+                      >
+                        {preview ? (
+                          <img
+                            src={preview}
+                            alt={asset.alt || asset.name || asset.type}
+                            style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '100%',
+                            aspectRatio: '1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: ui.textFaint,
+                            background: ui.panelSubtle
+                          }}>
+                            <AssetIcon size={28} />
+                          </div>
+                        )}
+                        <div style={{
+                          padding: '0.35rem 0.5rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          gap: '0.75rem',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          background: 'white'
-                        }}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: '#374151' }}>
-                          <AssetIcon size={15} />
-                          <span style={{ fontSize: '0.85rem' }}>{asset.name || asset.alt || asset.type}</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeAsset(asset.id)}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: '#991b1b',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <X size={15} />
-                        </button>
+                          gap: '0.25rem',
+                          background: ui.panel,
+                          borderTop: `1px solid ${ui.border}`
+                        }}>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            color: ui.textMuted,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            minWidth: 0
+                          }}>
+                            {asset.name || asset.alt || asset.type}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeAsset(asset.id)}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              color: '#991b1b',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              flexShrink: 0,
+                              cursor: 'pointer',
+                              padding: 0
+                            }}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       </div>
                     )
                   })}
@@ -677,6 +809,7 @@ const MediaManager = () => {
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
               <button
                 type="submit"
+                disabled={!canWrite}
                 style={{
                   padding: '0.75rem 1.3rem',
                   background: '#2d3a7a',
@@ -685,14 +818,15 @@ const MediaManager = () => {
                   borderRadius: '0.5rem',
                   fontSize: '0.95rem',
                   fontWeight: 700,
-                  cursor: 'pointer',
+                  cursor: canWrite ? 'pointer' : 'not-allowed',
+                  opacity: canWrite ? 1 : 0.65,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.45rem'
                 }}
               >
                 <Upload size={16} />
-                {view === 'create' ? 'Save Media Upload' : 'Update Media Upload'}
+                {view === 'create' ? 'Upload to Media' : 'Update Media Item'}
               </button>
 
               <button
@@ -700,9 +834,9 @@ const MediaManager = () => {
                 onClick={resetForm}
                 style={{
                   padding: '0.75rem 1.3rem',
-                  background: 'white',
-                  color: '#374151',
-                  border: '1px solid #d1d5db',
+                  background: ui.panel,
+                  color: ui.textMuted,
+                  border: `1px solid ${ui.borderSoft}`,
                   borderRadius: '0.5rem',
                   fontSize: '0.95rem',
                   fontWeight: 600,
@@ -724,12 +858,13 @@ const MediaManager = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: '#111827' }}>Media Management</h1>
-          <p style={{ margin: 0, color: '#6b7280' }}>{mediaItems.length} total media uploads</p>
+          <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: ui.textPrimary }}>Media Management</h1>
+          <p style={{ margin: 0, color: ui.textSecondary }}>{mediaItems.length} total media uploads</p>
         </div>
         <button
           type="button"
           onClick={openCreate}
+          disabled={!canWrite}
           style={{
             padding: '0.75rem 1.2rem',
             background: '#2d3a7a',
@@ -738,7 +873,8 @@ const MediaManager = () => {
             borderRadius: '0.5rem',
             fontSize: '0.875rem',
             fontWeight: 700,
-            cursor: 'pointer',
+            cursor: canWrite ? 'pointer' : 'not-allowed',
+            opacity: canWrite ? 1 : 0.65,
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.5rem'
@@ -751,10 +887,10 @@ const MediaManager = () => {
 
       <div
         style={{
-          background: 'white',
+          background: ui.panel,
           padding: '1rem',
           borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb',
+          border: `1px solid ${ui.border}`,
           marginBottom: '1rem'
         }}
       >
@@ -762,7 +898,7 @@ const MediaManager = () => {
           <div style={{ position: 'relative' }}>
             <Search
               size={18}
-              style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
+              style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: ui.textFaint }}
             />
             <input
               type="text"
@@ -772,7 +908,7 @@ const MediaManager = () => {
               style={{
                 width: '100%',
                 padding: '0.75rem 0.75rem 0.75rem 2.5rem',
-                border: '1px solid #d1d5db',
+                border: `1px solid ${ui.borderSoft}`,
                 borderRadius: '0.5rem',
                 fontSize: '0.875rem'
               }}
@@ -784,7 +920,7 @@ const MediaManager = () => {
             onChange={(event) => setFilterType(event.target.value)}
             style={{
               padding: '0.75rem',
-              border: '1px solid #d1d5db',
+              border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
               fontSize: '0.875rem'
             }}
@@ -800,7 +936,7 @@ const MediaManager = () => {
             onChange={(event) => setFilterCategory(event.target.value)}
             style={{
               padding: '0.75rem',
-              border: '1px solid #d1d5db',
+              border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
               fontSize: '0.875rem'
             }}
@@ -813,6 +949,30 @@ const MediaManager = () => {
             ))}
           </select>
         </div>
+
+        {filteredMedia.length > 0 && (
+          <div style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, color: ui.textMuted }}>
+              <input
+                type="checkbox"
+                checked={selectedMedia.length > 0 && selectedMedia.length === filteredMedia.length}
+                onChange={(event) => handleSelectAllMedia(event.target.checked)}
+              />
+              Select all filtered media
+            </label>
+
+            {selectedMedia.length > 0 && (
+              <div style={{ display: 'inline-flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => handleBulkMediaAction('category')} style={{ padding: '0.45rem 0.7rem', borderRadius: '0.4rem', border: `1px solid ${ui.borderSoft}`, background: ui.panel, color: ui.textMuted, fontWeight: 600, cursor: 'pointer' }}>
+                  Set Category
+                </button>
+                <button type="button" onClick={() => handleBulkMediaAction('delete')} style={{ padding: '0.45rem 0.7rem', borderRadius: '0.4rem', border: 'none', background: '#ef4444', color: 'white', fontWeight: 700, cursor: 'pointer' }}>
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
@@ -823,16 +983,23 @@ const MediaManager = () => {
           return (
             <div
               key={item.id}
-              style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', overflow: 'hidden' }}
+              style={{ background: ui.panel, borderRadius: '0.75rem', border: `1px solid ${ui.border}`, overflow: 'hidden' }}
             >
               {getCardPreview(item)}
               <div style={{ padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <h3 style={{ margin: 0, color: '#111827', fontSize: '1rem' }}>{item.title}</h3>
-                  <TypeIcon size={16} color="#6b7280" />
+                  <h3 style={{ margin: 0, color: ui.textPrimary, fontSize: '1rem' }}>{item.title}</h3>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedMedia.includes(String(item.id))}
+                      onChange={() => handleSelectMediaItem(String(item.id))}
+                    />
+                    <TypeIcon size={16} color={ui.textSecondary} />
+                  </div>
                 </div>
 
-                <p style={{ margin: '0 0 0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                <p style={{ margin: '0 0 0.5rem', color: ui.textSecondary, fontSize: '0.875rem' }}>
                   {item.description || 'No description'}
                 </p>
 
@@ -840,8 +1007,8 @@ const MediaManager = () => {
                   <span
                     style={{
                       fontSize: '0.72rem',
-                      color: '#374151',
-                      background: '#f3f4f6',
+                      color: ui.textMuted,
+                      background: ui.panelSubtle,
                       padding: '0.25rem 0.5rem',
                       borderRadius: '0.375rem'
                     }}
@@ -851,7 +1018,7 @@ const MediaManager = () => {
                   <span
                     style={{
                       fontSize: '0.72rem',
-                      color: '#374151',
+                      color: ui.textMuted,
                       background: '#eef2ff',
                       padding: '0.25rem 0.5rem',
                       borderRadius: '0.375rem'
@@ -862,23 +1029,29 @@ const MediaManager = () => {
                 </div>
 
                 {item.speaker && (
-                  <p style={{ margin: '0 0 0.65rem', color: '#4b5563', fontSize: '0.8rem', fontWeight: 600 }}>
+                  <p style={{ margin: '0 0 0.65rem', color: ui.textSecondary, fontSize: '0.8rem', fontWeight: 600 }}>
                     Speaker: {item.speaker}
                   </p>
                 )}
+
+                <p style={{ margin: '0 0 0.65rem', color: ui.textFaint, fontSize: '0.75rem' }}>
+                  Last updated: {formatStamp(item.updatedAt || item.createdAt)}
+                </p>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
                     type="button"
                     onClick={() => handleEdit(item)}
+                    disabled={!canWrite}
                     style={{
                       flex: 1,
                       padding: '0.5rem',
                       border: 'none',
                       borderRadius: '0.375rem',
-                      background: '#f3f4f6',
-                      color: '#374151',
-                      cursor: 'pointer',
+                      background: ui.panelSubtle,
+                      color: ui.textMuted,
+                      cursor: canWrite ? 'pointer' : 'not-allowed',
+                      opacity: canWrite ? 1 : 0.65,
                       fontWeight: 600,
                       display: 'flex',
                       justifyContent: 'center',
@@ -891,6 +1064,7 @@ const MediaManager = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(item.id)}
+                    disabled={!canWrite}
                     style={{
                       flex: 1,
                       padding: '0.5rem',
@@ -898,7 +1072,8 @@ const MediaManager = () => {
                       borderRadius: '0.375rem',
                       background: '#fee2e2',
                       color: '#991b1b',
-                      cursor: 'pointer',
+                      cursor: canWrite ? 'pointer' : 'not-allowed',
+                      opacity: canWrite ? 1 : 0.65,
                       fontWeight: 600,
                       display: 'flex',
                       justifyContent: 'center',
@@ -918,12 +1093,12 @@ const MediaManager = () => {
       {filteredMedia.length === 0 && (
         <div
           style={{
-            background: 'white',
+            background: ui.panel,
             borderRadius: '0.75rem',
-            border: '1px solid #e5e7eb',
+            border: `1px solid ${ui.border}`,
             padding: '2rem',
             textAlign: 'center',
-            color: '#9ca3af'
+            color: ui.textFaint
           }}
         >
           No media items match your filters.

@@ -1,16 +1,44 @@
 import { query } from '../db/connection.js'
 import { logger } from '../lib/logger.js'
+import crypto from 'node:crypto'
+
+const toFingerprint = ({ visitorId, eventId, messageText, messageType }) => {
+  const seed = [
+    String(visitorId || ''),
+    String(eventId || ''),
+    String(messageType || 'text'),
+    String(messageText || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 280)
+  ].join('|')
+
+  if (!seed.replace(/\|/g, '').trim()) {
+    return null
+  }
+
+  return crypto.createHash('sha256').update(seed).digest('hex')
+}
 
 export const logMessageSent = async (data) => {
-  const { jobId, visitorId, eventId, providerMessageId, messageText, status, error } = data
+  const { jobId, visitorId, eventId, providerMessageId, providerName, messageText, messageType, status, error } = data
+  const messageFingerprint = data?.messageFingerprint || toFingerprint({ visitorId, eventId, messageText, messageType })
 
   const result = await query(
     `
-    INSERT INTO messages (job_id, visitor_id, event_id, provider_message_id, message_text, status, error, sent_time)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+    INSERT INTO messages (job_id, visitor_id, event_id, provider_message_id, provider_name, message_type, message_fingerprint, message_text, status, error, sent_time)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
     RETURNING *
     `,
-    [jobId, visitorId || null, eventId || null, providerMessageId || null, messageText || null, status || 'queued', error || null]
+    [
+      jobId,
+      visitorId || null,
+      eventId || null,
+      providerMessageId || null,
+      providerName || null,
+      String(messageType || 'text'),
+      messageFingerprint || null,
+      messageText || null,
+      status || 'queued',
+      error || null
+    ]
   )
 
   return result.rows[0]
@@ -46,6 +74,34 @@ export const updateMessageStatus = async (providerMessageId, status, error = nul
   )
 
   return result.rows[0]
+}
+
+export const hasRecentMessageFingerprint = async ({
+  fingerprint,
+  visitorId,
+  eventId,
+  messageText,
+  messageType = 'text',
+  withinHours = 36
+} = {}) => {
+  const resolvedFingerprint = fingerprint || toFingerprint({ visitorId, eventId, messageText, messageType })
+  if (!resolvedFingerprint) {
+    return false
+  }
+
+  const result = await query(
+    `
+    SELECT id
+    FROM messages
+    WHERE message_fingerprint = $1
+      AND status IN ('sent', 'delivered', 'read')
+      AND created_at >= now() - make_interval(hours => $2)
+    LIMIT 1
+    `,
+    [resolvedFingerprint, Math.max(1, Number(withinHours) || 36)]
+  )
+
+  return result.rowCount > 0
 }
 
 export const getMessageLogs = async (filters = {}) => {

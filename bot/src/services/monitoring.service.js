@@ -1,10 +1,23 @@
 import { query } from '../db/connection.js'
+import { env } from '../config/env.js'
 import { logger } from '../lib/logger.js'
+import { redisConnection } from '../queue/connection.js'
+import { getTelemetrySnapshot } from './telemetry.service.js'
+
+const checkRedisHealth = async () => {
+  try {
+    const pong = await redisConnection.ping()
+    return pong === 'PONG'
+  } catch {
+    return false
+  }
+}
 
 export const getHealthMetrics = async () => {
   try {
     const dbCheck = await query('SELECT NOW() as db_time')
     const dbHealthy = !!dbCheck.rows[0]
+    const redisHealthy = await checkRedisHealth()
 
     const messageHealth = await query(`
       SELECT 
@@ -16,18 +29,25 @@ export const getHealthMetrics = async () => {
 
     const stats = messageHealth.rows[0] || {}
     const failureRate = stats.total_recent > 0 ? (parseInt(stats.recent_failures) / parseInt(stats.total_recent)) * 100 : 0
+    const telemetry = getTelemetrySnapshot()
+    const healthy = dbHealthy && redisHealthy && failureRate < 10
+    const degraded = (dbHealthy && redisHealthy && failureRate < 50) || (!healthy && (dbHealthy || redisHealthy))
 
     return {
-      status: dbHealthy && failureRate < 10 ? 'healthy' : failureRate < 50 ? 'degraded' : 'unhealthy',
+      status: healthy ? 'healthy' : degraded ? 'degraded' : 'unhealthy',
       database: {
         connected: dbHealthy,
         timestamp: dbCheck.rows[0]?.db_time
+      },
+      redis: {
+        connected: redisHealthy
       },
       messages: {
         recentSent: parseInt(stats.recent_sent || 0),
         recentFailures: parseInt(stats.recent_failures || 0),
         failureRate: failureRate.toFixed(2) + '%'
       },
+      telemetry,
       timestamp: new Date().toISOString()
     }
   } catch (error) {
@@ -44,11 +64,13 @@ export const checkAlertThresholds = async () => {
   const alerts = []
 
   try {
+    const telemetry = getTelemetrySnapshot()
+
     const failureCheck = await query(`
       SELECT COUNT(*) as count
       FROM messages
       WHERE status = 'failed' 
-        AND sent_time >= NOW() - INTERVAL '15 minutes'
+      AND sent_time >= NOW() - INTERVAL '15 minutes'
     `)
 
     const recentFailures = parseInt(failureCheck.rows[0]?.count || 0)
@@ -94,9 +116,28 @@ export const checkAlertThresholds = async () => {
       })
     }
 
+    if (telemetry.http.p95Ms > env.MONITORING_SLOW_REQUEST_MS) {
+      alerts.push({
+        severity: 'medium',
+        type: 'http_latency',
+        message: `HTTP p95 latency ${telemetry.http.p95Ms}ms exceeds ${env.MONITORING_SLOW_REQUEST_MS}ms`,
+        p95Ms: telemetry.http.p95Ms
+      })
+    }
+
+    if (telemetry.db.p95Ms > env.MONITORING_SLOW_QUERY_MS) {
+      alerts.push({
+        severity: 'medium',
+        type: 'db_latency',
+        message: `DB p95 latency ${telemetry.db.p95Ms}ms exceeds ${env.MONITORING_SLOW_QUERY_MS}ms`,
+        p95Ms: telemetry.db.p95Ms
+      })
+    }
+
     return {
       hasAlerts: alerts.length > 0,
       alerts,
+      telemetry,
       timestamp: new Date().toISOString()
     }
   } catch (error) {
@@ -161,4 +202,11 @@ export const getErrorSummary = async (hours = 24) => {
   )
 
   return errorSummary.rows
+}
+
+export const getMonitoringMetrics = async () => {
+  return {
+    telemetry: getTelemetrySnapshot(),
+    timestamp: new Date().toISOString()
+  }
 }
