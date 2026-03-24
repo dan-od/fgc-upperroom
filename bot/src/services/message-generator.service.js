@@ -1,6 +1,7 @@
 import { env } from '../config/env.js'
 import { logger } from '../lib/logger.js'
 import { GoogleAuth } from 'google-auth-library'
+import { renderTemplateByKey } from './template.repository.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -147,14 +148,17 @@ Use respectful, reverent Nigerian church English. Be warm but professional.
 Max 100 words.`
 }
 
-const buildEventReminderPrompt = (name, eventTitle, eventDate) => {
+const buildEventReminderPrompt = (name, eventTitle, eventDate, eventTime, registrationLink) => {
+  const eventTimeLine = eventTime ? `Time: ${eventTime}.` : ''
+  const registrationLine = registrationLink ? `Registration link: ${registrationLink}.` : ''
   return `You are a warm, polite pastor at FGC Mgbuoba writing a WhatsApp event reminder to a church member.
 Recipient: ${name}
-Context: ${eventTitle} is scheduled for ${eventDate}.
+Context: ${eventTitle} is scheduled for ${eventDate}. ${eventTimeLine} ${registrationLine}
 
 Write a warm, polite message following this style:
 - Greet them warmly by name
 - Remind them about the event with details
+- Include direct registration line if registration link is available
 - Express how much their presence would mean
 - End with a blessing
 - Include at the end: "Reply STOP to opt out."
@@ -364,8 +368,17 @@ export const generateServiceReminderMessage = async ({ name, serviceTime, isFirs
 
   if (llmMessage) return llmMessage
 
+  const templateMessage = await renderTemplateByKey('service_reminder', {
+    name: name || 'there',
+    serviceTime,
+    specialLine: isFirstSunday ? 'We have a special first-Sunday blessing prepared for you.' : ''
+  }).catch(() => null)
+  if (templateMessage) {
+    return templateMessage
+  }
+
   // Polite, reverent fallback templates
-  const { firstName, gender } = analyzeVisitorName(name)
+  const { firstName } = analyzeVisitorName(name)
   
   const greetings = [
     `Hi ${firstName}, how was your week? I am sure God saw you through.`,
@@ -397,11 +410,22 @@ export const generateServiceReminderMessage = async ({ name, serviceTime, isFirs
   return `${greeting} ${invitation} ${closing} Reply STOP to opt out.`
 }
 
-export const generateEventReminderMessage = async ({ name, eventTitle, eventDate }) => {
-  const prompt = buildEventReminderPrompt(name || 'there', eventTitle, eventDate)
+export const generateEventReminderMessage = async ({ name, eventTitle, eventDate, eventTime, registrationLink }) => {
+  const prompt = buildEventReminderPrompt(name || 'there', eventTitle, eventDate, eventTime, registrationLink)
   const llmMessage = await generateWithLlmProviders(prompt)
 
   if (llmMessage) return llmMessage
+
+  const templateMessage = await renderTemplateByKey('event_reminder', {
+    name: name || 'there',
+    eventTitle,
+    eventDate,
+    eventTimeLine: eventTime ? `Time: ${eventTime}.` : '',
+    registrationLine: registrationLink ? `Register here: ${registrationLink}.` : ''
+  }).catch(() => null)
+  if (templateMessage) {
+    return templateMessage
+  }
 
   // Polite event reminder templates
   const { firstName } = analyzeVisitorName(name)
@@ -427,6 +451,8 @@ export const generateEventReminderMessage = async ({ name, eventTitle, eventDate
   const greeting = eventGreetings[Math.floor(Math.random() * eventGreetings.length)]
   const invitation = eventInvitations[Math.floor(Math.random() * eventInvitations.length)]
   const closing = eventClosings[Math.floor(Math.random() * eventClosings.length)]
+  const timeLine = eventTime ? ` Time: ${eventTime}.` : ''
+  const registrationLine = registrationLink ? ` Register here: ${registrationLink}.` : ''
   
-  return `${greeting} ${invitation} ${closing} Reply STOP to opt out.`
+  return `${greeting} ${invitation}${timeLine}${registrationLine} ${closing} Reply STOP to opt out.`
 }

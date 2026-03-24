@@ -7,11 +7,11 @@ const Testimonies = () => {
   const [testimonies, setTestimonies] = useState([])
 
   useEffect(() => {
-    setTestimonies(readTestimonies())
+    setTestimonies(readTestimonies({ fallbackToDefaultOnEmpty: true }))
   }, [])
 
   return (
-    <main className="testimonies-page">
+    <main id="main-content" className="testimonies-page">
       <section className="page-banner bg-purple">
         <div className="container">
           <h1>Testimonies</h1>

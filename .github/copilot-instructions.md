@@ -2,7 +2,7 @@
 
 ## Build and Run
 - Install dependencies with `npm install`.
-- Frontend dev server: `npm run dev` (Vite on port 3000).
+- Frontend dev stack: `npm run dev` (Vite on port 3000 + media API sidecar on port 3001).
 - Website API for sermons: `npm run dev:server` (Express `server.ts`).
 - Bot API: `npm run bot:dev` (port 4100).
 - Bot worker (required for queued reminder delivery): `npm run bot:worker`.
@@ -30,6 +30,10 @@
 - Keep CSS colocated with components/pages where the repo already follows that pattern.
 - For persistence in the frontend admin tools, follow existing storage utility patterns in `src/utils/` before introducing new abstractions.
 - Prefer incremental edits that preserve existing API shapes and route contracts.
+- Reduce use of comments in favor of clear code structure and naming, especially in the bot service where logic can be complex. Use comments to clarify intent when necessary, but strive for self-explanatory code.
+- For bot scheduling logic, be mindful of timezone handling and edge cases around daylight saving time, as the bot operates on `Africa/Lagos` time semantics.
+- Make sure to update the `README.md` and `DEPLOYMENT.md` files in the `bot/` directory with any changes that affect deployment steps, environment variables, or runtime behavior of the bot service.
+- Make sure to update this instructions file with any changes that affect build/run commands, architectural patterns, or conventions to keep the guidelines up to date for future contributors.
 
 ## Environment and Pitfalls
 - Vite base path is configured as `/fgc-testing/`; preserve this unless deployment requirements change.

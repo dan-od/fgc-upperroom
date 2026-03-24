@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, Calendar, FileText, Heart, Image, TrendingUp, Users } from 'lucide-react'
+import { useAdminTheme } from '../AdminThemeContext'
 
 const Dashboard = ({ onNavigate }) => {
+  const { darkMode } = useAdminTheme()
   const [counts, setCounts] = useState({
     events: 0,
     media: 0,
@@ -46,104 +48,108 @@ const Dashboard = ({ onNavigate }) => {
     { type: 'visitor', text: '23 new subscribers joined', time: '1 day ago' }
   ]
 
+  const surface = darkMode ? '#1a2235' : 'white'
+  const borderColor = darkMode ? '#2a3550' : '#e5e7eb'
+  const textPrimary = darkMode ? '#e2e8f0' : '#111827'
+  const textSecondary = darkMode ? '#7f93b3' : '#6b7280'
+  const textLabel = darkMode ? '#94afd4' : '#374151'
+  const rowBg = darkMode ? '#222c40' : '#f9fafb'
+
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: '#111827' }}>
+        <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: textPrimary }}>
           Dashboard
         </h1>
-        <p style={{ margin: 0, color: '#6b7280' }}>
+        <p style={{ margin: 0, color: textSecondary }}>
           Manage your website content and monitor activity
         </p>
       </div>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <div
-              key={stat.label}
-              onClick={() => onNavigate(stat.link)}
-              style={{
-                background: 'white',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                cursor: 'pointer',
-                transition: 'transform 0.2s, box-shadow 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
+      <div style={{ overflowX: 'auto', paddingBottom: '0.35rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(220px, 1fr))', gap: '1.5rem', minWidth: '1160px' }}>
+          {stats.map((stat) => {
+            const Icon = stat.icon
+            return (
               <div
+                key={stat.label}
+                onClick={() => onNavigate(stat.link)}
                 style={{
-                  width: '48px',
-                  height: '48px',
+                  background: surface,
+                  padding: '1.5rem',
                   borderRadius: '0.75rem',
-                  background: `${stat.color}15`,
+                  border: `1px solid ${borderColor}`,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  color: stat.color
+                  gap: '1rem',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
                 }}
               >
-                <Icon size={24} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                  {stat.label}
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '0.75rem',
+                    background: `${stat.color}15`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: stat.color
+                  }}
+                >
+                  <Icon size={24} />
                 </div>
-                <div style={{ fontSize: '1.875rem', fontWeight: 700, color: '#111827' }}>
-                  {stat.value}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.875rem', color: textSecondary }}>
+                    {stat.label}
+                  </div>
+                  <div style={{ fontSize: '1.875rem', fontWeight: 700, color: textPrimary }}>
+                    {stat.value}
+                  </div>
                 </div>
+                <ArrowRight size={20} style={{ color: darkMode ? '#5a7099' : '#9ca3af' }} />
               </div>
-              <ArrowRight size={20} style={{ color: '#9ca3af' }} />
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
         <div style={{ 
-          background: 'white', 
+          background: surface, 
           padding: '1.5rem', 
           borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb'
+          border: `1px solid ${borderColor}`
         }}>
-          <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', color: '#111827' }}>
+          <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', color: textPrimary }}>
             Recent Activity
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {recentActivities.map((activity, index) => (
-              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: '#f9fafb', borderRadius: '0.5rem' }}>
-                <span style={{ fontSize: '0.875rem', color: '#374151' }}>{activity.text}</span>
-                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{activity.time}</span>
+              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: rowBg, borderRadius: '0.5rem' }}>
+                <span style={{ fontSize: '0.875rem', color: textLabel }}>{activity.text}</span>
+                <span style={{ fontSize: '0.75rem', color: darkMode ? '#5a7099' : '#9ca3af' }}>{activity.time}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div style={{ 
-          background: 'white', 
+          background: surface, 
           padding: '1.5rem', 
           borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb'
+          border: `1px solid ${borderColor}`
         }}>
-          <h2 style={{ margin: '0 0 1rem', fontSize: '1.25rem', color: '#111827' }}>
+          <h2 style={{ margin: '0 0 1rem', fontSize: '1.25rem', color: textPrimary }}>
             Quick Actions
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -227,9 +233,9 @@ const Dashboard = ({ onNavigate }) => {
               onClick={() => onNavigate('analytics')}
               style={{
                 padding: '0.75rem 1.5rem',
-                background: 'white',
-                color: '#374151',
-                border: '1px solid #d1d5db',
+                background: darkMode ? '#1e2840' : 'white',
+                color: darkMode ? '#94afd4' : '#374151',
+                border: `1px solid ${darkMode ? '#2a3550' : '#d1d5db'}`,
                 borderRadius: '0.5rem',
                 fontSize: '0.875rem',
                 fontWeight: 600,

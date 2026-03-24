@@ -10,6 +10,19 @@
   transition: all var(--transition-base);
   cursor: pointer;
   border: 2px solid transparent;
+  min-height: 44px;
+}
+
+.btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--cross-red) 45%, white);
+  outline-offset: 3px;
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 /* Sizes */

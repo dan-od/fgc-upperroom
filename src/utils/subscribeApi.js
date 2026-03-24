@@ -1,3 +1,5 @@
+import { subscribeEmail } from './newsletterApi'
+
 /**
  * Subscribe a visitor to WhatsApp reminders via the church bot API.
  *
@@ -21,25 +23,33 @@ export const hasSubscribed = () => Boolean(localStorage.getItem(SUBSCRIBED_KEY))
 /**
  * POST subscriber data to the bot API and record the result in localStorage.
  *
- * @param {{ name: string, phone: string, email: string }} data
+ * @param {{ name: string, phone: string, email: string, reminderPreferences?: object }} data
  * @returns {Promise<{ ok: boolean, message: string, visitor?: object }>}
  */
-export const subscribeVisitor = async ({ name, phone, email }) => {
+export const subscribeVisitor = async ({ name, phone, email, reminderPreferences }) => {
   // Normalise phone: strip spaces so DB stores cleanly
   const phoneNumber = phone.replace(/\s+/g, '')
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos'
 
   try {
     const res = await fetch(`${BOT_API_BASE}/bot/api/visitors`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phoneNumber, email })
+      body: JSON.stringify({ name, phoneNumber, email, timezone, reminderPreferences })
     })
 
     if (res.ok) {
       const visitor = await res.json()
+      subscribeEmail({
+        name,
+        email,
+        phoneNumber,
+        source: 'whatsapp-signup'
+      }).catch(() => {})
+
       // Permanently mark this browser as subscribed so the popup never shows again
       localStorage.setItem(SUBSCRIBED_KEY, 'true')
-      return { ok: true, message: `Thank you ${name}! You'll receive WhatsApp reminders on ${phoneNumber}.`, visitor }
+      return { ok: true, message: `Thank you ${name}! You'll receive WhatsApp reminders on ${phoneNumber} and email event updates.`, visitor }
     }
 
     const err = await res.json().catch(() => ({}))

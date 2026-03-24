@@ -1,5 +1,29 @@
 export const TESTIMONIES_STORAGE_KEY = 'admin_testimonies'
 
+const DEFAULT_TESTIMONIES = [
+  {
+    id: 'seed-testimony-1',
+    name: 'Sis. Favour C.',
+    role: 'Member',
+    quote: 'God gave me peace and direction during a difficult season through the prayers and teachings in Upper Room.',
+    createdAt: '2026-03-05T09:30:00.000Z'
+  },
+  {
+    id: 'seed-testimony-2',
+    name: 'Bro. Daniel A.',
+    role: 'Choir Unit',
+    quote: 'After joining fellowship consistently, my prayer life became stronger and I found a clear sense of purpose.',
+    createdAt: '2026-03-12T11:00:00.000Z'
+  },
+  {
+    id: 'seed-testimony-3',
+    name: 'Sis. Esther O.',
+    role: 'First-time Visitor',
+    quote: 'I came for one service and immediately felt at home. The warmth and love in this family are real.',
+    createdAt: '2026-03-18T16:10:00.000Z'
+  }
+]
+
 const normalizeTestimony = (item, index = 0) => {
   const name = String(item?.name || '').trim()
   const role = String(item?.role || '').trim()
@@ -19,20 +43,30 @@ const sortByDateDesc = (items) => {
   return [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
-export const readTestimonies = () => {
+const getDefaultTestimonies = () => sortByDateDesc(DEFAULT_TESTIMONIES.map(normalizeTestimony))
+
+export const readTestimonies = (options = {}) => {
+  const fallbackToDefaultOnEmpty = Boolean(options?.fallbackToDefaultOnEmpty)
+
   if (typeof window === 'undefined') {
-    return []
+    return getDefaultTestimonies()
   }
 
   const raw = window.localStorage.getItem(TESTIMONIES_STORAGE_KEY)
-  if (!raw) return []
+  if (!raw) return getDefaultTestimonies()
 
   try {
     const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return sortByDateDesc(parsed.map(normalizeTestimony))
+    if (!Array.isArray(parsed)) return getDefaultTestimonies()
+
+    const normalized = sortByDateDesc(parsed.map(normalizeTestimony))
+    if (fallbackToDefaultOnEmpty && normalized.length === 0) {
+      return getDefaultTestimonies()
+    }
+
+    return normalized
   } catch {
-    return []
+    return getDefaultTestimonies()
   }
 }
 
@@ -58,7 +92,6 @@ export const seedTestimoniesIfEmpty = () => {
     return readTestimonies()
   }
 
-  // Default is empty (no sample testimonies)
-  writeTestimonies([])
-  return []
+  writeTestimonies(DEFAULT_TESTIMONIES)
+  return sortByDateDesc(DEFAULT_TESTIMONIES.map(normalizeTestimony))
 }

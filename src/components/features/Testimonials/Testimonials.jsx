@@ -7,7 +7,7 @@ const Testimonials = () => {
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
-    const load = () => setTestimonials(readTestimonies())
+    const load = () => setTestimonials(readTestimonies({ fallbackToDefaultOnEmpty: true }))
 
     load()
     window.addEventListener('testimoniesUpdated', load)

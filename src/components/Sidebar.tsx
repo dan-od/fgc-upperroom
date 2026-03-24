@@ -38,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Search className="blog-search-icon" size={16} />
           <input
             type="text"
-            placeholder="Search articles..."
+            placeholder="Search title, topic, author, or date..."
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
             className="blog-search-input"

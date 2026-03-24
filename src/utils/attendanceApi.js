@@ -121,3 +121,25 @@ export const getAttendanceAdminQrDownloadUrl = () => {
   const url = `${ATTENDANCE_API_BASE}/attendance/api/admin/qr.png`
   return { url, key: ATTENDANCE_ADMIN_KEY }
 }
+
+export const getAttendanceAdminSocialQrs = async () => {
+  try {
+    const res = await fetch(`${ATTENDANCE_API_BASE}/attendance/api/admin/social-links/qr`, {
+      headers: { 'x-attendance-admin-key': ATTENDANCE_ADMIN_KEY }
+    })
+    const parsed = await readJson(res)
+    return { ok: parsed.ok, status: parsed.status, data: parsed.data }
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: { success: false, message: 'Unable to load social QR links.' }
+    }
+  }
+}
+
+export const getAttendanceAdminSocialQrDownloadUrl = (socialKey) => {
+  const safeKey = encodeURIComponent(String(socialKey || '').trim().toLowerCase())
+  const url = `${ATTENDANCE_API_BASE}/attendance/api/admin/social-links/${safeKey}/qr.png`
+  return { url, key: ATTENDANCE_ADMIN_KEY }
+}
