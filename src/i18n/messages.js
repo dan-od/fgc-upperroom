@@ -2,7 +2,7 @@ export const DEFAULT_LANGUAGE = 'en'
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', label: 'English' },
-  { code: 'pcm', label: 'Pidgin' }
+  { code: 'pcm', label: 'Naija Pidgin' }
 ]
 
 export const messages = {
@@ -47,6 +47,7 @@ export const messages = {
       emailAddress: 'Email address',
       subscribe: 'Subscribe',
       saving: 'Saving...',
+      languageLabel: 'Preferred Language',
       visitUs: 'Visit Us',
       addressTitle: 'Foursquare Gospel Church, Mgbuoba Zonal HQ',
       addressLine1: '36 Shell Location Road, Mgbuoba',
@@ -88,12 +89,12 @@ export const messages = {
     header: {
       nav: {
         home: 'Home',
-        about: 'About',
-        team: 'Team',
-        events: 'Events',
-        media: 'Media',
-        blog: 'Blog',
-        contact: 'Contact'
+        about: 'About Us',
+        team: 'Our Team',
+        events: 'Programs',
+        media: 'Media Hub',
+        blog: 'Stories',
+        contact: 'Reach Us'
       },
       primaryNavigation: 'Main navigation',
       openMenu: 'Open menu',
@@ -121,6 +122,7 @@ export const messages = {
       emailAddress: 'Email address',
       subscribe: 'Subscribe',
       saving: 'Saving...',
+      languageLabel: 'Language',
       visitUs: 'Visit Us',
       addressTitle: 'Foursquare Gospel Church, Mgbuoba Zonal HQ',
       addressLine1: '36 Shell Location Road, Mgbuoba',
