@@ -144,29 +144,50 @@ export const hasRecentMessageFingerprint = async ({
 }
 
 export const getMessageLogs = async (filters = {}) => {
-  let sql = 'SELECT * FROM messages WHERE 1=1'
+  const normalizedLimit = Math.max(1, Math.min(500, Number(filters.limit) || 100))
+  let sql = `
+    SELECT
+      m.*,
+      v.name AS visitor_name,
+      v.phone_number AS visitor_phone,
+      v.email AS visitor_email,
+      e.title AS event_title,
+      e.event_date AS related_event_date,
+      e.event_time AS related_event_time
+    FROM messages m
+    LEFT JOIN visitors v ON v.id = m.visitor_id
+    LEFT JOIN events e ON e.id = m.event_id
+    WHERE 1=1
+  `
   const values = []
   let paramCount = 1
 
   if (filters.visitorId) {
-    sql += ` AND visitor_id = $${paramCount}`
+    sql += ` AND m.visitor_id = $${paramCount}`
     values.push(filters.visitorId)
     paramCount++
   }
 
   if (filters.status) {
-    sql += ` AND status = $${paramCount}`
+    sql += ` AND m.status = $${paramCount}`
     values.push(filters.status)
     paramCount++
   }
 
   if (filters.eventId) {
-    sql += ` AND event_id = $${paramCount}`
+    sql += ` AND m.event_id = $${paramCount}`
     values.push(filters.eventId)
     paramCount++
   }
 
-  sql += ' ORDER BY created_at DESC LIMIT 500'
+  if (filters.messageType) {
+    sql += ` AND m.message_type = $${paramCount}`
+    values.push(filters.messageType)
+    paramCount++
+  }
+
+  sql += ` ORDER BY m.created_at DESC LIMIT $${paramCount}`
+  values.push(normalizedLimit)
 
   const result = await query(sql, values)
   return result.rows

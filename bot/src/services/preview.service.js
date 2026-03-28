@@ -1,21 +1,37 @@
 import { generateServiceReminderMessage, generateEventReminderMessage } from './message-generator.service.js'
+import { renderTemplateByKey } from './template.repository.js'
 import { logger } from '../lib/logger.js'
 
-export const previewServiceReminder = async ({ name, serviceTime, isFirstSunday }) => {
+export const previewServiceReminder = async ({ name, serviceTime, isFirstSunday, useFallbackTemplate = false }) => {
   try {
-    const message = await generateServiceReminderMessage({
-      name: name || 'Sample Visitor',
-      serviceTime: serviceTime || '08:00',
-      isFirstSunday: isFirstSunday ?? false
-    })
+    const previewName = name || 'Sample Visitor'
+    const previewServiceTime = serviceTime || '08:00'
+    const previewFirstSunday = isFirstSunday ?? false
+
+    const message = useFallbackTemplate
+      ? (await renderTemplateByKey('service_reminder', {
+          name: previewName,
+          serviceTime: previewServiceTime,
+          specialLine: previewFirstSunday ? 'We have a special first-Sunday blessing prepared for you.' : ''
+        }).catch(() => null)) ||
+        await generateServiceReminderMessage({
+          name: previewName,
+          serviceTime: previewServiceTime,
+          isFirstSunday: previewFirstSunday
+        })
+      : await generateServiceReminderMessage({
+          name: previewName,
+          serviceTime: previewServiceTime,
+          isFirstSunday: previewFirstSunday
+        })
 
     return {
       preview: true,
-      recipient: name || 'Sample Visitor',
+      recipient: previewName,
       context: {
         type: 'service',
-        serviceTime,
-        isFirstSunday
+        serviceTime: previewServiceTime,
+        isFirstSunday: previewFirstSunday
       },
       generatedMessage: message,
       timestamp: new Date().toISOString()
@@ -26,21 +42,46 @@ export const previewServiceReminder = async ({ name, serviceTime, isFirstSunday 
   }
 }
 
-export const previewEventReminder = async ({ name, eventTitle, eventDate }) => {
+export const previewEventReminder = async ({ name, eventTitle, eventDate, eventTime, registrationLink, useFallbackTemplate = false }) => {
   try {
-    const message = await generateEventReminderMessage({
-      name: name || 'Sample Visitor',
-      eventTitle: eventTitle || 'Sample Event',
-      eventDate: eventDate || new Date().toISOString().split('T')[0]
-    })
+    const previewName = name || 'Sample Visitor'
+    const previewEventTitle = eventTitle || 'Sample Event'
+    const previewEventDate = eventDate || new Date().toISOString().split('T')[0]
+    const previewEventTime = eventTime || ''
+    const previewRegistrationLink = registrationLink || ''
+
+    const message = useFallbackTemplate
+      ? (await renderTemplateByKey('event_reminder', {
+          name: previewName,
+          eventTitle: previewEventTitle,
+          eventDate: previewEventDate,
+          eventTimeLine: previewEventTime ? `Time: ${previewEventTime}.` : '',
+          registrationLine: previewRegistrationLink ? `Register here: ${previewRegistrationLink}.` : ''
+        }).catch(() => null)) ||
+        await generateEventReminderMessage({
+          name: previewName,
+          eventTitle: previewEventTitle,
+          eventDate: previewEventDate,
+          eventTime: previewEventTime,
+          registrationLink: previewRegistrationLink
+        })
+      : await generateEventReminderMessage({
+          name: previewName,
+          eventTitle: previewEventTitle,
+          eventDate: previewEventDate,
+          eventTime: previewEventTime,
+          registrationLink: previewRegistrationLink
+        })
 
     return {
       preview: true,
-      recipient: name || 'Sample Visitor',
+      recipient: previewName,
       context: {
         type: 'event',
-        eventTitle,
-        eventDate
+        eventTitle: previewEventTitle,
+        eventDate: previewEventDate,
+        eventTime: previewEventTime,
+        registrationLink: previewRegistrationLink
       },
       generatedMessage: message,
       timestamp: new Date().toISOString()
@@ -51,7 +92,7 @@ export const previewEventReminder = async ({ name, eventTitle, eventDate }) => {
   }
 }
 
-export const previewBulkMessages = async ({ visitors, context, limit = 5 }) => {
+export const previewBulkMessages = async ({ visitors, context, limit = 5, useFallbackTemplate = false }) => {
   const previews = []
   const sampleVisitors = visitors.slice(0, limit)
 
@@ -59,17 +100,45 @@ export const previewBulkMessages = async ({ visitors, context, limit = 5 }) => {
     let message
 
     if (context.type === 'service') {
-      message = await generateServiceReminderMessage({
-        name: visitor.name,
-        serviceTime: context.serviceTime,
-        isFirstSunday: context.isFirstSunday
-      })
+      message = useFallbackTemplate
+        ? (await renderTemplateByKey('service_reminder', {
+            name: visitor.name,
+            serviceTime: context.serviceTime,
+            specialLine: context.isFirstSunday ? 'We have a special first-Sunday blessing prepared for you.' : ''
+          }).catch(() => null)) ||
+          await generateServiceReminderMessage({
+            name: visitor.name,
+            serviceTime: context.serviceTime,
+            isFirstSunday: context.isFirstSunday
+          })
+        : await generateServiceReminderMessage({
+            name: visitor.name,
+            serviceTime: context.serviceTime,
+            isFirstSunday: context.isFirstSunday
+          })
     } else if (context.type === 'event') {
-      message = await generateEventReminderMessage({
-        name: visitor.name,
-        eventTitle: context.eventTitle,
-        eventDate: context.eventDate
-      })
+      message = useFallbackTemplate
+        ? (await renderTemplateByKey('event_reminder', {
+            name: visitor.name,
+            eventTitle: context.eventTitle,
+            eventDate: context.eventDate,
+            eventTimeLine: context.eventTime ? `Time: ${context.eventTime}.` : '',
+            registrationLine: context.registrationLink ? `Register here: ${context.registrationLink}.` : ''
+          }).catch(() => null)) ||
+          await generateEventReminderMessage({
+            name: visitor.name,
+            eventTitle: context.eventTitle,
+            eventDate: context.eventDate,
+            eventTime: context.eventTime,
+            registrationLink: context.registrationLink
+          })
+        : await generateEventReminderMessage({
+            name: visitor.name,
+            eventTitle: context.eventTitle,
+            eventDate: context.eventDate,
+            eventTime: context.eventTime,
+            registrationLink: context.registrationLink
+          })
     }
 
     previews.push({

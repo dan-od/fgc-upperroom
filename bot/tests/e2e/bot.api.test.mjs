@@ -201,6 +201,47 @@ test('visitor reminder preference endpoints persist and return selected options'
   assert.deepEqual(patchBody.reminderPreferences.eventIds, ['event-b', 'event-c'])
 })
 
+test('preview and import utilities expose the current bot workflow', async () => {
+  if (!canRunHttpTests) return
+
+  const previewResponse = await fetch(`${baseUrl}/bot/api/preview/event`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Preview User',
+      eventTitle: 'Youth Revival Night',
+      eventDate: '2026-05-05',
+      eventTime: '09:30',
+      registrationLink: 'https://upperroom.example/register',
+      useFallbackTemplate: true
+    })
+  })
+  assert.equal(previewResponse.status, 200)
+  const previewBody = await previewResponse.json()
+  assert.equal(previewBody.context.eventTime, '09:30')
+  assert.equal(previewBody.context.registrationLink, 'https://upperroom.example/register')
+  assert.equal(previewBody.generatedMessage.includes('09:30'), true)
+  assert.equal(previewBody.generatedMessage.includes('https://upperroom.example/register'), true)
+
+  const csv = [
+    'name,phone_number,email,first_visit_date,tags,timezone,consented_at',
+    'CSV User,08011110000,csv.user@example.com,2026-03-01,"new,first-timer",Africa/Lagos,yes'
+  ].join('\n')
+
+  const formData = new FormData()
+  formData.append('file', new Blob([csv], { type: 'text/csv' }), 'visitors.csv')
+
+  const importResponse = await fetch(`${baseUrl}/bot/api/import-csv`, {
+    method: 'POST',
+    body: formData
+  })
+  assert.equal(importResponse.status, 200)
+  const importBody = await importResponse.json()
+  assert.equal(importBody.total, 1)
+  assert.equal(importBody.imported, 1)
+  assert.equal(importBody.failed, 0)
+})
+
 test('event RSVP endpoint places additional attendees on waitlist when full', async () => {
   if (!canRunHttpTests) return
 
@@ -247,6 +288,63 @@ test('event RSVP endpoint places additional attendees on waitlist when full', as
   const counts = Object.fromEntries((summary.counts || []).map((item) => [item.status, Number(item.count)]))
   assert.equal(counts.going, 1)
   assert.equal(counts.waitlist, 1)
+})
+
+test('message logs expose joined visitor and event metadata', async () => {
+  if (!canRunHttpTests) return
+
+  const visitorResponse = await fetch(`${baseUrl}/bot/api/visitors`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Log User',
+      phoneNumber: '08090909090',
+      email: 'logs@example.com'
+    })
+  })
+  assert.equal(visitorResponse.status, 201)
+  const visitor = await visitorResponse.json()
+
+  const eventResponse = await fetch(`${baseUrl}/bot/api/events`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Log Test Event',
+      eventDate: '2099-12-10',
+      eventTime: '10:15',
+      location: 'Upper Room Hall'
+    })
+  })
+  assert.equal(eventResponse.status, 201)
+  const event = await eventResponse.json()
+
+  const updateResponse = await fetch(`${baseUrl}/bot/api/events/${event.id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Log Test Event',
+      eventDate: '2099-12-10',
+      eventTime: '10:15',
+      location: 'Upper Room Hall'
+    })
+  })
+  assert.equal(updateResponse.status, 200)
+
+  await new Promise((resolve) => setTimeout(resolve, 150))
+
+  const logsResponse = await fetch(`${baseUrl}/bot/api/messages?limit=10`)
+  assert.equal(logsResponse.status, 200)
+  const logsBody = await logsResponse.json()
+  assert.equal(Array.isArray(logsBody.messages), true)
+  assert.equal(
+    logsBody.messages.some((entry) =>
+      entry.visitor_id === visitor.id &&
+      entry.event_id === event.id &&
+      entry.visitor_name === 'Log User' &&
+      entry.event_title === 'Log Test Event'
+    ),
+    true
+  )
 })
 
 test('prayer requests support admin-protected management endpoints', async () => {
@@ -404,7 +502,7 @@ test('admin template and holiday endpoints are secured and writable', async () =
     method: 'PUT',
     headers: adminJsonHeaders(),
     body: JSON.stringify({
-      content: 'Hi {{name}}, {{eventTitle}} is on {{eventDate}}. {{registrationLine}}',
+      content: 'Hi {{name}}, {{eventTitle}} is coming up on {{eventDate}}. {{eventTimeLine}} {{registrationLine}} We look forward to seeing you. Reply STOP to opt out.',
       channel: 'whatsapp',
       isActive: true
     })

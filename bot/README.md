@@ -75,10 +75,12 @@ Set `LLM_PROVIDER=none` to skip provider calls and use static templates only.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/bot/api/messages` | Query message logs |
-| `POST` | `/bot/api/import-csv` | Bulk import visitors |
+| `GET` | `/bot/api/messages` | Query message logs with visitor and event details |
+| `POST` | `/bot/api/import-csv` | Bulk import visitors from CSV |
 | `POST` | `/bot/api/preview/service` | Preview a service reminder |
-| `POST` | `/bot/api/preview/event` | Preview an event reminder |
+| `POST` | `/bot/api/preview/event` | Preview an event reminder with time and registration link support |
+| `POST` | `/bot/api/preview/bulk-service` | Preview a small batch of service reminders |
+| `POST` | `/bot/api/preview/bulk-event` | Preview a small batch of event reminders |
 | `GET` | `/bot/api/admin/stats` | System statistics |
 | `GET` | `/bot/api/admin/activity` | Recent activity |
 | `GET` | `/bot/api/admin/engagement` | Engagement metrics |

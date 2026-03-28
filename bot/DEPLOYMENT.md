@@ -402,6 +402,17 @@ curl -X POST https://bot.yourchurch.org/bot/api/preview/service \
     "serviceTime": "08:00",
     "isFirstSunday": false
   }'
+
+# Preview event reminder
+curl -X POST https://bot.yourchurch.org/bot/api/preview/event \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "eventTitle": "Youth Revival Night",
+    "eventDate": "2026-04-12",
+    "eventTime": "09:00",
+    "registrationLink": "https://bot.yourchurch.org/register"
+  }'
 ```
 
 ---
