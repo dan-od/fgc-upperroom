@@ -86,7 +86,7 @@ flowchart TD
 - **Media Gallery**: Category filtering (Sermons, Youth, Events, Audio), date ranges, pagination, YouTube embeds, multi-asset lightbox
 - **Blog**: Articles, devotionals, Sunday school materials with categorization
 - **Events**: Countdown timers, registration forms, event details
-- **Admin Center** (`/admin`): Create/manage events, upload media, publish blog posts
+- **Admin Center** (`/admin`): Create/manage events, upload media, publish blog posts, and review bot reminders, imports, and delivery logs
 
 ### WhatsApp Bot
 - **Service Reminders**: Automated Saturday 12 PM notifications (first Sunday 07:30, others 08:00)

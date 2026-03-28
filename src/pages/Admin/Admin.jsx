@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
+  MessageSquare,
   QrCode,
   ScrollText,
   Settings as SettingsIcon,
@@ -27,6 +28,7 @@ const loadMediaManager = () => import('./components/MediaManager')
 const loadBlogManager = () => import('./components/BlogManager')
 const loadTestimonyManager = () => import('./components/TestimonyManager')
 const loadVisitorManager = () => import('./components/VisitorManager')
+const loadBotOpsManager = () => import('./components/BotOpsManager')
 const loadAttendanceManager = () => import('./components/AttendanceManager')
 const loadAnalytics = () => import('./components/Analytics')
 const loadGivingManager = () => import('./components/GivingManager')
@@ -39,6 +41,7 @@ const MediaManager = lazy(loadMediaManager)
 const BlogManager = lazy(loadBlogManager)
 const TestimonyManager = lazy(loadTestimonyManager)
 const VisitorManager = lazy(loadVisitorManager)
+const BotOpsManager = lazy(loadBotOpsManager)
 const AttendanceManager = lazy(loadAttendanceManager)
 const Analytics = lazy(loadAnalytics)
 const GivingManager = lazy(loadGivingManager)
@@ -243,6 +246,7 @@ const Admin = () => {
     blog: loadBlogManager,
     testimonies: loadTestimonyManager,
     visitors: loadVisitorManager,
+    botOps: loadBotOpsManager,
     attendance: loadAttendanceManager,
     analytics: loadAnalytics,
     giving: loadGivingManager,
@@ -386,6 +390,13 @@ const Admin = () => {
       permission: 'content:visitors:read'
     },
     {
+      id: 'botOps',
+      label: 'Bot Ops',
+      icon: MessageSquare,
+      description: 'Preview reminders, import visitors, and review message delivery.',
+      permission: 'content:visitors:read'
+    },
+    {
       id: 'attendance',
       label: 'Attendance',
       icon: QrCode,
@@ -456,6 +467,10 @@ const Admin = () => {
 
     if (activeTab === 'visitors') {
       return <VisitorManager currentUser={authUser} hasPermission={hasPermission} />
+    }
+
+    if (activeTab === 'botOps') {
+      return <BotOpsManager currentUser={authUser} hasPermission={hasPermission} />
     }
 
     if (activeTab === 'attendance') {

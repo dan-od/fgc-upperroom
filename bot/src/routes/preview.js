@@ -9,8 +9,8 @@ const router = express.Router()
 
 router.post('/preview/service', async (req, res) => {
   try {
-    const { name, serviceTime, isFirstSunday } = req.body
-    const preview = await previewServiceReminder({ name, serviceTime, isFirstSunday })
+    const { name, serviceTime, isFirstSunday, useFallbackTemplate } = req.body
+    const preview = await previewServiceReminder({ name, serviceTime, isFirstSunday, useFallbackTemplate })
     res.json(preview)
   } catch (error) {
     logger.error('Failed to generate service preview', { error: error.message })
@@ -20,8 +20,8 @@ router.post('/preview/service', async (req, res) => {
 
 router.post('/preview/event', async (req, res) => {
   try {
-    const { name, eventTitle, eventDate } = req.body
-    const preview = await previewEventReminder({ name, eventTitle, eventDate })
+    const { name, eventTitle, eventDate, eventTime, registrationLink, useFallbackTemplate } = req.body
+    const preview = await previewEventReminder({ name, eventTitle, eventDate, eventTime, registrationLink, useFallbackTemplate })
     res.json(preview)
   } catch (error) {
     logger.error('Failed to generate event preview', { error: error.message })
@@ -31,7 +31,7 @@ router.post('/preview/event', async (req, res) => {
 
 router.post('/preview/bulk-service', async (req, res) => {
   try {
-    const { limit } = req.body
+    const { limit, useFallbackTemplate } = req.body
     const visitors = await listSubscribedVisitors()
     const context = buildSundayServiceContext()
 
@@ -42,7 +42,8 @@ router.post('/preview/bulk-service', async (req, res) => {
         serviceTime: context.serviceTime,
         isFirstSunday: context.isFirstSunday
       },
-      limit: limit || 5
+      limit: limit || 5,
+      useFallbackTemplate
     })
 
     res.json(preview)
@@ -54,7 +55,7 @@ router.post('/preview/bulk-service', async (req, res) => {
 
 router.post('/preview/bulk-event', async (req, res) => {
   try {
-    const { eventTitle, eventDate, limit } = req.body
+    const { eventTitle, eventDate, eventTime, registrationLink, limit, useFallbackTemplate } = req.body
     const visitors = await listSubscribedVisitors()
 
     const preview = await previewBulkMessages({
@@ -62,9 +63,12 @@ router.post('/preview/bulk-event', async (req, res) => {
       context: {
         type: 'event',
         eventTitle,
-        eventDate
+        eventDate,
+        eventTime,
+        registrationLink
       },
-      limit: limit || 5
+      limit: limit || 5,
+      useFallbackTemplate
     })
 
     res.json(preview)
