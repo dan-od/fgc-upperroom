@@ -128,44 +128,59 @@ const analyzeVisitorName = (fullName) => {
   return { firstName: names[0], gender }
 }
 
+const BOT_MESSAGE_STYLE_GUIDE = `
+Write like a real person at FGC Upper Room sending a WhatsApp note.
+Keep it short, direct, and personal.
+Use contractions and plain words.
+Use only the details given. Do not invent extra details.
+Avoid generic filler, marketing language, and emoji.
+Return only the message text.
+`
+
 const buildServiceReminderPrompt = (name, serviceTime, isFirstSunday) => {
-  const specialLine = isFirstSunday ? 'We have a special first-Sunday blessing prepared for you.' : ''
-  return `You are a warm, polite pastor at FGC Mgbuoba writing a WhatsApp reminder to a church member.
-Recipient: ${name}
-Context: Sunday service is tomorrow at ${serviceTime} WAT. ${specialLine}
+  const specialNote = isFirstSunday
+    ? "Tomorrow is First Sunday. Mention that plainly and note that service starts at the given time."
+    : 'Tomorrow is a regular Sunday service. Keep the reminder simple.'
 
-Write a warm, polite message following this style:
-- Start with warm greeting and their name
-- Ask how their week was and acknowledge God's faithfulness
-- Politely encourage them to worship with us tomorrow
-- Mention the service time
-- Express hope to see them
-- End with "God bless you!"
-- Include at the end: "Reply STOP to opt out."
+  return `${BOT_MESSAGE_STYLE_GUIDE}
 
-Do NOT include any placeholder text like [Name] or [Church Name]. Sign off as: Notifications @ The Upperroom
-Use respectful, reverent Nigerian church English. Be warm but professional.
-Max 100 words.`
+Task: Write a WhatsApp reminder for one church member.
+Recipient name: ${name}
+Service time: ${serviceTime}
+Context: ${specialNote}
+
+Write 2 to 4 short sentences.
+Mention the person by name once.
+Say the reminder is from FGC Upper Room.
+Include the service time once.
+If it is First Sunday, mention that once.
+Finish with "Reply STOP to opt out."
+Optional closing: God bless you.
+`
 }
 
 const buildEventReminderPrompt = (name, eventTitle, eventDate, eventTime, registrationLink) => {
-  const eventTimeLine = eventTime ? `Time: ${eventTime}.` : ''
-  const registrationLine = registrationLink ? `Registration link: ${registrationLink}.` : ''
-  return `You are a warm, polite pastor at FGC Mgbuoba writing a WhatsApp event reminder to a church member.
-Recipient: ${name}
-Context: ${eventTitle} is scheduled for ${eventDate}. ${eventTimeLine} ${registrationLine}
+  const details = [
+    `Event title: ${eventTitle}`,
+    `Event date: ${eventDate}`,
+    eventTime ? `Event time: ${eventTime}` : '',
+    registrationLink ? `Registration link: ${registrationLink}` : ''
+  ].filter(Boolean).join('\n')
 
-Write a warm, polite message following this style:
-- Greet them warmly by name
-- Remind them about the event with details
-- Include direct registration line if registration link is available
-- Express how much their presence would mean
-- End with a blessing
-- Include at the end: "Reply STOP to opt out."
+  return `${BOT_MESSAGE_STYLE_GUIDE}
 
-Do NOT include any placeholder text like [Name] or [Church Name]. Sign off as: Notifications @ The Upperroom
-Use respectful, reverent Nigerian church English. Be warm but professional.
-Max 100 words.`
+Task: Write a WhatsApp reminder for one church member.
+Recipient name: ${name}
+${details}
+
+Write 2 to 4 short sentences.
+Mention the person by name once.
+State the event name and date.
+If a time is provided, include it once.
+If a registration link is provided, include it once.
+Finish with "Reply STOP to opt out."
+Optional closing: God bless you.
+`
 }
 
 const callOpenAI = async (prompt) => {
@@ -377,37 +392,13 @@ export const generateServiceReminderMessage = async ({ name, serviceTime, isFirs
     return templateMessage
   }
 
-  // Polite, reverent fallback templates
   const { firstName } = analyzeVisitorName(name)
-  
-  const greetings = [
-    `Hi ${firstName}, how was your week? I am sure God saw you through.`,
-    `Hi ${firstName}, I trust God has been faithful to you this week.`,
-    `Hello ${firstName}, I hope you had a blessed week.`,
-    `Dear ${firstName}, I pray your week has been filled with God's grace.`
-  ]
+  const intro = `Hi ${firstName}, just a quick reminder from FGC Upper Room.`
+  const serviceLine = isFirstSunday
+    ? `It's First Sunday tomorrow, and service starts at ${serviceTime}. We have something special lined up.`
+    : `Sunday service starts at ${serviceTime} tomorrow.`
 
-  const invitations = isFirstSunday ? [
-    `I send this message to encourage you to worship with us tomorrow for our First Sunday service. Service will begin at ${serviceTime}, and we have something special prepared.`,
-    `I would like to invite you to join us tomorrow for our First Sunday celebration. Service begins at ${serviceTime}, and your presence would be a blessing.`,
-    `I encourage you to worship with us tomorrow as we celebrate First Sunday together. Service starts at ${serviceTime}.`
-  ] : [
-    `I send this message to you to encourage you to worship with us again tomorrow. Service will begin at ${serviceTime}, hoping to meet you there.`,
-    `I would like to invite you to join us for service tomorrow at ${serviceTime}. Your presence would be a blessing to us.`,
-    `I encourage you to worship with us tomorrow. Service starts at ${serviceTime}, and we would be delighted to have you.`
-  ]
-
-  const closings = [
-    `God bless you!`,
-    `May God's grace be with you!`,
-    `The Lord bless and keep you!`
-  ]
-
-  const greeting = greetings[Math.floor(Math.random() * greetings.length)]
-  const invitation = invitations[Math.floor(Math.random() * invitations.length)]
-  const closing = closings[Math.floor(Math.random() * closings.length)]
-  
-  return `${greeting} ${invitation} ${closing} Reply STOP to opt out.`
+  return `${intro} ${serviceLine} See you if you can make it. God bless you. Reply STOP to opt out.`
 }
 
 export const generateEventReminderMessage = async ({ name, eventTitle, eventDate, eventTime, registrationLink }) => {
@@ -427,32 +418,15 @@ export const generateEventReminderMessage = async ({ name, eventTitle, eventDate
     return templateMessage
   }
 
-  // Polite event reminder templates
   const { firstName } = analyzeVisitorName(name)
-  
-  const eventGreetings = [
-    `Dear ${firstName}, I hope this message finds you well.`,
-    `Hi ${firstName}, I trust you are doing great.`,
-    `Hello ${firstName}, I pray you are well.`
+  const parts = [
+    `Hi ${firstName}, ${eventTitle} is coming up on ${eventDate}.`,
+    eventTime ? `It starts at ${eventTime}.` : '',
+    registrationLink ? `Register here: ${registrationLink}.` : '',
+    'Hope you can make it.',
+    'God bless you.',
+    'Reply STOP to opt out.'
   ]
 
-  const eventInvitations = [
-    `I want to remind you about ${eventTitle} happening on ${eventDate}. Your presence would mean a lot to us, and we would be blessed to have you.`,
-    `This is a reminder that ${eventTitle} is scheduled for ${eventDate}. We would be delighted if you could join us.`,
-    `I wanted to let you know that ${eventTitle} will take place on ${eventDate}. We really hope to see you there.`
-  ]
-
-  const eventClosings = [
-    `God bless you!`,
-    `May the Lord bless you richly!`,
-    `Grace and peace!`
-  ]
-
-  const greeting = eventGreetings[Math.floor(Math.random() * eventGreetings.length)]
-  const invitation = eventInvitations[Math.floor(Math.random() * eventInvitations.length)]
-  const closing = eventClosings[Math.floor(Math.random() * eventClosings.length)]
-  const timeLine = eventTime ? ` Time: ${eventTime}.` : ''
-  const registrationLine = registrationLink ? ` Register here: ${registrationLink}.` : ''
-  
-  return `${greeting} ${invitation}${timeLine}${registrationLine} ${closing} Reply STOP to opt out.`
+  return parts.filter(Boolean).join(' ')
 }
