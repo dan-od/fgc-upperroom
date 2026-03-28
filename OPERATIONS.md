@@ -14,7 +14,7 @@ npm run openclaw:hook:test
 ```
 
 CI/CD runs these in `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
-Browser/accessibility matrix is tracked in `ACCESSIBILITY_BROWSER_MATRIX.md`.
+Accessibility checks run through `npm run qa:accessibility`, and the recovery drill is documented in `bot/BACKUP_RECOVERY.md`.
 
 ## Observability Endpoints
 
@@ -175,7 +175,7 @@ Lifecycle:
 - `GET /bot/monitoring/alerts` for spike/backlog/latency alerts.
 - `GET /bot/monitoring/errors` for top failed message errors.
 - `GET /api/observability/rum` for frontend perf summary.
-- `npm run ops:backup-drill` for backup/restore check.
+- `npm run ops:backup-drill` for the backup/restore drill in `bot/BACKUP_RECOVERY.md`.
 - `npm run ops:verify-https` for TLS/HTTPS check.
 
 ## Security Baseline

@@ -1,8 +1,8 @@
 # Bot Environment Secrets Setup
 
-This guide explains how to obtain every `.env` value required by the WhatsApp bot and how to store them safely.
+This guide covers the variables the bot, the attendance sync, and the shared admin UI read from the root `.env` file.
 
-## 1) Create your local env file
+## 1) Create the local env file
 
 From the project root:
 
@@ -10,231 +10,268 @@ From the project root:
 cp .env.example .env
 ```
 
-Then edit:
+Then edit it:
 
 ```bash
 vim .env
 ```
 
-**Important:**  
-Do not commit `.env`. All environment variables are now stored in the root `.env` file, shared across the entire application.
+Do not commit `.env`. The same file is shared by the website, attendance service, and bot runtime.
 
 ---
 
-## 2) Required secrets and where to get them
-
-## Database
+## 2) Shared runtime and path settings
 
 ### `DATABASE_URL`
 
-What it is:
-- PostgreSQL connection string used by the bot API and worker.
+PostgreSQL connection string used by the bot API and worker.
 
-How to get it:
-- If self-hosted Postgres: build from your DB credentials.
-- If managed provider (Supabase, Render, Railway, Neon, RDS): copy the connection URL from the provider dashboard.
-
-Format:
+Example:
 
 ```bash
 DATABASE_URL=postgresql://<username>:<password>@<host>:5432/<database>
 ```
 
-Quick check:
-
-```bash
-psql "$DATABASE_URL" -c "SELECT NOW();"
-```
-
----
-
-## Queue / Redis
-
 ### `REDIS_URL`
 
-What it is:
-- Redis connection string used by BullMQ queue workers.
+Redis connection string used by BullMQ.
 
-How to get it:
-- Local Redis: `redis://127.0.0.1:6379`
-- Managed Redis (Upstash/Redis Cloud/Render): copy endpoint from dashboard.
-
-Format:
+Example:
 
 ```bash
 REDIS_URL=redis://<host>:6379
-# or
-REDIS_URL=redis://:<password>@<host>:6379
 ```
 
-Quick check:
+### `BOT_PORT`, `BOT_HOST`, `BOT_TIMEZONE`
 
-```bash
-redis-cli -u "$REDIS_URL" ping
-```
+The bot listens on `BOT_PORT` and `BOT_HOST`. Keep `BOT_TIMEZONE=Africa/Lagos` unless you are running a deliberate test setup.
 
-Expected: `PONG`.
+### `APP_DATA_DIR`, `APP_PUBLIC_DIR`, `APP_DIST_DIR`
+
+Storage path overrides for data, public assets, and the build output.
+
+### `DB_PASSWORD`
+
+Used by Docker Compose and the preflight fallback when a database URL is not provided.
+
+### `ENABLE_SCHEDULER`
+
+Set `true` in production. Leave it `false` when you do not want reminders to send.
+
+### `PUBLIC_SITE_BASE_URL`, `BOT_PUBLIC_BASE_URL`
+
+Used when the bot builds public links, QR codes, and HTTPS verification targets.
+
+### `APP_BASE_PATH`, `PUBLIC_APP_BASE_PATH`, `VITE_APP_BASE_PATH`
+
+Use these when the website is served under a subpath such as `/fgc-testing/`.
+
+### `VITE_API_BASE_URL`, `VITE_BOT_API_URL`, `VITE_ATTENDANCE_API_URL`, `VITE_LIVE_STREAM_URL`
+
+Frontend overrides for API and media URLs. Leave them blank when the app can use same-origin or dev-server proxies.
 
 ---
 
-## WhatsApp (Meta Cloud API)
+## 3) Admin and attendance secrets
+
+### `BOT_ADMIN_API_KEY`
+
+Primary secret for bot admin endpoints. The bot rejects weak placeholders like `admin123` and `replace_me`.
+
+### `VITE_ENABLE_ADMIN_FALLBACK_LOGIN`
+
+Set `true` only for local development if you want the browser fallback login.
+
+### `VITE_ADMIN_EMAIL`, `VITE_ADMIN_PASSWORD`
+
+Local browser fallback login values. The browser can store its own override in `localStorage`, but these give you a starting point.
+
+### `ADMIN_DEFAULT_EMAIL`, `ADMIN_DEFAULT_PASSWORD`
+
+Seed values for the web admin account when no users exist yet.
+
+### `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+
+Legacy aliases the web admin seed still reads. Keep them empty unless you need the override.
+
+### `ATTENDANCE_PORT`, `ATTENDANCE_PUBLIC_BASE_URL`, `ATTENDANCE_TEST_OPEN`
+
+Attendance service runtime and testing flags.
+
+### `ATTENDANCE_HISTORY_API_URL`
+
+Where the attendance service posts session and check-in history back to the bot.
+
+### `ATTENDANCE_HISTORY_SYNC_KEY`
+
+Shared secret sent as `x-attendance-sync-key` when the attendance service mirrors history back to the bot.
+
+### `ATTENDANCE_ADMIN_KEY`, `ATTENDANCE_ADMIN_PASSWORD`, `VITE_ATTENDANCE_ADMIN_KEY`
+
+Fallback admin credentials for the attendance UI and route guards.
+
+---
+
+## 4) WhatsApp and Meta Cloud API
+
+### `WHATSAPP_PROVIDER`
+
+Use `meta` in production. Use `stub` when you want the bot to log messages without sending them.
+
+### `WHATSAPP_FALLBACK_PROVIDER`
+
+Fallback provider when the primary WhatsApp provider is not available. `stub` is the safe default.
 
 ### `META_ACCESS_TOKEN`
-Long-lived System User token from Meta Business Manager. Starts with `EAAx...`.
 
-How to get it:
-1. Go to [business.facebook.com](https://business.facebook.com) → System Users.
-2. Create a System User with **full control** of your WhatsApp Business Account.
-3. Generate token — select permissions `whatsapp_business_messaging` + `whatsapp_business_management`.
-4. Copy the generated token.
+Long-lived System User token from Meta Business Manager.
 
 ### `META_PHONE_NUMBER_ID`
-The numeric Phone Number ID for your WhatsApp-enabled business number.
 
-How to get it:
-- In your Meta Developer App → **WhatsApp → API Setup** → copy the **Phone Number ID** next to your number.
+Phone Number ID for your WhatsApp-enabled business number.
 
 ### `META_WABA_ID`
-Your WhatsApp Business Account ID.
 
-How to get it:
-- Same page as Phone Number ID — shown as **WhatsApp Business Account ID**.
+WhatsApp Business Account ID.
 
 ### `META_WEBHOOK_VERIFY_TOKEN`
-A secret string you choose (any random value). Used to verify webhook ownership.
 
-Example: `fgc-upperroom-webhook-2026`
+Secret string you choose for webhook verification.
 
 ### `META_APP_SECRET`
-Found in Meta Developer App → **App Settings → Basic → App Secret**.
+
+App Secret from Meta Developer App settings.
 
 ### `META_API_VERSION`
-Graph API version to use. Default: `v21.0`
 
-Webhook setup in Meta Developer App:
-- Go to **WhatsApp → Configuration**
-- Callback URL: `https://<your-domain>/bot/webhooks/whatsapp`
-- Verify Token: value of `META_WEBHOOK_VERIFY_TOKEN`
-- Subscribe to field: `messages`
+Graph API version to use. The current default is `v21.0`.
+
+Webhook callback URL:
+
+```text
+https://<your-domain>/bot/webhooks/whatsapp
+```
+
+Subscribe the app to the `messages` field.
 
 ---
 
-## LLM Provider (choose at least one)
+## 5) LLM providers
 
-Provider resolution order (`LLM_PROVIDER=auto`):
-1. Vertex AI Gemini (if `VERTEX_PROJECT_ID` is set)
-2. OpenAI (if `OPENAI_API_KEY` is set)
-3. Google Gemini direct (if `GEMINI_API_KEY` is set)
-4. Static fallback templates (always available — no API needed)
+Provider resolution order when `LLM_PROVIDER=auto`:
+1. Vertex AI Gemini, if `VERTEX_PROJECT_ID` is set.
+2. OpenAI, if `OPENAI_API_KEY` is set.
+3. Google Gemini direct API, if `GEMINI_API_KEY` is set.
+4. Static templates, if no provider is available.
 
-Set `LLM_PROVIDER=vertex|openai|gemini|none` to override selection.
+Set `LLM_PROVIDER=none` to skip provider calls and use static templates only.
 
-### Vertex AI (preferred in production)
+### `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `VERTEX_MODEL`, `VERTEX_SERVICE_ACCOUNT_JSON`
 
-#### `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `VERTEX_MODEL`, `VERTEX_SERVICE_ACCOUNT_JSON`
+Vertex AI is the preferred production path. Create a service account with Vertex AI access, then paste the JSON key into `VERTEX_SERVICE_ACCOUNT_JSON` or mount it as a file and leave the variable empty.
 
-How to set up:
-1. In [Google Cloud Console](https://console.cloud.google.com), create a Service Account with the **Vertex AI User** role.
-2. Create a JSON key for the service account. Download it.
-3. Set `VERTEX_SERVICE_ACCOUNT_JSON` to the JSON string (or mount the file and omit this var to use Application Default Credentials).
+### `OPENAI_API_KEY`, `OPENAI_MODEL`
 
-Example:
-```bash
-LLM_PROVIDER=auto
-VERTEX_PROJECT_ID=my-gcp-project
-VERTEX_LOCATION=us-central1
-VERTEX_MODEL=gemini-2.5-flash
-VERTEX_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...",...}
-```
+Set these if you want the bot to use OpenAI as a provider fallback.
 
-### OpenAI
+### `GEMINI_API_KEY`, `GEMINI_MODEL`
 
-#### `OPENAI_API_KEY`, `OPENAI_MODEL` (optional)
-
-How to get key:
-1. Open [platform.openai.com](https://platform.openai.com) → API Keys.
-2. Create a new secret key.
-
-Example:
-```bash
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-```
-
-### Google Gemini (direct API)
-
-#### `GEMINI_API_KEY`, `GEMINI_MODEL` (optional)
-
-How to get key:
-1. Open [Google AI Studio](https://aistudio.google.com) → Create API key.
-
-Example:
-```bash
-GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-2.5-flash
-```
+Set these if you want the bot to use the Gemini direct API fallback.
 
 ---
 
-## Monitoring (optional)
+## 6) Giving, monitoring, and optional integrations
 
-### `ALERT_WEBHOOK_URL`
+### Giving
 
-What it is:
-- Endpoint that receives bot alert notifications.
+- `PAYSTACK_PUBLIC_KEY`
+- `PAYSTACK_SECRET_KEY`
+- `VITE_PAYSTACK_PUBLIC_KEY`
+- `PAYSTACK_WEBHOOK_SECRET`
+- `GIVING_CURRENCY`
+- `GIVING_CALLBACK_URL`
+- `GIVING_BANK_ACCOUNTS_JSON`
+- `GIVING_BANK_TRANSFER_ACCOUNTS_JSON`
+- `GIVING_BANKS_JSON`
+- `GIVING_BANK_OPTIONS_JSON`
+- `GIVING_BANK_NAME`
+- `GIVING_BANK_ACCOUNT_NAME`
+- `GIVING_BANK_ACCOUNT_NUMBER`
+- `GIVING_BANK_TRANSFER_INSTRUCTIONS`
+- `GIVING_BANK_DETAILS_JSON`
+- `GIVING_CRYPTO_WALLET_ADDRESS`
+- `GIVING_CRYPTO_RPC_URL`
+- `ETHERSCAN_API_KEY`
+- `ETHEREUM_WALLET_ADDRESS`
+- `BITCOIN_WALLET_ADDRESS`
+- `SEPOLIA_RPC_URL`
+- `CRYPTO_WALLET_ADDRESS`
 
-Examples:
-- Slack Incoming Webhook
-- Discord Webhook
-- PagerDuty Events endpoint
-- Custom internal endpoint
+### Monitoring and sidecar
+
+- `ALERT_WEBHOOK_URL`
+- `MONITORING_SLOW_QUERY_MS`
+- `MONITORING_SLOW_REQUEST_MS`
+- `OPENCLAW_HOOK_URL`
+- `OPENCLAW_HOOK_TOKEN`
+- `OPENCLAW_HOOK_MODE`
+- `OPENCLAW_HOOK_TIMEOUT_MS`
+- `VITE_RUM_ENABLED`
+- `VITE_RUM_ENDPOINT`
+
+### Tooling helpers
+
+- `TARGET_URL`
+- `TEMP_DB_NAME`
+- `PERF_REQUESTS`
+- `PERF_P95_MS`
+
+### Public content and contact helpers
+
+- `YOUTUBE_API_KEY`
+- `YOUTUBE_CHANNEL_ID`
+- `CONTACT_AUTORESPONSE_WEBHOOK_URL`
+- `CONTACT_ADMIN_NOTIFICATION_WEBHOOK_URL`
+- `SOCIAL_LINK_FACEBOOK`
+- `SOCIAL_LINK_INSTAGRAM`
+- `SOCIAL_LINK_YOUTUBE`
+- `SOCIAL_LINK_X`
+- `SOCIAL_LINK_TIKTOK`
 
 ---
 
-## 3) Minimum `.env` example
+## 7) Minimal example
 
 ```bash
 BOT_PORT=4100
 BOT_HOST=0.0.0.0
 BOT_TIMEZONE=Africa/Lagos
-ENABLE_SCHEDULER=false
-
-DATABASE_URL=postgresql://user:pass@localhost:5432/church_bot
+DATABASE_URL=postgresql://user:password@localhost:5432/church_bot
 REDIS_URL=redis://127.0.0.1:6379
-
-WHATSAPP_PROVIDER=meta
-META_ACCESS_TOKEN=EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-META_PHONE_NUMBER_ID=123456789012345
-META_WABA_ID=987654321098765
-META_WEBHOOK_VERIFY_TOKEN=fgc-upperroom-webhook-2026
-META_APP_SECRET=abcdef1234567890abcdef1234567890
-META_API_VERSION=v21.0
-
-# LLM — fill in at least one; auto order: vertex → openai → gemini → static
+BOT_ADMIN_API_KEY=replace_me_with_a_long_secret
+ENABLE_SCHEDULER=false
+WHATSAPP_PROVIDER=stub
 LLM_PROVIDER=auto
-VERTEX_PROJECT_ID=
-VERTEX_LOCATION=us-central1
-VERTEX_MODEL=gemini-2.5-flash
-VERTEX_SERVICE_ACCOUNT_JSON=
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
-
-ALERT_WEBHOOK_URL=
+PAYSTACK_PUBLIC_KEY=pk_test_...
+PAYSTACK_SECRET_KEY=sk_test_...
+META_ACCESS_TOKEN=EAA...
+META_PHONE_NUMBER_ID=123456789012345
+META_WEBHOOK_VERIFY_TOKEN=fgc-upperroom-webhook-2026
 ```
+
+The full template lives in [`.env.example`](../.env.example).
 
 ---
 
-## 4) Validate configuration
+## 8) Validate configuration
 
-From project root:
+From the project root:
 
 ```bash
 npm run bot:validate
 ```
 
-If valid, start services:
+If it passes, start the services:
 
 ```bash
 pm2 start bot/src/index.js --name church-bot-api
@@ -243,11 +280,10 @@ pm2 start bot/src/worker.js --name church-bot-worker
 
 ---
 
-## 5) Security best practices
+## 9) Security basics
 
 - Never commit real keys to git.
-- Keep `.env.example` (in root directory) with placeholders only.
-- Rotate API keys regularly.
-- Use a secrets manager for production (AWS Secrets Manager / Vault / Doppler / 1Password Secrets Automation).
-- Restrict provider key permissions where supported.
-- If a key leaks, rotate immediately and redeploy.
+- Keep `.env.example` and the three files under `env/` aligned.
+- Rotate provider keys regularly.
+- Use a secrets manager in production.
+- If a key leaks, rotate it and redeploy.

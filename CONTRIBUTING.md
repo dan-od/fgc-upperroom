@@ -29,7 +29,7 @@
 
 2. Create a branch for your changes:
 ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b update/your-update-name
 ```
 
 3. Make your changes and test locally
