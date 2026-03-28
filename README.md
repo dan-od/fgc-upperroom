@@ -1,6 +1,6 @@
 # FGC Upper Room Mgbuoba Website v2.0
 
-Modern React-based website and WhatsApp bot for FGC Upper Room Mgbuoba - the youth fellowship of Foursquare Gospel Church, Mgbuoba Zonal HQ.
+React website, admin center, attendance flow, and WhatsApp bot for FGC Upper Room Mgbuoba, the youth fellowship of Foursquare Gospel Church, Mgbuoba Zonal HQ.
 
 ## 🚀 Quick Start
 
@@ -14,12 +14,13 @@ npm run ops:backup-drill     # Run PostgreSQL + Redis backup/restore drill
 
 ## 📦 What's Inside
 
-- **Website**: Multi-page React app with advanced media gallery, blog, events, and contact
-- **WhatsApp Bot**: Automated service reminders and event notifications with Redis queue
+- **Website**: Multi-page React app with media, blog, events, contact, and live/VOD pages
+- **WhatsApp Bot**: Service reminders, event notices, and opt-out handling with Redis queue workers
 - **OpenClaw Sidecar (Optional)**: Operator-facing AI gateway that can ingest bot alert digests
-- **Admin Center**: Content management at `/admin` (events, media, blog posts)
-- **YouTube Integration**: Auto-sync sermons from YouTube channel
-- **Full-Stack**: Express + Vite with TypeScript support
+- **Admin Center**: Content management at `/admin` for events, media, blog posts, and records
+- **YouTube Integration**: Auto-sync sermons from the church channel
+- **Online Giving**: Paystack-based one-time donations with webhook confirmation and admin records
+- **Full-Stack**: Express + Vite with TypeScript support in the API layer
 
 ## 📁 Project Structure
 
@@ -102,35 +103,19 @@ flowchart TD
 --crown-purple: #5a4494;  /* Coming King */
 --main-cream: #e8dfc5;    /* Background */
 ```
-⚙️ Configuration
 
-### Environment Variables
-Copy `.env.example` to `.env` and configure:
+## ⚙️ Configuration
 
-```bash
-# YouTube Data API (for sermon sync)
-YOUTUBE_API_KEY=your_api_key
-YOUTUBE_CHANNEL_ID=your_channel_id
+Copy `.env.example` to `.env` and fill in the values that match your setup. Keep the root template and the three files under `env/` in sync with `npm run env:parity`.
 
-# Admin Access
-ADMIN_PASSWORD=your_secure_password
+For bot secrets and deployment notes, use:
+- [`bot/ENV_SECRETS_SETUP.md`](bot/ENV_SECRETS_SETUP.md)
+- [`bot/DEPLOYMENT.md`](bot/DEPLOYMENT.md)
+- [`bot/BACKUP_RECOVERY.md`](bot/BACKUP_RECOVERY.md)
 
-# WhatsApp Bot (Meta Cloud API)
-META_ACCESS_TOKEN=EAAx...
-META_PHONE_NUMBER_ID=123456789012345
-DATABASE_URL=postgresql://...
-REDIS_URL=redis://...
+If you deploy the app under a subpath, set `APP_BASE_PATH`, `PUBLIC_APP_BASE_PATH`, and `VITE_APP_BASE_PATH` together. A few keys you will touch often are `BOT_PORT`, `DATABASE_URL`, `REDIS_URL`, `BOT_ADMIN_API_KEY`, `VITE_ENABLE_ADMIN_FALLBACK_LOGIN`, `PAYSTACK_PUBLIC_KEY`, `META_ACCESS_TOKEN`, `LLM_PROVIDER`, `VITE_BOT_API_URL`, and `VITE_RUM_ENDPOINT`.
 
-# LLM (auto-selects: Vertex → OpenAI → Gemini → static templates)
-LLM_PROVIDER=auto
-VERTEX_PROJECT_ID=your-gcp-project
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=AIza...
-```
-
-See [`bot/ENV_SECRETS_SETUP.md`](bot/ENV_SECRETS_SETUP.md) for detailed setup instructions.
-See [`bot/BACKUP_RECOVERY.md`](bot/BACKUP_RECOVERY.md) for backup + HTTPS verification runbook.
-See [`OPERATIONS.md`](OPERATIONS.md) for concise P3 observability, QA, schema/API notes, and hardening baseline.
+See [`OPERATIONS.md`](OPERATIONS.md) for QA, observability, schema, and recovery notes.
 OpenClaw templates and policy map: `openclaw/gateway.example.jsonc`, `openclaw/bot-api-policy.json`.
 Edit `src/pages/Team/Team.jsx` with real names and photos
 
@@ -138,7 +123,7 @@ Edit `src/pages/Team/Team.jsx` with real names and photos
 
 This project deploys automatically via **GitHub Actions**.
 
-- Push changes to a feature branch and open a **Pull Request**
+- Push changes to a feature or update branch and open a **Pull Request**
 - Once merged to `main`, the site updates automatically
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
@@ -147,4 +132,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 
 **"Raising Kingdom Youths!"**
 
-*Jesus Christ the same yesterday, and today, and forever. — Hebrews 13:8*
+*Jesus Christ the same yesterday, and today, and forever. - Hebrews 13:8*
