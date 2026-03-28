@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BarChart3, FileText, HandCoins, MessageSquare, TrendingUp, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, BarChart3, FileText, HandCoins, MessageSquare, TrendingUp, Users } from 'lucide-react'
 import { fetchAdminAnalytics, fetchAdminAuditLog } from '../../../utils/adminApi'
 import { useAdminTheme } from '../AdminThemeContext'
 
@@ -43,7 +43,6 @@ const Dashboard = ({ onNavigate }) => {
   const [isLoadingActivity, setIsLoadingActivity] = useState(true)
   const [summaryError, setSummaryError] = useState('')
   const [activityError, setActivityError] = useState('')
-  const scrollRef = useRef(null)
 
   useEffect(() => {
     let isMounted = true
@@ -87,13 +86,6 @@ const Dashboard = ({ onNavigate }) => {
       isMounted = false
     }
   }, [])
-
-  const scrollStats = (direction) => {
-    if (scrollRef.current) {
-      const amount = scrollRef.current.offsetWidth
-      scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' })
-    }
-  }
 
   const stats = useMemo(() => ([
     {
@@ -174,67 +166,45 @@ const Dashboard = ({ onNavigate }) => {
       )}
 
       <div className="admin-dashboard-stats-wrapper">
-        <div className="admin-dashboard-stats-container" ref={scrollRef}>
+        <div className="admin-dashboard-stats-container">
           <div className="admin-dashboard-stats-grid">
             {stats.map((stat) => {
               const Icon = stat.icon
               return (
-                <div
+                <button
                   key={stat.label}
+                  type="button"
                   className="admin-dashboard-stat-card"
                   onClick={() => onNavigate(stat.link)}
                   style={{
-                    background: surface,
-                    padding: '1.5rem',
-                    borderRadius: '0.75rem',
-                    border: `1px solid ${borderColor}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '--stat-surface': surface,
+                    '--stat-border': borderColor,
+                    '--stat-color': stat.color,
+                    '--stat-accent-bg': `${stat.color}15`,
+                    '--stat-label-color': textSecondary,
+                    '--stat-value-color': textPrimary,
+                    '--stat-arrow-color': darkMode ? '#5a7099' : '#9ca3af',
                     opacity: isLoadingSummary ? 0.85 : 1
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.transform = 'translateY(-2px)'
-                    event.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.transform = 'translateY(0)'
-                    event.currentTarget.style.boxShadow = 'none'
                   }}
                 >
                   <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '0.75rem',
-                      background: `${stat.color}15`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: stat.color
-                    }}
+                    className="admin-dashboard-stat-card__icon"
                   >
-                    <Icon size={24} />
+                    <Icon size={20} />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.875rem', color: textSecondary }}>
+                  <div className="admin-dashboard-stat-card__content">
+                    <div className="admin-dashboard-stat-card__label">
                       {stat.label}
                     </div>
-                    <div style={{ fontSize: '1.875rem', fontWeight: 700, color: textPrimary }}>
+                    <div className="admin-dashboard-stat-card__value">
                       {isLoadingSummary ? '...' : stat.value}
                     </div>
                   </div>
-                  <ArrowRight size={20} style={{ color: darkMode ? '#5a7099' : '#9ca3af' }} />
-                </div>
+                  <ArrowRight size={16} className="admin-dashboard-stat-card__arrow" />
+                </button>
               )
             })}
           </div>
-        </div>
-        <div className="admin-dashboard-stats-nav">
-          <button onClick={() => scrollStats('left')} aria-label="Previous"><ArrowLeft size={20} /></button>
-          <button onClick={() => scrollStats('right')} aria-label="Next"><ArrowRight size={20} /></button>
         </div>
       </div>
 
