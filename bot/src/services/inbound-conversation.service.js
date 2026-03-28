@@ -2,7 +2,6 @@ import { createPrayerRequest } from './prayer.repository.js'
 import { createFeedbackEntry } from './feedback.repository.js'
 import { getVisitorByPhone } from './visitor.repository.js'
 import { renderTemplateByKey } from './template.repository.js'
-import { logger } from '../lib/logger.js'
 
 const normalizeText = (value) => String(value || '').trim()
 const toLower = (value) => normalizeText(value).toLowerCase()
@@ -73,7 +72,7 @@ export const handleInboundConversation = async ({ fromPhoneNumber, messageText }
 
     const replyText =
       (await renderTemplateByKey('prayer_ack', { name: visitorName })) ||
-      `Thank you ${visitorName}. Your prayer request has been received.`
+      `Thanks ${visitorName}. We have your prayer request, and the prayer team will keep it in prayer.`
 
     return {
       handled: true,
@@ -94,7 +93,7 @@ export const handleInboundConversation = async ({ fromPhoneNumber, messageText }
 
     const replyText =
       (await renderTemplateByKey('feedback_ack', { name: visitorName })) ||
-      `Thank you ${visitorName}. We appreciate your feedback.`
+      `Thanks ${visitorName}. We have your feedback and will read it carefully.`
 
     return {
       handled: true,
@@ -124,10 +123,9 @@ export const handleInboundConversation = async ({ fromPhoneNumber, messageText }
     }
   }
 
-  logger.info('Inbound message received with no handler match', {
-    fromPhoneNumber,
-    bodyPreview: body.slice(0, 120)
-  })
-
-  return { handled: false, replyText: '' }
+  return {
+    handled: true,
+    intent: 'fallback',
+    replyText: 'Thanks for reaching out to FGC Upper Room. Send PRAYER for prayer requests, FEEDBACK for feedback, or ask about service time, location, or contact details.'
+  }
 }

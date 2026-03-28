@@ -28,15 +28,15 @@ RESTART IDENTITY CASCADE
 const seedMessageTemplatesSql = `
 INSERT INTO message_templates (template_key, channel, content, is_active, metadata)
 VALUES
-  ('service_reminder', 'whatsapp', 'Hi {{name}}, this is a reminder that our Sunday service starts at {{serviceTime}}. {{specialLine}} We would love to see you. God bless you! Reply STOP to opt out.', TRUE, '{"category":"reminder"}'::jsonb),
-  ('event_reminder', 'whatsapp', 'Hi {{name}}, {{eventTitle}} is coming up on {{eventDate}}. {{eventTimeLine}} {{registrationLine}} We look forward to seeing you. Reply STOP to opt out.', TRUE, '{"category":"reminder"}'::jsonb),
-  ('welcome_message', 'whatsapp', 'Welcome to FGC Upper Room{{nameSuffix}}! You are now subscribed to service and event reminders. Reply STOP at any time to unsubscribe.', TRUE, '{"category":"system"}'::jsonb),
-  ('faq_service_time', 'whatsapp', 'Our regular Sunday youth service starts at 8:00 AM, and first Sundays start at 7:30 AM.', TRUE, '{"category":"faq"}'::jsonb),
-  ('faq_location', 'whatsapp', 'We are at 36 Shell Location Road, Mgbuoba, Port Harcourt.', TRUE, '{"category":"faq"}'::jsonb),
+  ('service_reminder', 'whatsapp', 'Hi {{name}}, just a quick reminder from FGC Upper Room. Sunday service starts at {{serviceTime}} tomorrow. {{specialLine}} See you if you can make it. God bless you. Reply STOP to opt out.', TRUE, '{"category":"reminder"}'::jsonb),
+  ('event_reminder', 'whatsapp', 'Hi {{name}}, {{eventTitle}} is coming up on {{eventDate}}. {{eventTimeLine}} {{registrationLine}} Hope you can make it. God bless you. Reply STOP to opt out.', TRUE, '{"category":"reminder"}'::jsonb),
+  ('welcome_message', 'whatsapp', 'Welcome to FGC Upper Room{{nameSuffix}}. You are now on our WhatsApp list for Sunday reminders and event updates. Reply STOP any time to unsubscribe.', TRUE, '{"category":"system"}'::jsonb),
+  ('faq_service_time', 'whatsapp', 'Sunday youth service starts at 8:00 AM. First Sundays start at 7:30 AM.', TRUE, '{"category":"faq"}'::jsonb),
+  ('faq_location', 'whatsapp', 'We meet at 36 Shell Location Road, Mgbuoba, Port Harcourt.', TRUE, '{"category":"faq"}'::jsonb),
   ('faq_contact', 'whatsapp', 'You can reach us on WhatsApp at +2347031526399 or email upperroom@fgcmgbuoba.org.', TRUE, '{"category":"faq"}'::jsonb),
-  ('prayer_ack', 'whatsapp', 'Thank you {{name}}. Your prayer request has been received. Our prayer team will stand with you in faith.', TRUE, '{"category":"inbound"}'::jsonb),
-  ('feedback_ack', 'whatsapp', 'Thank you {{name}}. We appreciate your feedback and will review it carefully.', TRUE, '{"category":"inbound"}'::jsonb),
-  ('default_auto_reply', 'whatsapp', 'Thank you for reaching out to FGC Upper Room. Reply with PRAYER to submit a prayer request, FEEDBACK: your message to share feedback, or ask about service time/location/contact.', TRUE, '{"category":"inbound"}'::jsonb)
+  ('prayer_ack', 'whatsapp', 'Thanks {{name}}. We have your prayer request, and the prayer team will keep it in prayer.', TRUE, '{"category":"inbound"}'::jsonb),
+  ('feedback_ack', 'whatsapp', 'Thanks {{name}}. We have your feedback and will read it carefully.', TRUE, '{"category":"inbound"}'::jsonb),
+  ('default_auto_reply', 'whatsapp', 'Thanks for reaching out to FGC Upper Room. Send PRAYER for prayer requests, FEEDBACK for feedback, or ask about service time, location, or contact details.', TRUE, '{"category":"inbound"}'::jsonb)
 ON CONFLICT (template_key) DO UPDATE
 SET channel = EXCLUDED.channel,
     content = EXCLUDED.content,

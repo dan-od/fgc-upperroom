@@ -144,17 +144,14 @@ router.patch('/:id', async (req, res) => {
       const notifJobId = `event-update-${event.id}-${Date.now()}`
 
       for (const visitor of visitors) {
-        const greeting = visitor.name ? `Hi ${visitor.name}! ` : ''
+        const greeting = visitor.name ? `Hi ${visitor.name},` : 'Hi,'
         const lines = [
-          `${greeting}📢 Event Update from FGC Upper Room:`,
-          ``,
-          `*${event.title}* has been updated.`,
-          ``,
-          `📅 ${dateStr}`,
+          `${greeting} quick update on *${event.title}* from FGC Upper Room.`,
+          `Date: ${dateStr}.`
         ]
-        if (event.event_time) lines.push(`⏰ ${event.event_time}`)
-        if (event.location) lines.push(`📍 ${event.location}`)
-        lines.push(``, `We'll see you there! 🙏`)
+        if (event.event_time) lines.push(`Time: ${event.event_time}.`)
+        if (event.location) lines.push(`Location: ${event.location}.`)
+        lines.push('Hope that still works for you.')
         const messageText = lines.join('\n')
 
         const result = await sendWhatsAppMessage({ to: visitor.phone_number, body: messageText, jobId: notifJobId })

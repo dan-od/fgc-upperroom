@@ -220,8 +220,9 @@ test('preview and import utilities expose the current bot workflow', async () =>
   const previewBody = await previewResponse.json()
   assert.equal(previewBody.context.eventTime, '09:30')
   assert.equal(previewBody.context.registrationLink, 'https://upperroom.example/register')
-  assert.equal(previewBody.generatedMessage.includes('09:30'), true)
-  assert.equal(previewBody.generatedMessage.includes('https://upperroom.example/register'), true)
+  assert.equal(previewBody.generatedMessage.includes('It starts at 09:30.'), true)
+  assert.equal(previewBody.generatedMessage.includes('Register here: https://upperroom.example/register.'), true)
+  assert.equal(previewBody.generatedMessage.includes('Hope you can make it.'), true)
 
   const csv = [
     'name,phone_number,email,first_visit_date,tags,timezone,consented_at',
@@ -502,7 +503,7 @@ test('admin template and holiday endpoints are secured and writable', async () =
     method: 'PUT',
     headers: adminJsonHeaders(),
     body: JSON.stringify({
-      content: 'Hi {{name}}, {{eventTitle}} is coming up on {{eventDate}}. {{eventTimeLine}} {{registrationLine}} We look forward to seeing you. Reply STOP to opt out.',
+      content: 'Hi {{name}}, {{eventTitle}} is coming up on {{eventDate}}. {{eventTimeLine}} {{registrationLine}} Hope you can make it. God bless you. Reply STOP to opt out.',
       channel: 'whatsapp',
       isActive: true
     })

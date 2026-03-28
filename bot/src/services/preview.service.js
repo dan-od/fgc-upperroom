@@ -12,7 +12,7 @@ export const previewServiceReminder = async ({ name, serviceTime, isFirstSunday,
       ? (await renderTemplateByKey('service_reminder', {
           name: previewName,
           serviceTime: previewServiceTime,
-          specialLine: previewFirstSunday ? 'We have a special first-Sunday blessing prepared for you.' : ''
+          specialLine: previewFirstSunday ? "It's First Sunday tomorrow, and we have something special lined up." : ''
         }).catch(() => null)) ||
         await generateServiceReminderMessage({
           name: previewName,
@@ -55,7 +55,7 @@ export const previewEventReminder = async ({ name, eventTitle, eventDate, eventT
           name: previewName,
           eventTitle: previewEventTitle,
           eventDate: previewEventDate,
-          eventTimeLine: previewEventTime ? `Time: ${previewEventTime}.` : '',
+          eventTimeLine: previewEventTime ? `It starts at ${previewEventTime}.` : '',
           registrationLine: previewRegistrationLink ? `Register here: ${previewRegistrationLink}.` : ''
         }).catch(() => null)) ||
         await generateEventReminderMessage({
@@ -104,7 +104,7 @@ export const previewBulkMessages = async ({ visitors, context, limit = 5, useFal
         ? (await renderTemplateByKey('service_reminder', {
             name: visitor.name,
             serviceTime: context.serviceTime,
-            specialLine: context.isFirstSunday ? 'We have a special first-Sunday blessing prepared for you.' : ''
+            specialLine: context.isFirstSunday ? "It's First Sunday tomorrow, and we have something special lined up." : ''
           }).catch(() => null)) ||
           await generateServiceReminderMessage({
             name: visitor.name,
@@ -122,7 +122,7 @@ export const previewBulkMessages = async ({ visitors, context, limit = 5, useFal
             name: visitor.name,
             eventTitle: context.eventTitle,
             eventDate: context.eventDate,
-            eventTimeLine: context.eventTime ? `Time: ${context.eventTime}.` : '',
+            eventTimeLine: context.eventTime ? `It starts at ${context.eventTime}.` : '',
             registrationLine: context.registrationLink ? `Register here: ${context.registrationLink}.` : ''
           }).catch(() => null)) ||
           await generateEventReminderMessage({

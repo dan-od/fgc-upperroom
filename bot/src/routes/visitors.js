@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
     if (!existingBefore) {
       const jobId = `welcome-${visitor.id}-${Date.now()}`
       const welcomeName = visitor.name ? `, ${visitor.name}` : ''
-      const fallbackWelcomeText = `Welcome to FGC Upper Room${welcomeName}! 🙏 You're now subscribed to service reminders. We'll send you WhatsApp notifications before Sunday services and upcoming events. Reply STOP at any time to unsubscribe.`
+      const fallbackWelcomeText = `Welcome to FGC Upper Room${welcomeName}. You're now on our WhatsApp list for Sunday reminders and event updates. Reply STOP any time to unsubscribe.`
       const welcomeText = (await renderTemplateByKey('welcome_message', {
         name: visitor.name || 'there',
         nameSuffix: welcomeName
