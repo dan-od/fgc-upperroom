@@ -1,15 +1,138 @@
+/* ── Page shell ─────────────────────────────────────────────────────────── */
 .testimonies-page {
-	padding-top: 70px;
-	--hero-primary: var(--crown-purple);
+  padding-top: 70px;
+  --hero-primary: var(--crown-purple);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
-.testimonies-section { padding: var(--space-5xl) 0; }
-.testimonies-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xl); }
-.testimony-card { background: var(--cream-light); padding: var(--space-xl); border-radius: var(--radius-lg); transition: all var(--transition-base); }
-.testimony-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
-.testimony-card blockquote { font-family: var(--font-heading); font-style: italic; font-size: var(--text-lg); color: var(--gray-700); margin-bottom: var(--space-lg); line-height: 1.7; }
-.testimony-author { display: flex; align-items: center; gap: var(--space-md); }
-.testimony-avatar { width: 50px; height: 50px; background: var(--gradient-purple); color: var(--white); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--text-lg); }
-.testimony-author strong { display: block; color: var(--dark); }
-.testimony-author span { font-size: var(--text-sm); color: var(--gray-500); }
-@media (max-width: 1024px) { .testimonies-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 768px) { .testimonies-grid { grid-template-columns: 1fr; } .testimonies-section { padding: var(--space-4xl) 0; } }
+
+.testimonies-section {
+  padding: var(--space-4xl) 0;
+  background: #F4F4F4;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.testimonies-header {
+  margin-bottom: var(--space-lg);
+  position: relative;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.testimonies-header-desc {
+  color: var(--gray-500);
+  font-size: var(--text-sm);
+  margin-top: -10px;
+  padding-bottom: var(--space-md);
+}
+
+/* ── Physics arena ──────────────────────────────────────────────────────── */
+.testimonies-arena {
+  flex-grow: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 600px;
+  width: 100%;
+  z-index: 1; /* Creates a stacking context strictly under the fixed Header */
+  /* Feather the bottom edge so bouncing bubbles don't hit a visible "line" */
+  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+/* ── Bubble base ────────────────────────── */
+.testimony-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: box-shadow var(--transition-base);
+  will-change: transform;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  cursor: default;
+}
+
+.testimony-bubble:hover {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Inner layout ────────────────────────────────────────────────────────── */
+.testimony-bubble__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+}
+
+.testimony-bubble__quote-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #000000;
+  opacity: 0.2;
+  flex-shrink: 0;
+}
+
+.testimony-bubble__quote {
+  font-size: 0.875rem;
+  text-align: center;
+  color: #000000;
+  margin-bottom: 1rem;
+  font-family: var(--font-heading);
+  line-height: 1.625;
+  display: -webkit-box;
+  line-clamp: 4;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.testimony-bubble__author-info {
+  text-align: center;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.testimony-bubble__name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #000000;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+}
+
+.testimony-bubble__role {
+  font-size: 10px;
+  color: #000000;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+.testimonies-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-500);
+  font-size: 0.95rem;
+  min-height: 300px;
+}

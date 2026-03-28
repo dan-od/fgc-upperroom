@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../../../i18n/LanguageContext'
+import { toAssetUrl } from '../../../utils/appPaths'
 import './Header.css'
+
+const HEADER_ASSETS = {
+  logo: toAssetUrl('assets/logos/logo-color.png'),
+  wordmark: toAssetUrl('assets/logos/upper_left_align_black.png')
+}
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -18,7 +24,6 @@ const Header = () => {
     { path: '/team', label: t('header.nav.team', 'Team') },
     { path: '/events', label: t('header.nav.events', 'Events') },
     { path: '/media', label: t('header.nav.media', 'Media') },
-    { path: '/blog', label: t('header.nav.blog', 'Blog') },
     { path: '/contact', label: t('header.nav.contact', 'Contact') }
   ]
 
@@ -73,10 +78,10 @@ const Header = () => {
     <header className={`header ${isScrolled ? 'header--visible' : ''} ${location.pathname !== '/' ? 'header--always' : ''}`}>
       <div className="header__container">
         <Link to="/" className="header__logo">
-          <img src="./assets/logos/logo-color.png" alt="Foursquare Logo" className="header__logo-mark" />
+          <img src={HEADER_ASSETS.logo} alt="Foursquare Logo" className="header__logo-mark" />
           <span className="header__logo-divider" aria-hidden="true"></span>
           <div className="header__logo-text">
-            <img src="./assets/logos/upper_left_align_black.png" alt="Upper Room" className="header__logo-title" />
+            <img src={HEADER_ASSETS.wordmark} alt="Upper Room" className="header__logo-title" />
           </div>
         </Link>
 

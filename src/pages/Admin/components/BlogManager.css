@@ -85,9 +85,9 @@
 }
 
 .admin-blog__search input,
-.admin-blog__filters select,
+.admin-blog__filters .ui-select__trigger,
 .admin-blog__field input,
-.admin-blog__field select,
+.admin-blog__field .ui-select__trigger,
 .admin-blog__field textarea {
   width: 100%;
   border: 1px solid var(--gray-200);
@@ -107,9 +107,9 @@
 
 .admin-blog__search input:focus,
 .admin-blog__field input:focus,
-.admin-blog__field select:focus,
+.admin-blog__field .ui-select__trigger:focus,
 .admin-blog__field textarea:focus,
-.admin-blog__filters select:focus {
+.admin-blog__filters .ui-select__trigger:focus {
   outline: none;
   border-color: var(--cup-blue-light);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--cup-blue) 15%, transparent);
@@ -715,9 +715,9 @@
 }
 
 .admin-dark .admin-blog__search input,
-.admin-dark .admin-blog__filters select,
+.admin-dark .admin-blog__filters .ui-select__trigger,
 .admin-dark .admin-blog__field input,
-.admin-dark .admin-blog__field select,
+.admin-dark .admin-blog__field .ui-select__trigger,
 .admin-dark .admin-blog__field textarea {
   background: #131b2e;
   border-color: #3a4866;

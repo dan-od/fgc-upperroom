@@ -6,7 +6,13 @@ import { redisConnection } from '../queue/connection.js'
 import { getReminderQueue, queueNames } from '../queue/queues.js'
 import { generateServiceReminderMessage, generateEventReminderMessage } from '../services/message-generator.service.js'
 import { sendWhatsAppMessage } from '../services/whatsapp.service.js'
-import { hasRecentMessageFingerprint, logMessageSent } from '../services/message.repository.js'
+import {
+  hasRecentMessageFingerprint,
+  logMessageSent,
+  MESSAGE_TYPE_EVENT_REMINDER,
+  MESSAGE_TYPE_EVENT_REMINDER_MEDIA,
+  MESSAGE_TYPE_SERVICE_REMINDER
+} from '../services/message.repository.js'
 import { evaluateDeliveryWindow } from '../services/delivery-window.service.js'
 import { recordDeliveryFailure, recordDeliverySuccess } from '../services/visitor.repository.js'
 
@@ -121,13 +127,13 @@ const shouldDefer = async ({ visitorTimezone, reminderPreferences, deferCount })
   return { defer: false, reason: 'ready', delayMs: 0 }
 }
 
-const logSkippedDuplicate = async ({ job, visitorId, eventId, messageBody }) => {
+const logSkippedDuplicate = async ({ job, visitorId, eventId, messageBody, messageType }) => {
   await logMessageSent({
     jobId: job.id,
     visitorId,
     eventId: eventId || null,
     messageText: messageBody,
-    messageType: 'text',
+    messageType,
     status: 'skipped_duplicate'
   })
 }
@@ -190,12 +196,17 @@ const processServiceReminderBatch = async (job) => {
         visitorId: visitor.id,
         eventId: null,
         messageText: messageBody,
-        messageType: 'text',
+        messageType: MESSAGE_TYPE_SERVICE_REMINDER,
         withinHours: 30
       })
       if (isDuplicate) {
         skippedDuplicate++
-        await logSkippedDuplicate({ job, visitorId: visitor.id, messageBody })
+        await logSkippedDuplicate({
+          job,
+          visitorId: visitor.id,
+          messageBody,
+          messageType: MESSAGE_TYPE_SERVICE_REMINDER
+        })
         continue
       }
 
@@ -213,7 +224,7 @@ const processServiceReminderBatch = async (job) => {
         visitorId: visitor.id,
         providerMessageId: result.providerMessageId,
         providerName: result.provider || 'unknown',
-        messageType: 'text',
+        messageType: MESSAGE_TYPE_SERVICE_REMINDER,
         messageText: messageBody,
         status: result.status || 'sent'
       })
@@ -238,7 +249,7 @@ const processServiceReminderBatch = async (job) => {
         jobId: job.id,
         visitorId: visitor.id,
         providerName: error?.provider || null,
-        messageType: 'text',
+        messageType: MESSAGE_TYPE_SERVICE_REMINDER,
         messageText: messageBody || null,
         status: 'failed',
         error: error.message
@@ -298,11 +309,15 @@ const processEventReminderBatch = async (job) => {
         registrationLink: reminder.registrationLink
       })
 
+      const reminderMessageType = reminder?.media?.url
+        ? MESSAGE_TYPE_EVENT_REMINDER_MEDIA
+        : MESSAGE_TYPE_EVENT_REMINDER
+
       const isDuplicate = await hasRecentMessageFingerprint({
         visitorId: reminder.visitorId,
         eventId: reminder.eventId,
         messageText: messageBody,
-        messageType: reminder?.media?.url ? 'media' : 'text',
+        messageType: reminderMessageType,
         withinHours: 24
       })
       if (isDuplicate) {
@@ -311,7 +326,8 @@ const processEventReminderBatch = async (job) => {
           job,
           visitorId: reminder.visitorId,
           eventId: reminder.eventId,
-          messageBody
+          messageBody,
+          messageType: reminderMessageType
         })
         continue
       }
@@ -338,7 +354,7 @@ const processEventReminderBatch = async (job) => {
         eventId: reminder.eventId,
         providerMessageId: result.providerMessageId,
         providerName: result.provider || 'unknown',
-        messageType: reminder?.media?.url ? 'media' : 'text',
+        messageType: reminderMessageType,
         messageText: messageBody,
         status: result.status || 'sent'
       })
@@ -364,7 +380,7 @@ const processEventReminderBatch = async (job) => {
         visitorId: reminder.visitorId,
         eventId: reminder.eventId,
         providerName: error?.provider || null,
-        messageType: reminder?.media?.url ? 'media' : 'text',
+        messageType: reminderMessageType,
         messageText: messageBody || null,
         status: 'failed',
         error: error.message

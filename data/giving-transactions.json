@@ -1,0 +1,583 @@
+[
+  {
+    "id": "1e9f99d0-de20-4f01-835b-c0272d63111d",
+    "reference": "URG-20260328222136-60AFDC08",
+    "provider": "crypto",
+    "status": "success",
+    "amountKobo": 1000,
+    "currency": "USDT",
+    "fund": "sunday-offering",
+    "donorName": "Divine Agoma",
+    "donorEmail": "deedexanalyst@gmail.com",
+    "donorPhone": "+2347080551309",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "verified_on_chain",
+    "providerMessage": "Blockchain transaction verified successfully.",
+    "initializedAt": "2026-03-28T22:21:36.206Z",
+    "updatedAt": "2026-03-28T22:21:47.233Z",
+    "paidAt": "2026-03-28T22:21:47.233Z",
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T22:21:36.206Z",
+        "payloadHash": "225ff607f529ce1a208754f3a00ec64c405fdf7e49e7108252ea196e52486fd5"
+      },
+      {
+        "event": "crypto.verified",
+        "status": "success",
+        "at": "2026-03-28T22:21:47.233Z",
+        "payloadHash": "444fc7ceef3cec050eba7bb76f9d5e5f9b3a7994cf8380516d61b21a31cf47be"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta"
+    },
+    "txHash": "0x96241785313c019514adf5520d9f8b7cf2d4d668c0c3b105155cca08559d8f7e",
+    "walletAddress": "0xC846801f05e7fbF735E26A29c4952ED4e945913C"
+  },
+  {
+    "id": "04834c87-0598-4e95-8e80-4b8dce969eaa",
+    "reference": "URG-20260328102051-8BDC35DA",
+    "provider": "paystack",
+    "status": "success",
+    "amountKobo": 2000000,
+    "currency": "NGN",
+    "fund": "sunday-offering",
+    "donorName": "Divine Agoma",
+    "donorEmail": "deedexanalyst@gmail.com",
+    "donorPhone": "+2347080551309",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "success",
+    "providerMessage": "Successful",
+    "initializedAt": "2026-03-28T10:20:51.311Z",
+    "updatedAt": "2026-03-28T15:49:44.726Z",
+    "paidAt": "2026-03-28T10:21:00.000Z",
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T10:20:51.311Z",
+        "payloadHash": "7061e530274fb6632d1cc18fdd446673b11ec4918139480433916cb172d94180"
+      },
+      {
+        "event": "paystack.confirmed",
+        "status": "success",
+        "at": "2026-03-28T10:21:03.938Z",
+        "payloadHash": "148da872a1103d8ef9755c8ce5268ba2c01508f4d41e8c732d4e8eb1b5227e74"
+      },
+      {
+        "event": "paystack.confirmed",
+        "status": "success",
+        "at": "2026-03-28T10:21:05.094Z",
+        "payloadHash": "148da872a1103d8ef9755c8ce5268ba2c01508f4d41e8c732d4e8eb1b5227e74"
+      },
+      {
+        "event": "paystack.confirmed",
+        "status": "success",
+        "at": "2026-03-28T10:21:05.476Z",
+        "payloadHash": "148da872a1103d8ef9755c8ce5268ba2c01508f4d41e8c732d4e8eb1b5227e74"
+      },
+      {
+        "event": "paystack.confirmed",
+        "status": "success",
+        "at": "2026-03-28T15:49:44.316Z",
+        "payloadHash": "148da872a1103d8ef9755c8ce5268ba2c01508f4d41e8c732d4e8eb1b5227e74"
+      },
+      {
+        "event": "paystack.confirmed",
+        "status": "success",
+        "at": "2026-03-28T15:49:44.726Z",
+        "payloadHash": "148da872a1103d8ef9755c8ce5268ba2c01508f4d41e8c732d4e8eb1b5227e74"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta",
+      "callbackUrl": "http://localhost:3000/fgc-testing/giving?reference=URG-20260328102051-8BDC35DA"
+    }
+  },
+  {
+    "id": "6ae77649-3273-4249-b98b-8fcc2df620ed",
+    "reference": "URG-20260328101115-03C7A726",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 20000,
+    "currency": "NGN",
+    "fund": "sunday-offering",
+    "donorName": "Divine Agoma",
+    "donorEmail": "deedexanalyst@gmail.com",
+    "donorPhone": "+2347080551309",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T10:11:15.557Z",
+    "updatedAt": "2026-03-28T10:11:15.557Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T10:11:15.557Z",
+        "payloadHash": "b62812c9af2b814a67ee9e55d756c30e32d2ac3c630ebc617d33e81013c7be63"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta",
+      "accessCode": "6lz1irxa7r1yge5"
+    }
+  },
+  {
+    "id": "5a4cc061-5c06-483e-a790-716eaf46abbf",
+    "reference": "URG-20260328095901-290A0DA0",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 20000,
+    "currency": "NGN",
+    "fund": "sunday-offering",
+    "donorName": "Agoma Divine Enifome",
+    "donorEmail": "deedexanalyst@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T09:59:01.916Z",
+    "updatedAt": "2026-03-28T09:59:01.916Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T09:59:01.916Z",
+        "payloadHash": "51fc21b4b20798378ffd56af19ea1dedcba100d4d305a79d0f51346feb590a5d"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta",
+      "accessCode": "v96if9n4dms9xvl"
+    }
+  },
+  {
+    "id": "381b31f6-ab4f-47c7-a260-74b739061086",
+    "reference": "URG-20260328095335-C273753B",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 20000,
+    "currency": "NGN",
+    "fund": "general",
+    "donorName": "Debug User",
+    "donorEmail": "debug@example.com",
+    "donorPhone": "+2347000000000",
+    "message": "",
+    "source": "website-giving",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T09:53:35.743Z",
+    "updatedAt": "2026-03-28T09:53:35.743Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T09:53:35.743Z",
+        "payloadHash": "ff5b3d5ce394a0efdcef3cebe3b3e9d999311322cc35667185dc958614bc80f0"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "",
+      "accessCode": "yhrx7zthpf87j3v"
+    }
+  },
+  {
+    "id": "a37a6c77-9653-48f6-8b53-9a1aa0359cb0",
+    "reference": "URG-20260328095246-C3AF30D9",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 20000,
+    "currency": "NGN",
+    "fund": "sunday-offering",
+    "donorName": "Divine Agoma",
+    "donorEmail": "deedexanalyst@gmail.com",
+    "donorPhone": "+2347080551309",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T09:52:46.742Z",
+    "updatedAt": "2026-03-28T09:52:46.742Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T09:52:46.742Z",
+        "payloadHash": "d98f9369526de3ebfd70ac34946c4e6a0b97938e4eaaacd44efb6bd33fa19d1c"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta",
+      "accessCode": "c3bhzwnkscsmjrp"
+    }
+  },
+  {
+    "id": "567cddc2-0ef4-46f2-975b-9fdb6c7ad794",
+    "reference": "URG-20260328094033-6256CBDA",
+    "provider": "paystack",
+    "status": "success",
+    "amountKobo": 300000,
+    "currency": "NGN",
+    "fund": "sunday-offering",
+    "donorName": "Victory Esi",
+    "donorEmail": "victoryesi443@gmail.com",
+    "donorPhone": "+2347010238882",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "success",
+    "providerMessage": "Successful",
+    "initializedAt": "2026-03-28T09:40:33.674Z",
+    "updatedAt": "2026-03-28T09:49:02.852Z",
+    "paidAt": "2026-03-28T09:41:32.000Z",
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T09:40:33.674Z",
+        "payloadHash": "5f05ed8dae03b9faa8505a0e39fe283366f2524dfcbcba0a1f7cf14150cc8777"
+      },
+      {
+        "event": "paystack.confirmed",
+        "status": "success",
+        "at": "2026-03-28T09:49:02.852Z",
+        "payloadHash": "2c713825785af13a99d1bccb51b5b4e6624be8b0c23ce1f0cd9cc202a32a6e1e"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta",
+      "accessCode": "zp5yl5p3r1eytcr"
+    }
+  },
+  {
+    "id": "b55ec70d-1c66-408b-9c41-ddda0a6a153c",
+    "reference": "URG-20260328091414-6D050D9A",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 100000,
+    "currency": "NGN",
+    "fund": "sunday-offering",
+    "donorName": "Divine Enifome Agoma",
+    "donorEmail": "agomadivinexx1@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal-sunday",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T09:14:14.462Z",
+    "updatedAt": "2026-03-28T09:14:14.462Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T09:14:14.462Z",
+        "payloadHash": "63bfb620822dcb724f66ebfab1761e0d9c12e9f10bb2bf30dc0e9bbd260b533e"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "hero-sunday-cta",
+      "accessCode": "356pu6ei8icuw0f"
+    }
+  },
+  {
+    "id": "42086b05-0772-4076-a9ad-ea4b8e897c86",
+    "reference": "URG-20260328085936-1CAF2122",
+    "provider": "bank_transfer",
+    "status": "pending",
+    "amountKobo": 100000,
+    "currency": "NGN",
+    "fund": "general",
+    "donorName": "Patience Agoma",
+    "donorEmail": "dpearlshome@gmail.com",
+    "donorPhone": "+2348063636594",
+    "message": "",
+    "source": "website-giving",
+    "providerStatus": "bank_transfer_awaiting_payment",
+    "providerMessage": "Awaiting bank transfer confirmation.",
+    "initializedAt": "2026-03-28T08:59:36.851Z",
+    "updatedAt": "2026-03-28T08:59:36.851Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T08:59:36.851Z",
+        "payloadHash": "eac51f980c06ceb980fdcb9fc4461507e99507e6d8ed731d80aff94e7f7bb1f8"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "",
+      "bankAccountId": "default-bank",
+      "bankName": "Zenith Bank",
+      "accountName": "FOURSQUARE GOSPEL CHURCH, MGBUOBA",
+      "accountNumber": "1010799342",
+      "bankDetails": []
+    }
+  },
+  {
+    "id": "a546c947-f5e0-4b1e-a249-ff23dee80ded",
+    "reference": "URG-20260328084012-FB3DDF37",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 100000,
+    "currency": "NGN",
+    "fund": "general",
+    "donorName": "Patience Agoma",
+    "donorEmail": "dpearlshome@gmail.com",
+    "donorPhone": "+2348063636594",
+    "message": "",
+    "source": "website-giving",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T08:40:12.441Z",
+    "updatedAt": "2026-03-28T08:40:12.441Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T08:40:12.441Z",
+        "payloadHash": "9d49e4de85362a5e29aef504d54ae1495f35ed2a59924fd8ac9ee3f34866b8b0"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "",
+      "accessCode": "sd77b0vztsj18pa"
+    }
+  },
+  {
+    "id": "4d5c771e-62d1-47bc-92db-b949f09740cb",
+    "reference": "URG-20260328083912-01179F3E",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 100000,
+    "currency": "NGN",
+    "fund": "general",
+    "donorName": "Patience Agoma",
+    "donorEmail": "dpearlshome@gmail.com",
+    "donorPhone": "+2348063636594",
+    "message": "",
+    "source": "website-giving",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T08:39:12.013Z",
+    "updatedAt": "2026-03-28T08:39:12.013Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T08:39:12.013Z",
+        "payloadHash": "2aad6c7cb5250ad175b1148ac058a96868b1144a7d14cd950aa5846052439584"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "",
+      "accessCode": "co1lkizue1c6fp2"
+    }
+  },
+  {
+    "id": "c53e163e-1867-4ace-8f09-1b7b62502e83",
+    "reference": "URG-20260328083423-50BF4625",
+    "provider": "paystack",
+    "status": "pending",
+    "amountKobo": 300000,
+    "currency": "NGN",
+    "fund": "general",
+    "donorName": "Test Donor",
+    "donorEmail": "test@example.com",
+    "donorPhone": "+2348000000000",
+    "message": "",
+    "source": "website-giving",
+    "providerStatus": "initialize_requested",
+    "providerMessage": "Payment initialization started.",
+    "initializedAt": "2026-03-28T08:34:23.897Z",
+    "updatedAt": "2026-03-28T08:34:23.897Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-28T08:34:23.897Z",
+        "payloadHash": "98afe9be61add2ef25f6e8804c922afe85b4c5b7310d6570de5b401e395a7b35"
+      }
+    ],
+    "metadata": {
+      "ctaRef": "",
+      "accessCode": "hlcdb6t0rtykjj3"
+    }
+  },
+  {
+    "id": "1ab15537-2ea7-407d-b6a6-e7fa91eb675d",
+    "reference": "URG-20260327213344-BCA24DAD",
+    "provider": "crypto",
+    "status": "success",
+    "amountKobo": 1000,
+    "currency": "USDT",
+    "fund": "general",
+    "donorName": "Divine Agoma",
+    "donorEmail": "agomadivine@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal",
+    "providerStatus": "crypto_confirmed",
+    "providerMessage": "Verification successful via Native check.",
+    "initializedAt": "2026-03-27T21:33:44.305Z",
+    "updatedAt": "2026-03-27T21:33:52.754Z",
+    "paidAt": "2026-03-27T21:33:52.754Z",
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-27T21:33:44.305Z",
+        "payloadHash": "4cdd53e777cfc056338e709cd4dc95c32cb54c440cf0371d6e7620ae41b61351"
+      },
+      {
+        "event": "crypto.verified",
+        "status": "success",
+        "at": "2026-03-27T21:33:52.754Z",
+        "payloadHash": "1015f7b6be8729c3774dd326ecb2bc3f89f4bb16b24d80f1a9e38cff95ae3d46"
+      }
+    ],
+    "metadata": {
+      "ctaRef": ""
+    },
+    "txHash": "0x96241785313c019514adf5520d9f8b7cf2d4d668c0c3b105155cca08559d8f7e",
+    "walletAddress": "0xC846801f05e7fbF735E26A29c4952ED4e945913C"
+  },
+  {
+    "id": "4642c308-afc8-45d1-bb73-edafb6b27892",
+    "reference": "URG-20260327210653-F9239FE7",
+    "provider": "crypto",
+    "status": "pending",
+    "amountKobo": 1000,
+    "currency": "USDT",
+    "fund": "general",
+    "donorName": "Divine Agoma",
+    "donorEmail": "agomadivine@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal",
+    "providerStatus": "crypto_awaiting_payment",
+    "providerMessage": "Awaiting crypto payment confirmation.",
+    "initializedAt": "2026-03-27T21:06:53.582Z",
+    "updatedAt": "2026-03-27T21:06:53.582Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-27T21:06:53.582Z",
+        "payloadHash": "fde4c9e830c2d9fbe35ac56239f2429de0ab3384305cad0e94ff79283b5b12c7"
+      }
+    ],
+    "metadata": {
+      "ctaRef": ""
+    },
+    "walletAddress": "0xC846801f05e7fbF735E26A29c4952ED4e945913C"
+  },
+  {
+    "id": "af703998-25ce-49b0-8fc4-7844a1ab6823",
+    "reference": "URG-20260327210419-96AC3BFB",
+    "provider": "crypto",
+    "status": "pending",
+    "amountKobo": 1000,
+    "currency": "USDT",
+    "fund": "general",
+    "donorName": "Divine Agoma",
+    "donorEmail": "agomadivine@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal",
+    "providerStatus": "crypto_awaiting_payment",
+    "providerMessage": "Awaiting crypto payment confirmation.",
+    "initializedAt": "2026-03-27T21:04:19.707Z",
+    "updatedAt": "2026-03-27T21:04:19.707Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-27T21:04:19.707Z",
+        "payloadHash": "ead971341f7ce44aa7cb33b5e7309c17c9eca57abf8cb2e3ea4d896bf4918d14"
+      }
+    ],
+    "metadata": {
+      "ctaRef": ""
+    },
+    "walletAddress": "0xC846801f05e7fbF735E26A29c4952ED4e945913C"
+  },
+  {
+    "id": "3ceaf2dc-d007-4e55-ba17-61f1a49f8e5b",
+    "reference": "URG-20260327205841-7EA6C207",
+    "provider": "crypto",
+    "status": "pending",
+    "amountKobo": 1000,
+    "currency": "USDT",
+    "fund": "general",
+    "donorName": "Divine Agoma",
+    "donorEmail": "agomadivine@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal",
+    "providerStatus": "crypto_awaiting_payment",
+    "providerMessage": "Awaiting crypto payment confirmation.",
+    "initializedAt": "2026-03-27T20:58:41.922Z",
+    "updatedAt": "2026-03-27T20:58:41.922Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-27T20:58:41.922Z",
+        "payloadHash": "d9aefd50a2772864546a1d22edbd4f15300c737e006c2d2b5dab7ea0edeea2a6"
+      }
+    ],
+    "metadata": {
+      "ctaRef": ""
+    },
+    "walletAddress": "0xC846801f05e7fbF735E26A29c4952ED4e945913C"
+  },
+  {
+    "id": "87955f5d-6ff4-4396-bee6-e4e0ee7cbcec",
+    "reference": "URG-20260327193323-67305D45",
+    "provider": "crypto",
+    "status": "pending",
+    "amountKobo": 1000,
+    "currency": "USDT",
+    "fund": "general",
+    "donorName": "Divine Agoma",
+    "donorEmail": "agomadivine@gmail.com",
+    "donorPhone": "+2349066425150",
+    "message": "",
+    "source": "hero-giving-modal",
+    "providerStatus": "crypto_awaiting_payment",
+    "providerMessage": "Awaiting crypto payment confirmation.",
+    "initializedAt": "2026-03-27T19:33:23.033Z",
+    "updatedAt": "2026-03-27T19:33:23.033Z",
+    "paidAt": null,
+    "timeline": [
+      {
+        "event": "initialize.requested",
+        "status": "pending",
+        "at": "2026-03-27T19:33:23.033Z",
+        "payloadHash": "d370354d045110ecf7412ce37abb71ab8dac9f35e485f78c3e77a6d62f255ce8"
+      }
+    ],
+    "metadata": {
+      "ctaRef": ""
+    },
+    "walletAddress": "0xC846801f05e7fbF735E26A29c4952ED4e945913C"
+  }
+]

@@ -5,6 +5,7 @@ import {
   findPotentialVisitorDuplicates,
   getVisitorByPhone,
   getVisitorReminderPreferences,
+  listVisitors,
   listSubscribedVisitors,
   markDoNotContact,
   normalizeReminderPreferences,
@@ -169,7 +170,10 @@ router.get('/:phoneNumber', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const visitors = await listSubscribedVisitors()
+    const subscribedOnly = String(req.query.subscribedOnly || '').trim().toLowerCase() === 'true'
+    const visitors = subscribedOnly
+      ? await listSubscribedVisitors()
+      : await listVisitors()
     res.json({ count: visitors.length, visitors })
   } catch (error) {
     logger.error('Failed to list visitors', { error: error.message })

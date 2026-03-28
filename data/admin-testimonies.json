@@ -1,0 +1,42 @@
+[
+  {
+    "id": "seed-testimony-1",
+    "name": "Sis. Favour C.",
+    "role": "Member",
+    "quote": "God gave me peace and direction during a difficult season through the prayers and teachings in Upper Room.",
+    "createdAt": "2026-03-05T09:30:00.000Z",
+    "updatedAt": null
+  },
+  {
+    "id": "seed-testimony-2",
+    "name": "Bro. Daniel A.",
+    "role": "Choir Unit",
+    "quote": "After joining fellowship consistently, my prayer life became stronger and I found a clear sense of purpose.",
+    "createdAt": "2026-03-12T11:00:00.000Z",
+    "updatedAt": null
+  },
+  {
+    "id": "seed-testimony-3",
+    "name": "Sis. Esther O.",
+    "role": "First-time Visitor",
+    "quote": "I came for one service and immediately felt at home. The warmth and love in this family are real.",
+    "createdAt": "2026-03-18T16:10:00.000Z",
+    "updatedAt": null
+  },
+  {
+    "id": "seed-testimony-4",
+    "name": "Bro. Emmanuel K.",
+    "role": "Youth Leader",
+    "quote": "After joining this fellowship my purpose became clear. Ministry is no longer a burden, it is my joy.",
+    "createdAt": "2026-03-22T13:05:00.000Z",
+    "updatedAt": null
+  },
+  {
+    "id": "seed-testimony-5",
+    "name": "Sis. Chioma E.",
+    "role": "Member",
+    "quote": "My mother's sickness disappeared between our prayer session and her next hospital visit. God heals.",
+    "createdAt": "2026-03-24T08:45:00.000Z",
+    "updatedAt": null
+  }
+]

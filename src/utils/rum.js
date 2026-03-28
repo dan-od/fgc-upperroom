@@ -1,3 +1,5 @@
+import { normalizeApiEndpointOverride, toApiUrl } from './appPaths'
+
 const metricRating = (metric, value) => {
   if (metric === 'CLS') {
     if (value <= 0.1) return 'good'
@@ -19,8 +21,11 @@ const metricRating = (metric, value) => {
 }
 
 const buildEndpoint = () => {
-  if (import.meta.env.VITE_RUM_ENDPOINT) return import.meta.env.VITE_RUM_ENDPOINT
-  return import.meta.env.BASE_URL === '/fgc-testing/' ? '/fgc-testing/api/observability/rum' : '/api/observability/rum'
+  if (import.meta.env.VITE_RUM_ENDPOINT) {
+    return normalizeApiEndpointOverride(import.meta.env.VITE_RUM_ENDPOINT)
+  }
+
+  return toApiUrl('observability/rum')
 }
 
 const sendMetric = (endpoint, metric, value) => {
@@ -31,6 +36,37 @@ const sendMetric = (endpoint, metric, value) => {
     page: window.location.href,
     route: `${window.location.pathname}${window.location.search}`,
     source: 'web-vitals-lite'
+  }
+
+  const body = JSON.stringify(payload)
+  const beaconOk = typeof navigator.sendBeacon === 'function' && navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }))
+  if (!beaconOk) {
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      keepalive: true,
+      body
+    }).catch(() => {})
+  }
+}
+
+export const trackRumEvent = ({ metric, value = 1, source = 'web-event', route, page, rating = 'good' } = {}) => {
+  if (typeof window === 'undefined') return
+  const enabled = String(import.meta.env.VITE_RUM_ENABLED ?? 'true').toLowerCase() !== 'false'
+  if (!enabled) return
+
+  const metricName = String(metric || '').trim()
+  const numericValue = Number(value)
+  if (!metricName || !Number.isFinite(numericValue)) return
+
+  const endpoint = buildEndpoint()
+  const payload = {
+    metric: metricName,
+    value: Number(numericValue.toFixed(2)),
+    rating: String(rating || 'good').trim().toLowerCase() || 'good',
+    page: String(page || window.location.href),
+    route: String(route || `${window.location.pathname}${window.location.search}`),
+    source: String(source || 'web-event').trim().slice(0, 40) || 'web-event'
   }
 
   const body = JSON.stringify(payload)
@@ -121,4 +157,3 @@ export const initRum = () => {
   })
   addEventListener('pagehide', flush)
 }
-

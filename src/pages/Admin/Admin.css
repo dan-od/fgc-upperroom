@@ -159,8 +159,12 @@
 .admin-main__meta {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-self: center;
+  position: relative;
+}
+
+.admin-user-badge {
   border: 1px solid color-mix(in srgb, var(--blue-green) 45%, white);
   background: color-mix(in srgb, var(--blue-green) 18%, white);
   color: color-mix(in srgb, var(--blue-green) 82%, black);
@@ -170,8 +174,8 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  position: relative;
 }
+
 
 .admin-notifications {
   position: relative;
@@ -556,25 +560,94 @@
   transition: background-color 9999s ease-in-out 0s;
 }
 
+/* Dashboard CSS */
+.admin-dashboard-stats-wrapper {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.admin-dashboard-stats-container {
+  overflow-x: auto;
+  padding-top: 0.3rem;
+  padding-bottom: 1rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
+.admin-dashboard-stats-container::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-dashboard-stats-grid {
+  display: flex;
+  gap: 1.5rem;
+  min-width: min-content;
+}
+
+.admin-dashboard-stat-card {
+  flex: 0 0 calc(20% - 1.2rem);
+  scroll-snap-align: start;
+}
+
+.admin-dashboard-stats-nav {
+  display: none;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.admin-dashboard-stats-nav button {
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-full);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gray-700);
+  transition: all 0.2s;
+}
+
+.admin-dashboard-stats-nav button:hover {
+  background: var(--gray-100);
+}
+
+.admin-dark .admin-dashboard-stats-nav button {
+  background: #1e2840;
+  border-color: #2a3550;
+  color: #94afd4;
+}
+
+.admin-dark .admin-dashboard-stats-nav button:hover {
+  background: #2a3550;
+}
+
+.admin-dashboard-content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+/* Mobile Sidebar Elements (Hidden on Desktop) */
+.admin-mobile-toggle,
+.admin-sidebar-close,
+.admin-sidebar-backdrop {
+  display: none;
+}
+
+.admin-header__left {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
 @media (max-width: 980px) {
   .admin-container {
     flex-direction: column;
-  }
-
-  .admin-sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-  }
-
-  .admin-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: var(--space-sm);
-  }
-
-  .admin-nav-btn {
-    white-space: nowrap;
   }
 
   .admin-main {
@@ -582,32 +655,125 @@
     padding: var(--space-lg);
   }
 
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: -320px; /* Hide off canvas */
+    width: 280px;
+    height: 100vh;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: calc(var(--z-fixed) + 10);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .admin-sidebar.open {
+    left: 0;
+  }
+
+  .admin-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: var(--z-fixed);
+    backdrop-filter: blur(2px);
+  }
+
+  .admin-sidebar-backdrop.open {
+    display: block;
+  }
+
+  .admin-logo {
+    padding-right: var(--space-md);
+  }
+
+  .admin-sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--white);
+    margin-left: auto;
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .admin-sidebar-close:hover {
+    background: color-mix(in srgb, var(--white) 15%, transparent);
+  }
+
+  .admin-mobile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: var(--gray-900);
+    margin-top: 0.2rem;
+  }
+
+  .admin-nav {
+    flex-direction: column;
+    overflow-y: auto;
+    padding-bottom: var(--space-xl);
+  }
+
   .admin-main__header {
     flex-direction: column;
+    gap: 1.5rem;
   }
 
   .admin-main__meta {
     align-self: flex-start;
   }
+
+  .admin-dashboard-stats-nav {
+    display: flex;
+  }
+  
+  .admin-dashboard-stat-card {
+    flex: 0 0 calc(33.333% - 1rem);
+  }
+
+  .admin-dashboard-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-notifications__menu {
+    right: auto;
+    left: -1.5rem;
+  }
 }
 
 @media (max-width: 640px) {
+  .admin-main {
+    padding: var(--space-md);
+  }
+
   .admin-logo,
   .admin-main__header {
     padding: var(--space-md);
   }
 
-  .admin-main {
-    padding: var(--space-md);
-  }
-
-  .admin-nav-btn span,
-  .admin-logout-btn span {
-    font-size: var(--text-xs);
-  }
-
   .admin-login-card {
     padding: var(--space-xl);
+  }
+
+  /* Mobile responsive adjustments */
+  .admin-user-badge {
+    display: none;
+  }
+
+  .admin-notifications__menu {
+    left: -1rem;
+  }
+
+  .admin-dashboard-stat-card {
+    flex: 0 0 calc(50% - 0.75rem);
   }
 }
 
@@ -641,7 +807,7 @@
   color: #d4a82e;
 }
 
-.admin-dark .admin-main__meta {
+.admin-dark .admin-user-badge {
   background: color-mix(in srgb, #2d3a7a 30%, #1a2235);
   border-color: color-mix(in srgb, #94c7ff 35%, transparent);
   color: #94c7ff;
@@ -707,12 +873,12 @@
 }
 
 .admin-dark-toggle {
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--white) 22%, transparent);
-  color: color-mix(in srgb, var(--white) 80%, transparent);
-  border-radius: var(--radius-md);
-  width: 28px;
-  height: 28px;
+  background: color-mix(in srgb, var(--blue-green) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--blue-green) 40%, white);
+  color: color-mix(in srgb, var(--blue-green) 82%, black);
+  border-radius: 999px;
+  width: 1.95rem;
+  height: 1.95rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -722,6 +888,15 @@
 }
 
 .admin-dark-toggle:hover {
-  background: color-mix(in srgb, var(--white) 12%, transparent);
-  color: var(--white);
+  background: color-mix(in srgb, var(--blue-green) 18%, white);
+}
+
+.admin-dark .admin-dark-toggle {
+  background: color-mix(in srgb, #2d3a7a 30%, #1a2235);
+  border-color: #35507c;
+  color: #94c7ff;
+}
+
+.admin-dark .admin-dark-toggle:hover {
+  background: color-mix(in srgb, #2d3a7a 45%, #1a2235);
 }

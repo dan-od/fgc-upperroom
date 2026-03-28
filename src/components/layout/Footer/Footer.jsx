@@ -3,7 +3,16 @@ import { Link } from 'react-router-dom'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../common/SocialIcons'
 import { subscribeEmail } from '../../../utils/newsletterApi'
 import { useI18n } from '../../../i18n/LanguageContext'
+import { toAssetUrl } from '../../../utils/appPaths'
 import './Footer.css'
+
+const FOOTER_ASSETS = {
+  cross: toAssetUrl('assets/icons/icon-cross.png'),
+  dove: toAssetUrl('assets/icons/icon-dove.png'),
+  cup: toAssetUrl('assets/icons/icon-cup.png'),
+  crown: toAssetUrl('assets/icons/icon-crown.png'),
+  wordmark: toAssetUrl('assets/logos/upper_left_align_white.png')
+}
 
 const Footer = () => {
   const { t, language, setLanguage, languages } = useI18n()
@@ -20,14 +29,15 @@ const Footer = () => {
     { path: '/about', label: t('header.nav.about', 'About') },
     { path: '/team', label: t('header.nav.team', 'Team') },
     { path: '/events', label: t('header.nav.events', 'Events') },
+    { path: '/media', label: t('header.nav.media', 'Media') },
     { path: '/contact', label: t('header.nav.contact', 'Contact') }
   ]
 
   const resources = [
-    { path: '/media', label: t('header.nav.media', 'Media') },
-    { path: '/testimonies', label: 'Testimonies' },
     { path: '/blog', label: t('header.nav.blog', 'Blog') },
-    { path: '/contact', label: 'Prayer Request' }
+    { path: '/giving', label: t('header.nav.giving', 'Giving') },
+    { path: '/contact?subject=prayer', label: 'Prayer Request' },
+    { path: '/testimonies', label: 'Testimonies' }
   ]
 
   const socialLinks = [
@@ -121,17 +131,17 @@ const Footer = () => {
         <div className="footer__main">
           <section className="footer__brand-column">
             <div className="footer__symbol-row" aria-label="Foursquare symbols">
-              <img src="./assets/icons/icon-cross.png" alt="Cross symbol" className="footer__symbol" />
-              <img src="./assets/icons/icon-dove.png" alt="Dove symbol" className="footer__symbol" />
-              <img src="./assets/icons/icon-cup.png" alt="Cup symbol" className="footer__symbol" />
-              <img src="./assets/icons/icon-crown.png" alt="Crown symbol" className="footer__symbol" />
+              <img src={FOOTER_ASSETS.cross} alt="Cross symbol" className="footer__symbol" />
+              <img src={FOOTER_ASSETS.dove} alt="Dove symbol" className="footer__symbol" />
+              <img src={FOOTER_ASSETS.cup} alt="Cup symbol" className="footer__symbol" />
+              <img src={FOOTER_ASSETS.crown} alt="Crown symbol" className="footer__symbol" />
             </div>
             <p className="footer__church-name">{t('footer.churchName', 'THE FOURSQUARE CHURCH')}</p>
             <span className="footer__line" aria-hidden="true"></span>
-            <img src="./assets/logos/upper_left_align_white.png" alt="The Upperroom" className="footer__wordmark" />
+            <img src={FOOTER_ASSETS.wordmark} alt="The Upperroom" className="footer__wordmark" />
             <p className="footer__tagline">{t('footer.tagline', 'Raising Kingdom Youths!')}</p>
             <p className="footer__description">
-              {t('footer.description', 'A vibrant youth fellowship under the Foursquare Gospel Church, Mgbuoba Zonal HQ. Raising young people who know God and make Him known.')}
+              A vibrant youth church under the Foursquare Gospel Church, Mgbuoba Zonal HQ.<br />Raising young people who know God and make Him known.
             </p>
 
             <div className="footer__socials">

@@ -1,6 +1,7 @@
 import { getAdminSessionToken } from './adminApi'
+import { toApiUrl, toAssetUrl } from './appPaths'
 export const ADMIN_MEDIA_STORAGE_KEY = 'admin_media'
-export const DEFAULT_MEDIA_THUMBNAIL = '/assets/media/Senior Pastor.jpeg'
+export const DEFAULT_MEDIA_THUMBNAIL = toAssetUrl('assets/media/pictures/Senior Pastor_Home.jpeg')
 
 export const MEDIA_CATEGORIES = [
   { value: 'worship', label: 'Worship' },
@@ -13,8 +14,6 @@ export const MEDIA_CATEGORIES = [
 
 const MEDIA_TYPES = new Set(['image', 'video', 'audio'])
 const MEDIA_CATEGORY_SET = new Set(MEDIA_CATEGORIES.map((item) => item.value))
-const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-const toApiUrl = (path) => `${BASE_URL}${path}`
 const buildAuthHeaders = (headers = {}) => {
   const token = getAdminSessionToken()
   if (!token) return headers
@@ -216,11 +215,36 @@ export const normalizeAdminMediaItem = (rawItem, index = 0) => {
     videoUrl: normalizeText(primaryAsset.videoUrl || source.videoUrl),
     audioUrl: normalizeText(primaryAsset.audioUrl || source.audioUrl),
     media,
+    status: String(source.status || 'published').trim().toLowerCase() || 'published',
     timestamp,
     date: new Date(timestamp).toISOString().slice(0, 10),
     createdAt,
-    updatedAt: source.updatedAt ? new Date(source.updatedAt).toISOString() : null
+    updatedAt: source.updatedAt ? new Date(source.updatedAt).toISOString() : null,
+    publishedAt: source.publishedAt ? new Date(source.publishedAt).toISOString() : createdAt
   }
+}
+
+export const readPublicMediaItems = () => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve([])
+  }
+
+  return fetch(toApiUrl('/media'))
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch public media')
+      }
+
+      const payload = await response.json()
+      if (!Array.isArray(payload?.data)) {
+        return []
+      }
+
+      return payload.data
+        .map((item, index) => normalizeAdminMediaItem(item, index))
+        .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+    })
+    .catch(() => [])
 }
 
 export const readAdminMediaItems = () => {
@@ -285,6 +309,25 @@ export const writeAdminMediaItems = (items) => {
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}))
       throw new Error(payload?.error || 'Unable to save media to server.')
+    }
+
+    return response.json()
+  })
+}
+
+export const approveAdminMediaItem = (id) => {
+  const mediaId = String(id || '').trim()
+  if (!mediaId) {
+    return Promise.reject(new Error('Media item id is required.'))
+  }
+
+  return fetch(toApiUrl(`/api/admin/media/${encodeURIComponent(mediaId)}/approve`), {
+    method: 'POST',
+    headers: buildAuthHeaders()
+  }).then(async (response) => {
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      throw new Error(payload?.error || 'Unable to approve media.')
     }
 
     return response.json()

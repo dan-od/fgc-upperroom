@@ -1,13 +1,33 @@
 import { useEffect, useState } from 'react'
 import { SectionHeader } from '../../components/common'
-import { readTestimonies } from '../../utils/testimonyStorage'
+import { BubbleField } from './components/BubbleField'
+import { readPublicTestimonies } from '../../utils/testimonyStorage'
 import './Testimonies.css'
 
 const Testimonies = () => {
   const [testimonies, setTestimonies] = useState([])
 
   useEffect(() => {
-    setTestimonies(readTestimonies({ fallbackToDefaultOnEmpty: true }))
+    let isMounted = true
+
+    const loadTestimonies = async () => {
+      try {
+        const items = await readPublicTestimonies()
+        if (isMounted) {
+          setTestimonies(items)
+        }
+      } catch {
+        if (isMounted) {
+          setTestimonies([])
+        }
+      }
+    }
+
+    void loadTestimonies()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   return (
@@ -18,30 +38,16 @@ const Testimonies = () => {
           <p>Stories of God's faithfulness</p>
         </div>
       </section>
+
       <section className="testimonies-section">
-        <div className="container">
+        <div className="container text-center testimonies-header">
           <SectionHeader tag="Praise Reports" title="What God Is Doing" />
-          {testimonies.length === 0 ? (
-            <div className="testimonies-empty">
-              <p>No testimonies have been added yet. Check back soon or add one via the Admin panel.</p>
-            </div>
-          ) : (
-            <div className="testimonies-grid">
-              {testimonies.map((t) => (
-                <div key={t.id} className="testimony-card">
-                  <blockquote>"{t.quote}"</blockquote>
-                  <div className="testimony-author">
-                    <div className="testimony-avatar">{t.name.charAt(0)}</div>
-                    <div>
-                      <strong>{t.name}</strong>
-                      <span>{t.role}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="testimonies-header-desc">
+            Hover over a bubble to read the full story.
+          </p>
         </div>
+
+        <BubbleField source={testimonies} />
       </section>
     </main>
   )

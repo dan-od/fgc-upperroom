@@ -1,7 +1,9 @@
+import { toAssetUrl } from './appPaths'
+
 const BOT_API_BASE = import.meta.env.VITE_BOT_API_URL || ''
 const EVENTS_ENDPOINT = `${BOT_API_BASE}/bot/api/events`
 
-const DEFAULT_IMAGE = '/assets/media/Senior Pastor.jpeg'
+const DEFAULT_IMAGE = toAssetUrl('assets/media/pictures/Senior Pastor_Home.jpeg')
 const DEFAULT_CONTACT = 'upperroom@fgcmgbuoba.org'
 const DEFAULT_ORGANIZER = 'Youth Ministry'
 const DEFAULT_LOCATION = 'FGC Mgbuoba'

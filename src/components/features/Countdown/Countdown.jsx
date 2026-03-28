@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { Button } from '../../common'
+import DialogFrame from '../../common/Feedback/DialogFrame'
 import { getAttendanceCurrent, submitAttendance } from '../../../utils/attendanceApi'
 import './Countdown.css'
 
@@ -31,6 +33,7 @@ const Countdown = ({ variant = 'default' }) => {
   const [feedback, setFeedback] = useState({ type: '', message: '' })
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false)
   const [isAssistedMode, setIsAssistedMode] = useState(false)
+  const [successModalOpen, setSuccessModalOpen] = useState(false)
   const codeRefs = useRef([])
 
   const successBlessingMessage = 'Thank you for worshipping with us today, God bless you and we hope to see you again next week!'
@@ -200,7 +203,10 @@ const Countdown = ({ variant = 'default' }) => {
       return
     }
 
-    setFeedback({ type: 'success', message: successBlessingMessage })
+    setFeedback({ type: '', message: '' })
+    setSuccessModalOpen(true)
+    setSelfName('')
+    setCodeDigits(['', '', '', '', '', ''])
     setAttendanceSubmitting(false)
   }
 
@@ -235,8 +241,11 @@ const Countdown = ({ variant = 'default' }) => {
       return
     }
 
-    setFeedback({ type: 'success', message: successBlessingMessage })
+    setFeedback({ type: '', message: '' })
+    setSuccessModalOpen(true)
     setAttendanceSubmitting(false)
+    setSelfName('')
+    setCodeDigits(['', '', '', '', '', ''])
     setAssistedPhone('')
     setIsAssistedMode(false)
   }
@@ -334,100 +343,124 @@ const Countdown = ({ variant = 'default' }) => {
   )
 
   return (
-    <div className={`countdown countdown--${variant}`}>
-      {variant === 'hero' && attendance.visible ? (
-        <div className="countdown__split">
-          <div className="countdown__split-left">
-            {renderCountdownLeft()}
-          </div>
+    <>
+      <div className={`countdown countdown--${variant}${nextEvent.isLive ? ' countdown--live' : ' countdown--upcoming'}`}>
+        {variant === 'hero' && attendance.visible ? (
+          <div className="countdown__split">
+            <div className="countdown__split-left">
+              {renderCountdownLeft()}
+            </div>
 
-          <div className="countdown__divider" />
+            <div className="countdown__divider" />
 
-          <div className="countdown__split-right">
-            <p className="countdown__attendance-label">Attendance</p>
-            <div className="countdown__attendance-count">{attendance.attendeeCount}</div>
-            <p className="countdown__attendance-count-text">People marked present</p>
-
-            {!attendance.sessionReady ? (
-              <p className="countdown__feedback countdown__feedback--duplicate">
-                Attendance code will be shared by the admin during service.
-              </p>
-            ) : null}
-
-            <form className="countdown__attendance-form" onSubmit={isAssistedMode ? handleAssistedSubmit : handleSelfSubmit}>
-              <div className="countdown__field-row">
-                <label className="countdown__field-label" htmlFor="attendance-first-name">First name</label>
-                <input
-                  id="attendance-first-name"
-                  type="text"
-                  value={selfName}
-                  onChange={(e) => setSelfName(e.target.value)}
-                  placeholder="Enter first name"
-                  className="countdown__input countdown__input--name"
-                  required
-                  disabled={attendanceSubmitting || !attendance.sessionReady}
-                />
-              </div>
-
-              {isAssistedMode ? (
-                <div className="countdown__field-row">
-                  <label className="countdown__field-label" htmlFor="attendance-phone-number">Phone number</label>
-                  <input
-                    id="attendance-phone-number"
-                    type="tel"
-                    value={assistedPhone}
-                    onChange={(e) => setAssistedPhone(e.target.value)}
-                    placeholder="Enter phone number"
-                    className="countdown__input"
-                    required
-                    disabled={attendanceSubmitting || !attendance.sessionReady}
-                  />
+            <div className="countdown__split-right">
+              <div className="countdown__attendance-panel">
+                <div className="countdown__attendance-header">
+                  <div className="countdown__attendance-copy">
+                    <p className="countdown__attendance-label">Attendance</p>
+                    <p className="countdown__attendance-count-text">People marked present</p>
+                  </div>
+                  <div className="countdown__attendance-stat">
+                    <div className="countdown__attendance-count">{attendance.attendeeCount}</div>
+                  </div>
                 </div>
-              ) : null}
 
-              <div className="countdown__field-row countdown__field-row--code">
-                <span className="countdown__field-label">Attendance Code</span>
-                <div className="countdown__code-inputs" onPaste={handleDigitPaste}>
-                  {codeDigits.map((digit, index) => (
+                {!attendance.sessionReady ? (
+                  <p className="countdown__feedback countdown__feedback--duplicate">
+                    Attendance code will be shared by the admin during service.
+                  </p>
+                ) : null}
+
+                <form className="countdown__attendance-form" onSubmit={isAssistedMode ? handleAssistedSubmit : handleSelfSubmit}>
+                  <div className="countdown__field-row">
+                    <label className="countdown__field-label" htmlFor="attendance-first-name">First name</label>
                     <input
-                      key={index}
-                      ref={(node) => {
-                        codeRefs.current[index] = node
-                      }}
+                      id="attendance-first-name"
                       type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleDigitChange(index, e.target.value)}
-                      onKeyDown={(e) => handleDigitKeyDown(index, e)}
-                      className={`countdown__code-digit ${isCodeComplete ? 'countdown__code-digit--complete' : ''}`}
-                      aria-label={`Attendance code digit ${index + 1}`}
+                      value={selfName}
+                      onChange={(e) => setSelfName(e.target.value)}
+                      placeholder="Enter first name"
+                      className="countdown__input countdown__input--name"
+                      required
                       disabled={attendanceSubmitting || !attendance.sessionReady}
                     />
-                  ))}
-                </div>
+                  </div>
+
+                  {isAssistedMode ? (
+                    <div className="countdown__field-row">
+                      <label className="countdown__field-label" htmlFor="attendance-phone-number">Phone number</label>
+                      <input
+                        id="attendance-phone-number"
+                        type="tel"
+                        value={assistedPhone}
+                        onChange={(e) => setAssistedPhone(e.target.value)}
+                        placeholder="Enter phone number"
+                        className="countdown__input"
+                        required
+                        disabled={attendanceSubmitting || !attendance.sessionReady}
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="countdown__field-row countdown__field-row--code">
+                    <span className="countdown__field-label">Attendance Code</span>
+                    <div className="countdown__code-inputs" onPaste={handleDigitPaste}>
+                      {codeDigits.map((digit, index) => (
+                        <input
+                          key={index}
+                          ref={(node) => {
+                            codeRefs.current[index] = node
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleDigitChange(index, e.target.value)}
+                          onKeyDown={(e) => handleDigitKeyDown(index, e)}
+                          className={`countdown__code-digit ${isCodeComplete ? 'countdown__code-digit--complete' : ''}`}
+                          aria-label={`Attendance code digit ${index + 1}`}
+                          disabled={attendanceSubmitting || !attendance.sessionReady}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="countdown__submit"
+                    disabled={attendanceSubmitting || !attendance.sessionReady || !isCodeComplete || !selfName.trim() || (isAssistedMode && !assistedPhone.trim())}
+                  >
+                    {attendanceSubmitting ? 'Submitting...' : isAssistedMode ? 'Submit Assisted Attendance' : 'Mark Attendance'}
+                  </button>
+                </form>
+
+                {feedback.message ? (
+                  <p className={`countdown__feedback countdown__feedback--${feedback.type || 'info'}`}>{feedback.message}</p>
+                ) : null}
               </div>
-
-              <button
-                type="submit"
-                className="countdown__submit"
-                disabled={attendanceSubmitting || !attendance.sessionReady || !isCodeComplete || !selfName.trim() || (isAssistedMode && !assistedPhone.trim())}
-              >
-                {attendanceSubmitting ? 'Submitting...' : isAssistedMode ? 'Submit Assisted Attendance' : 'Mark Attendance'}
-              </button>
-            </form>
-
-            {feedback.message ? (
-              <p className={`countdown__feedback countdown__feedback--${feedback.type || 'info'}`}>{feedback.message}</p>
-            ) : null}
-
+            </div>
           </div>
-        </div>
-      ) : (
-        renderCountdownLeft()
-      )}
-    </div>
+        ) : (
+          renderCountdownLeft()
+        )}
+      </div>
+
+      <DialogFrame
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title="Attendance Signed"
+        tone="success"
+        maxWidth="540px"
+        footer={(
+          <Button type="button" variant="secondary" onClick={() => setSuccessModalOpen(false)}>
+            Close
+          </Button>
+        )}
+      >
+        <p className="countdown__success-modal-message">{successBlessingMessage}</p>
+      </DialogFrame>
+    </>
   )
 }
 

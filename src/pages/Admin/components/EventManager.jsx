@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Plus, Calendar, Clock, MapPin, Users, Search, Edit2, Trash2 } from 'lucide-react'
+import { DropdownSelect } from '../../../components/common'
+import { ADMIN_DATE_FILTER_OPTIONS, matchesAdminDateFilter } from '../../../utils/adminDateFilters'
 import {
   createDefaultRegistrationMethods,
   normalizeRegistrationMethods,
@@ -13,8 +15,8 @@ import {
 import { syncEventEmailAudience } from '../../../utils/newsletterApi'
 import { recordAdminAudit } from '../../../utils/adminApi'
 import { useAdminTheme } from '../AdminThemeContext'
+import AdminModal from './AdminModal'
 
-const EVENT_CATEGORIES_STORAGE_KEY = 'admin_event_categories'
 const DEFAULT_EVENT_CATEGORIES = ['general', 'youth', 'worship', 'outreach', 'conference']
 
 const normalizeCategory = (value) => {
@@ -39,6 +41,14 @@ const mergeCategories = (...categoryLists) => {
     .filter(Boolean)
 
   return Array.from(new Set(merged))
+}
+
+const buildCategoriesFromEvents = (events = [], categoryBase = []) => {
+  return mergeCategories(
+    DEFAULT_EVENT_CATEGORIES,
+    categoryBase,
+    events.map((event) => event.category)
+  )
 }
 
 const EVENT_WORKFLOW_STATUSES = [
@@ -109,10 +119,12 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterDate, setFilterDate] = useState('all')
   const [selectedEvents, setSelectedEvents] = useState([])
   const [notice, setNotice] = useState(null)
   const [tagInput, setTagInput] = useState('')
   const [isImageUploading, setIsImageUploading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [categories, setCategories] = useState(DEFAULT_EVENT_CATEGORIES)
   const [newCategoryInput, setNewCategoryInput] = useState('')
   const imageFileInputRef = useRef(null)
@@ -143,122 +155,145 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
     createdAt: null,
     updatedAt: null
   })
+
+  // Modal system for confirmation and prompts
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    tone: 'info',
+    onConfirm: null,
+    showInput: false,
+    inputValue: '',
+    inputPlaceholder: '',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel'
+  })
+
+  const closeModal = () => setModalConfig((prev) => ({ ...prev, isOpen: false }))
+  const openModal = (config) => setModalConfig({
+    isOpen: true,
+    title: config.title || 'Are you sure?',
+    message: config.message || '',
+    tone: config.tone || 'info',
+    onConfirm: config.onConfirm || null,
+    showInput: !!config.showInput,
+    inputValue: config.initialValue || '',
+    inputPlaceholder: config.inputPlaceholder || '',
+    confirmLabel: config.confirmLabel || 'Confirm',
+    cancelLabel: config.cancelLabel || 'Cancel'
+  })
+
+  const handleModalConfirm = () => {
+    if (modalConfig.onConfirm) {
+      modalConfig.onConfirm(modalConfig.inputValue)
+    }
+    closeModal()
+  }
+
   const canWrite = hasPermission('content:event:write') || hasPermission('content:event:publish')
-  const canApprove = hasPermission('content:event:approve') || hasPermission('content:event:publish')
+  const canPublish = hasPermission('content:event:publish')
+  const canApprove = hasPermission('content:event:approve')
   const audit = (action, details = {}) => {
     recordAdminAudit({ action, resource: 'content.event', details }).catch(() => {})
+  }
+
+  const saveEvents = (updatedEvents, categoryBase = categories) => {
+    const scheduled = applyScheduledEventTransitions(updatedEvents)
+    setEvents(scheduled.events)
+    const combinedCategories = buildCategoriesFromEvents(scheduled.events, categoryBase)
+    setCategories(combinedCategories)
+    window.dispatchEvent(new CustomEvent('adminEventsUpdated'))
+    return scheduled.events
+  }
+
+  const refreshEvents = async ({ silent = false, suppressErrorNotice = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true)
+    }
+
+    try {
+      const botEvents = await fetchBotEvents()
+      let normalized = botEvents.map(mapBotEventToAdminEvent)
+      const scheduled = applyScheduledEventTransitions(normalized)
+
+      if (scheduled.changed) {
+        const originalById = new Map(normalized.map((event) => [String(event.id), event]))
+        const dueEvents = scheduled.events.filter((event) => {
+          const original = originalById.get(String(event.id))
+          return original && original.status !== event.status
+        })
+
+        if (dueEvents.length > 0) {
+          await Promise.all(
+            dueEvents.map((event) => updateBotEvent(event.id, toBotEventPayload(event)))
+          )
+          const syncedEvents = await fetchBotEvents()
+          normalized = syncedEvents.map(mapBotEventToAdminEvent)
+        } else {
+          normalized = scheduled.events
+        }
+      }
+
+      return saveEvents(normalized)
+    } catch (error) {
+      if (!suppressErrorNotice) {
+        setNotice({ tone: 'error', text: error?.message || 'Unable to load events from the bot API right now.' })
+      }
+      throw error
+    } finally {
+      if (!silent) {
+        setIsLoading(false)
+      }
+    }
   }
 
   useEffect(() => {
     let isMounted = true
 
-    const parseCachedEvents = () => {
-      const raw = localStorage.getItem('admin_events')
-      if (!raw) {
-        return []
-      }
-
-      try {
-        const parsed = JSON.parse(raw)
-        return Array.isArray(parsed)
-          ? parsed.map((event) => ({
-            ...event,
-            category: normalizeCategory(event?.category) || 'general',
-            registrationLink: String(event?.registrationLink || '/contact').trim() || '/contact',
-            registrationMethods: normalizeRegistrationMethods(event?.registrationMethods),
-            whatToExpect: Array.isArray(event?.whatToExpect) ? event.whatToExpect : []
-          }))
-          : []
-      } catch {
-        return []
-      }
-    }
-
     const loadEvents = async () => {
-      let storedCategories = []
-      const rawCategories = localStorage.getItem(EVENT_CATEGORIES_STORAGE_KEY)
-      if (rawCategories) {
-        try {
-          const parsedCategories = JSON.parse(rawCategories)
-          if (Array.isArray(parsedCategories)) {
-            storedCategories = parsedCategories
-          }
-        } catch {
-          storedCategories = []
-        }
-      }
-
       try {
-        const botEvents = await fetchBotEvents()
-        const normalized = botEvents.map(mapBotEventToAdminEvent)
-        if (!isMounted) {
-          return
-        }
-
-        const scheduled = applyScheduledEventTransitions(normalized)
-        setEvents(scheduled.events)
-        localStorage.setItem('admin_events', JSON.stringify(scheduled.events))
-
-        const combinedCategories = mergeCategories(
-          DEFAULT_EVENT_CATEGORIES,
-          storedCategories,
-          normalized.map((event) => event.category)
-        )
-        setCategories(combinedCategories)
-        localStorage.setItem(EVENT_CATEGORIES_STORAGE_KEY, JSON.stringify(combinedCategories))
-        return
+        await refreshEvents()
       } catch {
-        const cachedEvents = parseCachedEvents()
-        if (!isMounted) {
-          return
+        if (isMounted) {
+          setEvents([])
+          setCategories(DEFAULT_EVENT_CATEGORIES)
         }
-
-        const scheduled = applyScheduledEventTransitions(cachedEvents)
-        setEvents(scheduled.events)
-        localStorage.setItem('admin_events', JSON.stringify(scheduled.events))
-        const combinedCategories = mergeCategories(
-          DEFAULT_EVENT_CATEGORIES,
-          storedCategories,
-          cachedEvents.map((event) => event.category)
-        )
-        setCategories(combinedCategories)
-        localStorage.setItem(EVENT_CATEGORIES_STORAGE_KEY, JSON.stringify(combinedCategories))
       }
     }
 
-    loadEvents()
+    void loadEvents()
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  const saveEvents = (updatedEvents, categoryBase = categories) => {
-    const scheduled = applyScheduledEventTransitions(updatedEvents)
-    setEvents(scheduled.events)
-    localStorage.setItem('admin_events', JSON.stringify(scheduled.events))
-
-    const combinedCategories = mergeCategories(categoryBase, scheduled.events.map((event) => event.category))
-    setCategories(combinedCategories)
-    localStorage.setItem(EVENT_CATEGORIES_STORAGE_KEY, JSON.stringify(combinedCategories))
-
-    window.dispatchEvent(new CustomEvent('adminEventsUpdated'))
-  }
-
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setEvents((prev) => {
-        const result = applyScheduledEventTransitions(prev)
-        if (result.changed) {
-          localStorage.setItem('admin_events', JSON.stringify(result.events))
-          setNotice({ tone: 'success', text: 'A scheduled event has been auto-published.' })
-        }
-        return result.events
+      const scheduled = applyScheduledEventTransitions(events)
+      if (!scheduled.changed) {
+        return
+      }
+
+      const originalById = new Map(events.map((event) => [String(event.id), event]))
+      const dueEvents = scheduled.events.filter((event) => {
+        const original = originalById.get(String(event.id))
+        return original && original.status !== event.status
       })
+
+      if (dueEvents.length === 0) {
+        return
+      }
+
+      Promise.all(dueEvents.map((event) => updateBotEvent(event.id, toBotEventPayload(event))))
+        .then(() => refreshEvents({ silent: true, suppressErrorNotice: true }))
+        .then(() => setNotice({ tone: 'success', text: 'A scheduled event has been auto-published.' }))
+        .catch(() => {})
     }, 60_000)
 
     return () => window.clearInterval(interval)
-  }, [])
+  }, [events])
 
   useEffect(() => {
     const ids = new Set(events.map((event) => String(event.id)))
@@ -362,54 +397,23 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
       if (view === 'create') {
         const created = await createBotEvent(payload)
         const mapped = mapBotEventToAdminEvent(created)
-        saveEvents([...events, mapped])
+        await refreshEvents({ silent: true, suppressErrorNotice: true })
         const syncMessage = await syncEmailAudience(mapped)
         setNotice({ tone: 'success', text: `Event created and synced to bot API. ${syncMessage}` })
         audit('event.create', { id: mapped.id, status: mapped.status })
       } else if (view === 'edit') {
         const updatedRemote = await updateBotEvent(formData.id, payload)
         const mapped = mapBotEventToAdminEvent(updatedRemote)
-        const updatedEvents = events.map((evt) => (String(evt.id) === String(formData.id) ? mapped : evt))
-        saveEvents(updatedEvents)
+        await refreshEvents({ silent: true, suppressErrorNotice: true })
         const syncMessage = await syncEmailAudience(mapped)
         setNotice({ tone: 'success', text: `Event updated and synced to bot API. ${syncMessage}` })
         audit('event.update', { id: mapped.id, status: mapped.status })
       }
       resetForm()
       return
-    } catch {
-      // Fallback: keep admin productive even when bot API is unavailable.
+    } catch (error) {
+      setNotice({ tone: 'error', text: error?.message || 'Unable to save this event to the bot API right now.' })
     }
-
-    if (view === 'create') {
-      const newEvent = {
-        ...normalized,
-        id: `local-${Date.now()}`,
-        createdAt: nowIso,
-        updatedAt: null,
-        versions: []
-      }
-      saveEvents([...events, newEvent])
-      const syncMessage = await syncEmailAudience(newEvent)
-      setNotice({ tone: 'error', text: `Bot API unreachable. Event saved locally only. ${syncMessage}` })
-      audit('event.create_local', { id: newEvent.id, status: newEvent.status })
-    } else if (view === 'edit') {
-      const updated = events.map((evt) => String(evt.id) === String(formData.id)
-        ? {
-          ...pushEventVersion(evt, 'manual_update'),
-          ...normalized,
-          id: evt.id,
-          createdAt: evt.createdAt || nowIso
-        }
-        : evt)
-      saveEvents(updated)
-      const current = updated.find((evt) => String(evt.id) === String(formData.id))
-      const syncMessage = await syncEmailAudience(current || normalized)
-      setNotice({ tone: 'error', text: `Bot API unreachable. Changes saved locally only. ${syncMessage}` })
-      audit('event.update_local', { id: formData.id, status: normalized.status })
-    }
-
-    resetForm()
   }
 
   const resetForm = () => {
@@ -451,7 +455,6 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
     const normalizedCategory = normalizeCategory(event?.category) || 'general'
     const merged = mergeCategories(categories, [normalizedCategory])
     setCategories(merged)
-    localStorage.setItem(EVENT_CATEGORIES_STORAGE_KEY, JSON.stringify(merged))
     setFormData({
       ...event,
       category: normalizedCategory,
@@ -472,39 +475,44 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
     const message = eventToDelete
       ? `Delete "${eventToDelete.title}"? This action cannot be undone.`
       : 'Delete this event? This action cannot be undone.'
-    if (!window.confirm(message)) {
-      return
-    }
-
-    try {
-      await deleteBotEvent(id)
-      saveEvents(events.filter((evt) => String(evt.id) !== String(id)))
-      setNotice({ tone: 'success', text: 'Event deleted successfully.' })
-      audit('event.delete', { id })
-      return
-    } catch {
-      // Fall through to local-only delete for offline-mode entries.
-    }
-
-    saveEvents(events.filter((evt) => String(evt.id) !== String(id)))
-    setNotice({ tone: 'error', text: 'Bot API unreachable. Event removed locally only.' })
-    audit('event.delete_local', { id })
+    
+    openModal({
+      title: 'Delete Event',
+      message: message,
+      tone: 'danger',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        try {
+          await deleteBotEvent(id)
+          await refreshEvents({ silent: true, suppressErrorNotice: true })
+          setNotice({ tone: 'success', text: 'Event deleted successfully.' })
+          audit('event.delete', { id })
+        } catch (error) {
+          setNotice({ tone: 'error', text: error?.message || 'Unable to delete this event right now.' })
+        }
+      }
+    })
   }
 
-  const updateSingleEventWorkflow = (eventId, updater, successMessage) => {
+  const updateSingleEventWorkflow = async (eventId, updater, successMessage) => {
     const now = new Date().toISOString()
-    const updatedEvents = events.map((item) => {
-      if (String(item.id) !== String(eventId)) return item
-      const withVersion = pushEventVersion(item, 'workflow_change')
-      return updater({ ...withVersion, updatedAt: now }, now)
-    })
-    saveEvents(updatedEvents)
-    const updatedEvent = updatedEvents.find((item) => String(item.id) === String(eventId))
-    if (updatedEvent && !String(updatedEvent.id).startsWith('local-')) {
-      updateBotEvent(updatedEvent.id, toBotEventPayload(updatedEvent)).catch(() => {})
+    const currentEvent = events.find((item) => String(item.id) === String(eventId))
+    if (!currentEvent) {
+      setNotice({ tone: 'error', text: 'Event not found.' })
+      return
     }
-    setNotice({ tone: 'success', text: successMessage })
-    audit('event.workflow', { id: eventId, action: successMessage })
+
+    const withVersion = pushEventVersion(currentEvent, 'workflow_change')
+    const updatedEvent = updater({ ...withVersion, updatedAt: now }, now)
+
+    try {
+      await updateBotEvent(updatedEvent.id, toBotEventPayload(updatedEvent))
+      await refreshEvents({ silent: true, suppressErrorNotice: true })
+      setNotice({ tone: 'success', text: successMessage })
+      audit('event.workflow', { id: eventId, action: successMessage })
+    } catch (error) {
+      setNotice({ tone: 'error', text: error?.message || 'Unable to update the event workflow right now.' })
+    }
   }
 
   const handleSubmitForReview = (event) => {
@@ -512,7 +520,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
       setNotice({ tone: 'error', text: 'Your role cannot submit events for review.' })
       return
     }
-    updateSingleEventWorkflow(
+    void updateSingleEventWorkflow(
       event.id,
       (item, now) => ({
         ...item,
@@ -531,7 +539,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
       setNotice({ tone: 'error', text: 'Your role cannot approve events.' })
       return
     }
-    updateSingleEventWorkflow(
+    void updateSingleEventWorkflow(
       event.id,
       (item) => ({
         ...item,
@@ -547,11 +555,11 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
   }
 
   const handlePublishEvent = (event) => {
-    if (!canApprove) {
+    if (!canPublish) {
       setNotice({ tone: 'error', text: 'Your role cannot publish events.' })
       return
     }
-    updateSingleEventWorkflow(
+    void updateSingleEventWorkflow(
       event.id,
       (item, now) => ({
         ...item,
@@ -569,31 +577,40 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
   }
 
   const handleScheduleEvent = (event) => {
-    if (!canApprove) {
+    if (!canPublish) {
       setNotice({ tone: 'error', text: 'Your role cannot schedule events.' })
       return
     }
-    const input = window.prompt('Schedule publish date/time (ISO e.g. 2026-03-28T10:00)')
-    if (!input) return
-    const scheduleDate = new Date(input)
-    if (Number.isNaN(scheduleDate.getTime())) {
-      setNotice({ tone: 'error', text: 'Invalid schedule format.' })
-      return
-    }
 
-    updateSingleEventWorkflow(
-      event.id,
-      (item) => ({
-        ...item,
-        status: 'scheduled',
-        scheduledPublishAt: scheduleDate.toISOString(),
-        workflow: {
-          ...(item.workflow || {}),
-          approvedBy: currentUser?.email || ''
+    openModal({
+      title: 'Schedule Event',
+      message: 'Enter the date and time for this event to be automatically published.',
+      showInput: true,
+      initialValue: new Date().toISOString().slice(0, 16),
+      inputPlaceholder: 'YYYY-MM-DDTHH:MM',
+      onConfirm: (input) => {
+        if (!input) return
+        const scheduleDate = new Date(input)
+        if (Number.isNaN(scheduleDate.getTime())) {
+          setNotice({ tone: 'error', text: 'Invalid schedule format.' })
+          return
         }
-      }),
-      'Event scheduled.'
-    )
+
+        void updateSingleEventWorkflow(
+          event.id,
+          (item) => ({
+            ...item,
+            status: 'scheduled',
+            scheduledPublishAt: scheduleDate.toISOString(),
+            workflow: {
+              ...(item.workflow || {}),
+              approvedBy: currentUser?.email || ''
+            }
+          }),
+          'Event scheduled.'
+        )
+      }
+    })
   }
 
   const handleRollbackEvent = (event) => {
@@ -607,20 +624,28 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
       return
     }
 
-    const confirmed = window.confirm(`Rollback "${event.title}" to previous version?`)
-    if (!confirmed) return
+    openModal({
+      title: 'Rollback Event',
+      message: `Rollback "${event.title}" to the previous version? The current changes will be archived.`,
+      tone: 'warning',
+      confirmLabel: 'Rollback',
+      onConfirm: async () => {
+        const rolledBackEvent = {
+          ...latest.snapshot,
+          versions: (event.versions || []).slice(1),
+          updatedAt: new Date().toISOString()
+        }
 
-    const updatedEvents = events.map((item) => {
-      if (String(item.id) !== String(event.id)) return item
-      return {
-        ...latest.snapshot,
-        versions: (event.versions || []).slice(1),
-        updatedAt: new Date().toISOString()
+        try {
+          await updateBotEvent(event.id, toBotEventPayload(rolledBackEvent))
+          await refreshEvents({ silent: true, suppressErrorNotice: true })
+          setNotice({ tone: 'success', text: 'Event rolled back.' })
+          audit('event.rollback', { id: event.id })
+        } catch (error) {
+          setNotice({ tone: 'error', text: error?.message || 'Unable to rollback this event right now.' })
+        }
       }
     })
-    saveEvents(updatedEvents)
-    setNotice({ tone: 'success', text: 'Event rolled back.' })
-    audit('event.rollback', { id: event.id })
   }
 
   const handleSelectEvent = (id) => {
@@ -639,25 +664,35 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
 
   const handleBulkEventAction = async (action) => {
     if (!selectedEvents.length) return
-    if (!canWrite) {
-      setNotice({ tone: 'error', text: 'Your role cannot run bulk event actions.' })
+    const hasBulkPermission = action === 'publish' ? canPublish : canWrite
+    if (!hasBulkPermission) {
+      setNotice({ tone: 'error', text: 'Your role cannot run that bulk event action.' })
       return
     }
 
     const selection = new Set(selectedEvents.map(String))
     if (action === 'delete') {
-      if (!window.confirm(`Delete ${selectedEvents.length} selected event(s)?`)) return
+      openModal({
+        title: 'Bulk Delete',
+        message: `Delete ${selectedEvents.length} selected event(s)? This action cannot be undone.`,
+        tone: 'danger',
+        confirmLabel: 'Delete All',
+        onConfirm: () => void executeBulkAction(action, selection)
+      })
+    } else {
+      void executeBulkAction(action, selection)
     }
+  }
 
-    const updatedEvents = events
+  const executeBulkAction = async (action, selection) => {
+    const now = new Date().toISOString()
+    const targetedEvents = events
+      .filter((event) => selection.has(String(event.id)))
       .map((event) => {
-        if (!selection.has(String(event.id))) return event
-        if (action === 'delete') return null
+        if (action === 'delete') return event
 
         const withVersion = pushEventVersion(event, `bulk_${action}`)
-        const now = new Date().toISOString()
-
-        if (action === 'publish' && canApprove) {
+        if (action === 'publish' && canPublish) {
           return { ...withVersion, status: 'published', publishedAt: now, scheduledPublishAt: '', updatedAt: now }
         }
         if (action === 'review') {
@@ -670,24 +705,21 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
         }
         return { ...withVersion, status: 'draft', updatedAt: now }
       })
-      .filter(Boolean)
 
-    saveEvents(updatedEvents)
-    if (action === 'delete') {
-      events.forEach((event) => {
-        if (!event || !selection.has(String(event.id)) || String(event.id).startsWith('local-')) return
-        deleteBotEvent(event.id).catch(() => {})
-      })
-    } else {
-      updatedEvents.forEach((event) => {
-        if (!event || String(event.id).startsWith('local-')) return
-        if (!selection.has(String(event.id))) return
-        updateBotEvent(event.id, toBotEventPayload(event)).catch(() => {})
-      })
+    try {
+      if (action === 'delete') {
+        await Promise.all(targetedEvents.map((event) => deleteBotEvent(event.id)))
+      } else {
+        await Promise.all(targetedEvents.map((event) => updateBotEvent(event.id, toBotEventPayload(event))))
+      }
+
+      await refreshEvents({ silent: true, suppressErrorNotice: true })
+      setSelectedEvents([])
+      setNotice({ tone: 'success', text: `Bulk action "${action}" for ${selection.size} event(s) completed.` })
+      audit('event.bulk_action', { action, count: selection.size })
+    } catch (error) {
+      setNotice({ tone: 'error', text: error?.message || 'Unable to complete that bulk action right now.' })
     }
-    setSelectedEvents([])
-    setNotice({ tone: 'success', text: `Bulk action "${action}" applied.` })
-    audit('event.bulk_action', { action, count: selectedEvents.length })
   }
 
 
@@ -744,7 +776,6 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
 
     if (!alreadyExists) {
       setCategories(updatedCategories)
-      localStorage.setItem(EVENT_CATEGORIES_STORAGE_KEY, JSON.stringify(updatedCategories))
     }
 
     setFormData((prev) => ({ ...prev, category: nextCategory }))
@@ -824,7 +855,8 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                          event.description.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = filterCategory === 'all' || normalizeCategory(event.category) === filterCategory
     const matchesStatus = filterStatus === 'all' || String(event.status || '').toLowerCase() === filterStatus
-    return matchesSearch && matchesCategory && matchesStatus
+    const matchesDate = matchesAdminDateFilter(event.date || event.updatedAt || event.createdAt, filterDate)
+    return matchesSearch && matchesCategory && matchesStatus && matchesDate
   })
 
   const formatStamp = (value) => {
@@ -908,7 +940,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                 <label style={{ fontSize: '0.875rem', fontWeight: 600, color: ui.textMuted }}>
                   Category *
                 </label>
-                <select
+                <DropdownSelect
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
@@ -924,7 +956,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                       {formatCategoryLabel(category)}
                     </option>
                   ))}
-                </select>
+                </DropdownSelect>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
                     type="text"
@@ -1069,7 +1101,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                 <label style={{ fontSize: '0.875rem', fontWeight: 600, color: ui.textMuted }}>
                   Status
                 </label>
-                <select
+                <DropdownSelect
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
@@ -1085,7 +1117,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                       {status.label}
                     </option>
                   ))}
-                </select>
+                </DropdownSelect>
               </div>
             </div>
 
@@ -1430,7 +1462,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
             Event Management
           </h1>
           <p style={{ margin: 0, color: ui.textSecondary }}>
-            {events.length} total events
+            {isLoading ? 'Loading events...' : `${events.length} total events`}
           </p>
         </div>
         <button
@@ -1481,7 +1513,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
               }}
             />
           </div>
-          <select
+          <DropdownSelect
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
             style={{
@@ -1498,8 +1530,8 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                 {formatCategoryLabel(category)}
               </option>
             ))}
-          </select>
-          <select
+          </DropdownSelect>
+          <DropdownSelect
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             style={{
@@ -1514,7 +1546,22 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
             {EVENT_WORKFLOW_STATUSES.map((status) => (
               <option key={status.value} value={status.value}>{status.label}</option>
             ))}
-          </select>
+          </DropdownSelect>
+          <DropdownSelect
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            style={{
+              padding: '0.75rem',
+              border: `1px solid ${ui.borderSoft}`,
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              background: ui.panel
+            }}
+          >
+            {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </DropdownSelect>
         </div>
 
         {filteredEvents.length > 0 && (
@@ -1531,7 +1578,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
               <div style={{ display: 'inline-flex', gap: '0.45rem', flexWrap: 'wrap' }}>
                 <button type="button" onClick={() => handleBulkEventAction('draft')} style={{ padding: '0.45rem 0.7rem', borderRadius: '0.4rem', border: `1px solid ${ui.borderSoft}`, background: ui.panel, color: ui.textMuted, fontWeight: 600, cursor: 'pointer' }}>Draft</button>
                 <button type="button" onClick={() => handleBulkEventAction('review')} style={{ padding: '0.45rem 0.7rem', borderRadius: '0.4rem', border: `1px solid ${ui.borderSoft}`, background: ui.panel, color: ui.textMuted, fontWeight: 600, cursor: 'pointer' }}>Review</button>
-                {canApprove && (
+                {canPublish && (
                   <button type="button" onClick={() => handleBulkEventAction('publish')} style={{ padding: '0.45rem 0.7rem', borderRadius: '0.4rem', border: 'none', background: '#10b981', color: 'white', fontWeight: 700, cursor: 'pointer' }}>Publish</button>
                 )}
                 <button type="button" onClick={() => handleBulkEventAction('delete')} style={{ padding: '0.45rem 0.7rem', borderRadius: '0.4rem', border: 'none', background: '#ef4444', color: 'white', fontWeight: 700, cursor: 'pointer' }}>Delete</button>
@@ -1658,6 +1705,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
               <div style={{ display: 'flex', gap: '0.5rem', borderTop: `1px solid ${ui.border}`, paddingTop: '1rem', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => handleEdit(event)}
+                  disabled={!canWrite}
                   style={{
                     flex: 1,
                     padding: '0.5rem',
@@ -1667,7 +1715,8 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                     borderRadius: '0.375rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: canWrite ? 'pointer' : 'not-allowed',
+                    opacity: canWrite ? 1 : 0.6,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1677,40 +1726,48 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                   <Edit2 size={14} />
                   Edit
                 </button>
-                <button
-                  onClick={() => handleSubmitForReview(event)}
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    background: ui.panelSubtle,
-                    color: ui.textMuted,
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Review
-                </button>
-                {canApprove && (
+                {event.status === 'draft' && (
+                  <button
+                    onClick={() => handleSubmitForReview(event)}
+                    disabled={!canWrite}
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      background: ui.panelSubtle,
+                      color: ui.textMuted,
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: canWrite ? 'pointer' : 'not-allowed',
+                      opacity: canWrite ? 1 : 0.6
+                    }}
+                  >
+                    Review
+                  </button>
+                )}
+
+                {event.status === 'pending_review' && canApprove && (
+                  <button
+                    onClick={() => handleApproveEvent(event)}
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      background: '#dbeafe',
+                      color: '#1d4ed8',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Approve
+                  </button>
+                )}
+
+                {canPublish && (
                   <>
-                    <button
-                      onClick={() => handleApproveEvent(event)}
-                      style={{
-                        flex: 1,
-                        padding: '0.5rem',
-                        background: '#dbeafe',
-                        color: '#1d4ed8',
-                        border: 'none',
-                        borderRadius: '0.375rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Approve
-                    </button>
                     <button
                       onClick={() => handlePublishEvent(event)}
                       style={{
@@ -1747,7 +1804,7 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                 )}
                 <button
                   onClick={() => handleRollbackEvent(event)}
-                  disabled={!Array.isArray(event.versions) || event.versions.length === 0}
+                  disabled={!canWrite || !Array.isArray(event.versions) || event.versions.length === 0}
                   style={{
                     flex: 1,
                     padding: '0.5rem',
@@ -1757,14 +1814,15 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                     borderRadius: '0.375rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    cursor: 'pointer',
-                    opacity: Array.isArray(event.versions) && event.versions.length > 0 ? 1 : 0.55
+                    cursor: (canWrite && Array.isArray(event.versions) && event.versions.length > 0) ? 'pointer' : 'not-allowed',
+                    opacity: (canWrite && Array.isArray(event.versions) && event.versions.length > 0) ? 1 : 0.55
                   }}
                 >
                   Rollback
                 </button>
                 <button
                   onClick={() => handleDelete(event.id)}
+                  disabled={!canWrite}
                   style={{
                     flex: 1,
                     padding: '0.5rem',
@@ -1774,7 +1832,8 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
                     borderRadius: '0.375rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: canWrite ? 'pointer' : 'not-allowed',
+                    opacity: canWrite ? 1 : 0.6,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1800,10 +1859,30 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
         }}>
           <Calendar size={48} style={{ margin: '0 auto 1rem', color: ui.borderSoft }} />
           <p style={{ margin: 0, color: ui.textFaint }}>
-            {searchTerm || filterCategory !== 'all' ? 'No events match your search' : 'No events yet. Create your first event!'}
+            {isLoading
+              ? 'Loading events from the shared bot service...'
+              : searchTerm || filterCategory !== 'all' || filterStatus !== 'all' || filterDate !== 'all'
+              ? 'No events match your current filters'
+              : 'No events yet. Create your first event!'}
           </p>
         </div>
       )}
+
+      <AdminModal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        title={modalConfig.title}
+        tone={modalConfig.tone}
+        onConfirm={handleModalConfirm}
+        showInput={modalConfig.showInput}
+        inputValue={modalConfig.inputValue}
+        onInputChange={(val) => setModalConfig(prev => ({ ...prev, inputValue: val }))}
+        inputPlaceholder={modalConfig.inputPlaceholder}
+        confirmLabel={modalConfig.confirmLabel}
+        cancelLabel={modalConfig.cancelLabel}
+      >
+        <p style={{ margin: 0 }}>{modalConfig.message}</p>
+      </AdminModal>
     </div>
   )
 }
