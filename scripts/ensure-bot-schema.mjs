@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import pg from 'pg'
-import dotenv from 'dotenv'
+import { loadProjectEnvFile } from '../lib/load-project-env.js'
 
 const { Client } = pg
 const __filename = fileURLToPath(import.meta.url)
@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename)
 const rootDir = path.resolve(__dirname, '..')
 const schemaPath = path.join(rootDir, 'bot', 'db', 'schema.sql')
 
-dotenv.config({ path: path.join(rootDir, '.env') })
+loadProjectEnvFile({ envPath: path.join(rootDir, '.env') })
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://user:password@localhost/church_bot'
 

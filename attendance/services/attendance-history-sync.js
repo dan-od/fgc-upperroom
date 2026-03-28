@@ -56,6 +56,9 @@ export const syncAttendanceCheckin = async (payload = {}) => {
     await postJson('/checkin', {
       checkinId: payload.id,
       sessionId: payload.sessionId,
+      serviceDate: payload.serviceDate || null,
+      sessionCode: payload.sessionCode || null,
+      qrTokenHash: payload.qrTokenHash || null,
       checkinType: payload.type || 'self',
       attendeeName: payload.name || null,
       helperName: payload.helperName || null,

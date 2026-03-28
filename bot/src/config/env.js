@@ -1,9 +1,6 @@
-import dotenv from 'dotenv'
-import path from 'node:path'
+import { loadProjectEnvFile } from '../../../lib/load-project-env.js'
 
-// Always load from root .env file
-const rootEnvPath = path.resolve(process.cwd(), '.env')
-dotenv.config({ path: rootEnvPath })
+loadProjectEnvFile()
 
 const toBool = (value, defaultValue = false) => {
   if (value === undefined) return defaultValue

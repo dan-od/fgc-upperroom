@@ -1,12 +1,11 @@
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
-import path from 'node:path'
 
 import attendanceRoutes from './routes/attendance.js'
 import { autoGenerateSundaySession, getSocialLinkRedirectTarget } from './services/attendance.service.js'
+import { loadProjectEnvFile } from '../lib/load-project-env.js'
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') })
+loadProjectEnvFile()
 
 const app = express()
 const PORT = Number(process.env.ATTENDANCE_PORT || 4201)

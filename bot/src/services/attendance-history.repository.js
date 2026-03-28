@@ -1,5 +1,10 @@
 import { query } from '../db/connection.js'
 
+const deriveServiceDateFromSessionId = (sessionId = '') => {
+  const match = String(sessionId).trim().match(/^session-(\d{4}-\d{2}-\d{2})$/)
+  return match ? match[1] : ''
+}
+
 export const upsertAttendanceSession = async (session = {}) => {
   const sessionId = String(session.sessionId || '').trim()
   if (!sessionId) {
@@ -34,6 +39,22 @@ export const recordAttendanceCheckin = async (payload = {}) => {
   const sessionId = String(payload.sessionId || '').trim()
   if (!checkinId || !sessionId) {
     throw new Error('checkinId and sessionId are required')
+  }
+
+  const serviceDate = String(
+    payload.serviceDate ||
+    payload.sessionDate ||
+    deriveServiceDateFromSessionId(sessionId)
+  ).trim()
+
+  if (serviceDate) {
+    await upsertAttendanceSession({
+      sessionId,
+      serviceDate,
+      code: payload.sessionCode || payload.code || null,
+      qrTokenHash: payload.qrTokenHash || null,
+      sourceService: payload.sourceService || 'attendance-service'
+    })
   }
 
   const result = await query(

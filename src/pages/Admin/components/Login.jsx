@@ -118,7 +118,7 @@ const Login = ({ onLogin, onRequestReset, onConfirmReset }) => {
           <h1>{mode === 'login' ? 'Admin Login' : 'Password Reset'}</h1>
           <p>
             {mode === 'login'
-              ? 'Sign in with your admin account credentials'
+              ? 'Sign in with your server-backed admin account credentials'
               : 'Use a reset token to set a new admin password'}
           </p>
         </div>
@@ -210,7 +210,7 @@ const Login = ({ onLogin, onRequestReset, onConfirmReset }) => {
             </button>
 
             <p className="admin-login-help">
-              Tip: default seed credentials are created once. If they changed after first run, use password reset.
+              Use password reset if your seeded local admin password has already been changed.
             </p>
           </form>
         ) : null}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { SectionHeader } from '../../components/common'
+import { toAssetUrl } from '../../utils/appPaths'
 import './Team.css'
 
 const getInitials = (name) => {
@@ -23,8 +24,7 @@ const createWhatsAppLink = (phone, text = '') => {
 }
 
 const Team = () => {
-  const baseUrl = String(import.meta.env.BASE_URL || '/')
-  const withBasePath = (assetPath) => `${baseUrl}${String(assetPath || '').replace(/^\/+/, '')}`
+  const withBasePath = (assetPath) => toAssetUrl(String(assetPath || '').replace(/^\/+/, ''))
   const leadership = [
     {
       name: 'Rev. Olayemi Ayoko',
@@ -324,7 +324,7 @@ const Team = () => {
           <SectionHeader
             tag="Leadership"
             title="Our Shepherds"
-            subtitle="Spiritual leaders guiding our fellowship"
+            subtitle="Spiritual leaders guiding our church"
           />
           {featuredLeaders.length > 0 && (
             <div className="team-spotlight">
@@ -417,7 +417,7 @@ const Team = () => {
           <SectionHeader
             tag="Executive"
             title="Our Excos"
-            subtitle="Youth executives leading the fellowship"
+            subtitle="Youth executives leading the church"
           />
           <div className="team-grid team-grid--3">
             {excos.map((person, index) => (
@@ -452,7 +452,7 @@ const Team = () => {
           <SectionHeader
             tag="Departments"
             title="Our Units"
-            subtitle="Various departments serving in the fellowship"
+            subtitle="Various departments serving in the church"
           />
           <div className="dept-grid">
             {departments.map((dept, index) => {

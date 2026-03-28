@@ -5,7 +5,10 @@ import { Sidebar } from '../../components/Sidebar'
 import { BlogCard } from '../../components/BlogCard'
 import { subscribeVisitor, hasSubscribed } from '../../utils/subscribeApi'
 import { estimateReadTime, getPublicBlogPosts } from '../../utils/blogStorage'
+import { toAssetUrl } from '../../utils/appPaths'
 import './Blog.css'
+
+const DEFAULT_BLOG_IMAGE = toAssetUrl('assets/media/pictures/Senior Pastor_Home.jpeg')
 
 const formatPostDate = (value) => {
   const date = new Date(value)
@@ -62,7 +65,7 @@ const toPublicBlogPost = (post) => {
     date,
     category: toPublicCategory(post.category),
     tags: post.tags,
-    imageUrl: post.image || '/assets/media/default.jpg',
+    imageUrl: post.image || DEFAULT_BLOG_IMAGE,
     readTime: `${estimateReadTime(post.content)} min read`
   }
 }
@@ -76,6 +79,7 @@ const Blog = () => {
   const [subscribeMessage, setSubscribeMessage] = useState('')
   const [subscribeForm, setSubscribeForm] = useState({ name: '', phone: '', email: '' })
   const [posts, setPosts] = useState([])
+  const [shareCopied, setShareCopied] = useState(false)
   const modalTriggerRef = useRef(null)
   const blogModalPanelRef = useRef(null)
   const blogModalCloseRef = useRef(null)
@@ -83,21 +87,22 @@ const Blog = () => {
   const subscribeModalCloseRef = useRef(null)
 
   useEffect(() => {
-    const loadPosts = () => {
-      const publicPosts = getPublicBlogPosts().map(toPublicBlogPost)
+    const loadPosts = async () => {
+      const serverPosts = await getPublicBlogPosts()
+      const publicPosts = serverPosts.map(toPublicBlogPost)
       setPosts(publicPosts)
     }
 
-    loadPosts()
+    void loadPosts()
 
     const handleStorage = (event) => {
       if (!event.key || event.key === 'admin_blog_posts') {
-        loadPosts()
+        void loadPosts()
       }
     }
 
     const handleBlogUpdate = () => {
-      loadPosts()
+      void loadPosts()
     }
 
     window.addEventListener('storage', handleStorage)
@@ -188,11 +193,13 @@ const Blog = () => {
 
   const openBlogPostModal = (post) => {
     modalTriggerRef.current = document.activeElement
+    setShareCopied(false)
     setSelectedPost(post)
   }
 
   const closeBlogPostModal = () => {
     setSelectedPost(null)
+    setShareCopied(false)
     requestAnimationFrame(() => {
       modalTriggerRef.current?.focus()
     })
@@ -201,6 +208,32 @@ const Blog = () => {
   const handleSubscribeChange = (e) => {
     const { name, value } = e.target
     setSubscribeForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const sharePost = async (post, platform) => {
+    const url = encodeURIComponent(window.location.href)
+    const text = encodeURIComponent(`"${post.title}" — Upper Room Mgbuoba`)
+
+    const shareUrls = {
+      whatsapp: `https://wa.me/?text=${text}%20${url}`,
+      x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`
+    }
+
+    if (platform === 'copy') {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2500)
+      } catch {
+        setShareCopied(false)
+      }
+      return
+    }
+
+    if (shareUrls[platform]) {
+      window.open(shareUrls[platform], '_blank', 'width=620,height=420,noopener')
+    }
   }
 
   const handleSubscribeSubmit = async (e) => {
@@ -395,6 +428,43 @@ const Blog = () => {
                     </div>
                   </div>
 
+                  <div className="blog-modal__share" aria-label="Share this post">
+                    <span className="blog-modal__share-label">Share</span>
+                    <button
+                      type="button"
+                      className="blog-modal__share-btn blog-modal__share-btn--wa"
+                      aria-label="Share on WhatsApp"
+                      onClick={() => sharePost(selectedPost, 'whatsapp')}
+                    >
+                      <i className="fa-brands fa-whatsapp" aria-hidden="true" /> WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      className="blog-modal__share-btn blog-modal__share-btn--x"
+                      aria-label="Share on X"
+                      onClick={() => sharePost(selectedPost, 'x')}
+                    >
+                      <i className="fa-brands fa-x-twitter" aria-hidden="true" /> X
+                    </button>
+                    <button
+                      type="button"
+                      className="blog-modal__share-btn blog-modal__share-btn--fb"
+                      aria-label="Share on Facebook"
+                      onClick={() => sharePost(selectedPost, 'facebook')}
+                    >
+                      <i className="fa-brands fa-facebook" aria-hidden="true" /> Facebook
+                    </button>
+                    <button
+                      type="button"
+                      className="blog-modal__share-btn blog-modal__share-btn--copy"
+                      aria-label="Copy link"
+                      onClick={() => sharePost(selectedPost, 'copy')}
+                    >
+                      <i className="fa-solid fa-link" aria-hidden="true" /> Copy Link
+                    </button>
+                    {shareCopied && <span className="blog-modal__share-copied" role="status">✓ Copied!</span>}
+                  </div>
+
                   {selectedPost.category === 'Sunday School' && (
                     <button
                       type="button"
@@ -409,7 +479,13 @@ const Blog = () => {
                   <p className="blog-modal__excerpt">{selectedPost.excerpt}</p>
 
                   <div className="blog-modal__content">
-                    <p>{selectedPost.content}</p>
+                    {String(selectedPost.content || '').split(/\n\n+/).map((para, i) => (
+                      <p key={i}>
+                        {para.split('\n').map((line, j, arr) => (
+                          j < arr.length - 1 ? <span key={j}>{line}<br /></span> : <span key={j}>{line}</span>
+                        ))}
+                      </p>
+                    ))}
                   </div>
                 </div>
               </div>

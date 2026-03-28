@@ -2,6 +2,12 @@ import { query } from '../db/connection.js'
 import { logger } from '../lib/logger.js'
 import crypto from 'node:crypto'
 
+export const MESSAGE_TYPE_SERVICE_REMINDER = 'service_reminder'
+export const MESSAGE_TYPE_EVENT_REMINDER = 'event_reminder'
+export const MESSAGE_TYPE_EVENT_REMINDER_MEDIA = 'event_reminder_media'
+
+export const MESSAGE_SUCCESS_STATUSES = Object.freeze(['sent', 'delivered', 'read', 'skipped_duplicate'])
+
 const toFingerprint = ({ visitorId, eventId, messageText, messageType }) => {
   const seed = [
     String(visitorId || ''),
@@ -15,6 +21,39 @@ const toFingerprint = ({ visitorId, eventId, messageText, messageType }) => {
   }
 
   return crypto.createHash('sha256').update(seed).digest('hex')
+}
+
+export const listVisitorIdsWithMessageDispatch = async ({
+  messageTypes = [],
+  statuses = MESSAGE_SUCCESS_STATUSES,
+  startAt,
+  endAt
+} = {}) => {
+  const normalizedTypes = Array.isArray(messageTypes)
+    ? Array.from(new Set(messageTypes.map((item) => String(item || '').trim()).filter(Boolean)))
+    : []
+  const normalizedStatuses = Array.isArray(statuses)
+    ? Array.from(new Set(statuses.map((item) => String(item || '').trim()).filter(Boolean)))
+    : []
+
+  if (normalizedTypes.length === 0 || normalizedStatuses.length === 0 || !startAt || !endAt) {
+    return []
+  }
+
+  const result = await query(
+    `
+    SELECT DISTINCT visitor_id
+    FROM messages
+    WHERE visitor_id IS NOT NULL
+      AND message_type = ANY($1::text[])
+      AND status = ANY($2::text[])
+      AND created_at >= $3::timestamptz
+      AND created_at < $4::timestamptz
+    `,
+    [normalizedTypes, normalizedStatuses, startAt, endAt]
+  )
+
+  return result.rows.map((row) => String(row.visitor_id || '').trim()).filter(Boolean)
 }
 
 export const logMessageSent = async (data) => {

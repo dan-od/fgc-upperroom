@@ -1,3 +1,5 @@
+import { getAdminSessionToken } from './adminApi'
+import { toApiUrl, toAssetUrl } from './appPaths'
 export const BLOG_STORAGE_KEY = 'admin_blog_posts'
 
 export const BLOG_CATEGORIES = [
@@ -17,64 +19,11 @@ export const BLOG_WORKFLOW_STATUSES = [
 const CATEGORY_SET = new Set(BLOG_CATEGORIES.map((category) => category.value))
 const BLOG_STATUS_SET = new Set(BLOG_WORKFLOW_STATUSES.map((status) => status.value))
 
-const DEFAULT_BLOG_POSTS = [
-  {
-    id: 'seed-blog-1',
-    title: 'Called to the Upper Room',
-    content: `Acts 1:13-14 reminds us that the early believers gathered with one heart in prayer. The Upper Room is more than a meeting place for us; it is a posture of hunger for God's presence.
-
-This week, take ten minutes each day to pray for revival among young people in our fellowship. Ask God for boldness, holiness, and compassion for souls.
-
-As we stay together in prayer, we believe God will keep raising kingdom youths from Upper Room Mgbuoba.`,
-    category: 'devotional',
-    author: 'Upper Room Media Team',
-    excerpt: 'The Upper Room is not just a location. It is a posture of prayer, unity, and hunger for God.',
-    tags: 'prayer, revival, upper room',
-    featured: true,
-    status: 'published',
-    image: '/assets/media/Senior Pastor.jpeg',
-    createdAt: '2026-03-03T09:00:00.000Z'
-  },
-  {
-    id: 'seed-blog-2',
-    title: 'Sunday School Notes: Growing in Grace',
-    content: `Memory Verse: 2 Peter 3:18 - "But grow in the grace, and in the knowledge of our Lord and Saviour Jesus Christ."
-
-Lesson Outline:
-1. Growth is expected in every believer.
-2. Grace grows through prayer, scripture, and obedience.
-3. Community helps us stay accountable.
-
-Discussion Questions:
-- What habits are helping your spiritual growth right now?
-- What one habit will you start this week?`,
-    category: 'sunday-school',
-    author: 'Sunday School Unit',
-    excerpt: 'Structured lesson notes on practical steps for growing in grace and knowledge.',
-    tags: 'sunday school, discipleship, growth',
-    featured: false,
-    status: 'published',
-    image: '/assets/media/events/images/teens_summit2026.png',
-    createdAt: '2026-03-10T08:15:00.000Z'
-  },
-  {
-    id: 'seed-blog-3',
-    title: 'Why Fellowship Still Matters for Young Believers',
-    content: `In a world full of digital noise, true fellowship remains essential. When believers gather, we strengthen one another through worship, the Word, and shared testimonies.
-
-At Upper Room, fellowship creates room for mentorship, accountability, and healing conversations. Isolation weakens faith, but community fuels it.
-
-Plan to attend the next service and bring someone with you. Your presence could be the encouragement another person needs.`,
-    category: 'article',
-    author: 'Upper Room Editorial',
-    excerpt: 'Community is not optional in the Christian life. Fellowship strengthens faith and purpose.',
-    tags: 'community, youth, fellowship',
-    featured: false,
-    status: 'published',
-    image: '/assets/media/Senior Pastor.jpeg',
-    createdAt: '2026-03-15T18:30:00.000Z'
-  }
-]
+const buildAuthHeaders = (headers = {}) => {
+  const token = getAdminSessionToken()
+  if (!token) return headers
+  return { ...headers, Authorization: `Bearer ${token}` }
+}
 
 const normalizeCategory = (value) => {
   const normalized = String(value || 'article')
@@ -99,6 +48,7 @@ const normalizeStatus = (value) => {
 }
 
 const toISODate = (value) => {
+  if (!value) return new Date().toISOString()
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
 }
@@ -131,7 +81,7 @@ const normalizeTags = (tags) => {
     .join(', ')
 }
 
-const normalizePost = (post, index = 0) => {
+export const normalizePost = (post, index = 0) => {
   const title = String(post?.title || '').trim()
   const content = String(post?.content || '').trim()
 
@@ -205,36 +155,68 @@ export const estimateReadTime = (content) => {
   return Math.max(1, Math.round(words / 200))
 }
 
-export const readBlogPosts = () => {
+export const readBlogPosts = async () => {
   if (typeof window === 'undefined') {
     return []
   }
 
-  const raw = window.localStorage.getItem(BLOG_STORAGE_KEY)
-  if (!raw) {
-    return []
-  }
-
   try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return []
+    const response = await fetch(toApiUrl('/api/admin/blog'), {
+      headers: buildAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch admin blog posts')
     }
 
-    return sortPostsByDateDesc(parsed.map(normalizePost))
-  } catch {
-    return []
+    const payload = await response.json()
+    const posts = Array.isArray(payload?.data) ? payload.data : []
+    return sortPostsByDateDesc(posts.map(normalizePost))
+  } catch (error) {
+    console.error('Error reading blog posts from server:', error)
+    // Fallback to localStorage for single-user dev if server is down
+    const raw = window.localStorage.getItem(BLOG_STORAGE_KEY)
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      return sortPostsByDateDesc(Array.isArray(parsed) ? parsed.map(normalizePost) : [])
+    } catch {
+      return []
+    }
   }
 }
 
-export const writeBlogPosts = (posts) => {
+export const writeBlogPosts = async (posts) => {
   if (typeof window === 'undefined') {
     return
   }
 
   const normalized = sortPostsByDateDesc(posts.map((post, index) => normalizePost(post, index)))
-  window.localStorage.setItem(BLOG_STORAGE_KEY, JSON.stringify(normalized))
-  window.dispatchEvent(new CustomEvent('blogPostsUpdated'))
+
+  try {
+    const response = await fetch(toApiUrl('/api/admin/blog'), {
+      method: 'PUT',
+      headers: buildAuthHeaders({
+        'Content-Type': 'application/json'
+      }),
+      body: JSON.stringify({ posts: normalized })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData?.error || 'Failed to save blog posts to server')
+    }
+
+    // Still sync to local storage for instant UI updates across tabs in same browser if needed
+    window.localStorage.setItem(BLOG_STORAGE_KEY, JSON.stringify(normalized))
+    window.dispatchEvent(new CustomEvent('blogPostsUpdated'))
+  } catch (error) {
+    console.error('Error writing blog posts to server:', error)
+    // Fallback save to localStorage
+    window.localStorage.setItem(BLOG_STORAGE_KEY, JSON.stringify(normalized))
+    window.dispatchEvent(new CustomEvent('blogPostsUpdated'))
+    throw error
+  }
 }
 
 export const pushBlogVersion = (post, reason = 'revision') => {
@@ -279,36 +261,20 @@ export const applyBlogPublishingSchedule = (posts = []) => {
   return { posts: next, changed }
 }
 
-export const seedBlogPostsIfEmpty = () => {
+export const getPublicBlogPosts = async () => {
   if (typeof window === 'undefined') {
     return []
   }
 
-  const hasStoredPosts = window.localStorage.getItem(BLOG_STORAGE_KEY) !== null
-  if (hasStoredPosts) {
-    return readBlogPosts()
+  try {
+    const response = await fetch(toApiUrl('/blog'))
+    if (!response.ok) {
+      throw new Error('Failed to fetch public blog posts')
+    }
+    const payload = await response.json()
+    return Array.isArray(payload?.data) ? payload.data : []
+  } catch (error) {
+    console.error('Error fetching public blog posts:', error)
+    return []
   }
-
-  writeBlogPosts(DEFAULT_BLOG_POSTS)
-  return sortPostsByDateDesc(DEFAULT_BLOG_POSTS)
-}
-
-export const getPublicBlogPosts = () => {
-  if (typeof window === 'undefined') {
-    return DEFAULT_BLOG_POSTS.filter((post) => post.status === 'published')
-  }
-
-  const hasStoredPosts = window.localStorage.getItem(BLOG_STORAGE_KEY) !== null
-  const loadedPosts = readBlogPosts()
-
-  if (!hasStoredPosts) {
-    return DEFAULT_BLOG_POSTS.filter((post) => post.status === 'published')
-  }
-
-  const { posts, changed } = applyBlogPublishingSchedule(loadedPosts)
-  if (changed) {
-    writeBlogPosts(posts)
-  }
-
-  return posts.filter((post) => post.status === 'published')
 }

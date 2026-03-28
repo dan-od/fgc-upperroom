@@ -118,6 +118,48 @@ test('POST /bot/api/visitors validates and creates visitors', async () => {
   assert.equal(Array.isArray(visitor.duplicateRulesApplied), true)
 })
 
+test('GET /bot/api/visitors returns subscribed and unsubscribed visitor records for admin screens', async () => {
+  if (!canRunHttpTests) return
+
+  const firstCreate = await fetch(`${baseUrl}/bot/api/visitors`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Subscribed Visitor',
+      phoneNumber: '08090000001',
+      email: 'subscribed@example.com'
+    })
+  })
+  assert.equal(firstCreate.status, 201)
+
+  const secondCreate = await fetch(`${baseUrl}/bot/api/visitors`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Unsubscribed Visitor',
+      phoneNumber: '08090000002',
+      email: 'unsubscribed@example.com'
+    })
+  })
+  assert.equal(secondCreate.status, 201)
+
+  const unsubscribe = await fetch(`${baseUrl}/bot/api/visitors/08090000002/subscription`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ isSubscribed: false })
+  })
+  assert.equal(unsubscribe.status, 200)
+
+  const response = await fetch(`${baseUrl}/bot/api/visitors`)
+  assert.equal(response.status, 200)
+  const body = await response.json()
+
+  assert.equal(body.count, 2)
+  assert.equal(Array.isArray(body.visitors), true)
+  assert.equal(body.visitors.some((entry) => entry.phone_number === '+2348090000002' && entry.is_subscribed === false), true)
+  assert.equal(body.visitors.some((entry) => entry.phone_number === '+2348090000001' && entry.is_subscribed === true), true)
+})
+
 test('visitor reminder preference endpoints persist and return selected options', async () => {
   if (!canRunHttpTests) return
 

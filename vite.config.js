@@ -1,10 +1,13 @@
 // CI/CD Deploy Test - March 5 2026
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { DEFAULT_APP_BASE_PATH, normalizeBasePath } from './src/shared/pathing.js'
+
+const appBasePath = normalizeBasePath(process.env.VITE_APP_BASE_PATH || process.env.APP_BASE_PATH || DEFAULT_APP_BASE_PATH)
 
 export default defineConfig({
   plugins: [react()],
-  base: '/fgc-testing/',
+  base: appBasePath,
   build: {
     modulePreload: {
       polyfill: false
@@ -33,6 +36,14 @@ export default defineConfig({
             return 'vendor-react'
           }
 
+          if (id.includes('/lucide-react/')) {
+            return 'vendor-lucide'
+          }
+
+          if (id.includes('/motion/')) {
+            return 'vendor-motion'
+          }
+
         }
       }
     }
@@ -43,10 +54,6 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
-      },
-      '/fgc-testing/api': {
         target: 'http://localhost:3001',
         changeOrigin: true
       },
