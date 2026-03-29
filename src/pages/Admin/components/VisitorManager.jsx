@@ -383,8 +383,8 @@ const VisitorManager = () => {
           border: `1px solid ${ui.border}`,
           marginBottom: '1.5rem'
         }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <div style={{ flex: '1', minWidth: '280px', position: 'relative' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) repeat(2, minmax(0, 1fr))', gap: '1rem', marginBottom: '1rem', alignItems: 'stretch' }}>
+            <div style={{ minWidth: 0, position: 'relative' }}>
               <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: ui.textFaint }} />
               <input
                 type="text"

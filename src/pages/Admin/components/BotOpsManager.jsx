@@ -227,14 +227,15 @@ const BotOpsManager = ({ hasPermission = () => false }) => {
         style={{
           display: 'grid',
           gap: '0.85rem',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: 'minmax(0, 2.1fr) repeat(2, minmax(0, 1fr)) minmax(0, 0.9fr)',
           padding: '1rem',
           border: `1px solid ${border}`,
           borderRadius: '0.85rem',
-          background: surface
+          background: surface,
+          alignItems: 'stretch'
         }}
       >
-        <label style={{ display: 'grid', gap: '0.35rem', color: subtext, fontSize: '0.82rem' }}>
+        <label style={{ display: 'grid', gap: '0.35rem', color: subtext, fontSize: '0.82rem', minWidth: 0 }}>
           Search logs
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', border: `1px solid ${border}`, borderRadius: '0.55rem', background: panel, padding: '0 0.55rem' }}>
             <Search size={14} color={subtext} />
@@ -256,7 +257,7 @@ const BotOpsManager = ({ hasPermission = () => false }) => {
           </span>
         </label>
 
-        <label style={{ display: 'grid', gap: '0.35rem', color: subtext, fontSize: '0.82rem' }}>
+        <label style={{ display: 'grid', gap: '0.35rem', color: subtext, fontSize: '0.82rem', minWidth: 0 }}>
           Status
           <DropdownSelect
             value={logStatus}
@@ -273,7 +274,7 @@ const BotOpsManager = ({ hasPermission = () => false }) => {
           </DropdownSelect>
         </label>
 
-        <label style={{ display: 'grid', gap: '0.35rem', color: subtext, fontSize: '0.82rem' }}>
+        <label style={{ display: 'grid', gap: '0.35rem', color: subtext, fontSize: '0.82rem', minWidth: 0 }}>
           Rows
           <DropdownSelect
             value={String(logLimit)}
@@ -286,7 +287,7 @@ const BotOpsManager = ({ hasPermission = () => false }) => {
           </DropdownSelect>
         </label>
 
-        <div style={{ display: 'flex', alignItems: 'end', gap: '0.6rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'end', gap: '0.6rem', minWidth: 0 }}>
           <button
             type="button"
             onClick={() => void loadLogs()}
@@ -298,7 +299,9 @@ const BotOpsManager = ({ hasPermission = () => false }) => {
               padding: '0.55rem 0.75rem',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.35rem'
+              gap: '0.35rem',
+              justifyContent: 'center',
+              width: '100%'
             }}
           >
             <RefreshCw size={14} />

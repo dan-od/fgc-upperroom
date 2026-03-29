@@ -48,10 +48,10 @@
 }
 
 .admin-testimony__filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--space-md);
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: end;
 }
 
 .admin-testimony__search {
@@ -65,10 +65,12 @@
   color: var(--cup-blue-dark);
   box-shadow: var(--shadow-sm);
   flex: 1;
+  min-width: 0;
 }
 
 .admin-testimony__date-filter {
-  width: min(240px, 100%);
+  width: 100%;
+  min-width: 0;
 }
 
 .admin-testimony__search input {
@@ -79,6 +81,11 @@
   font-size: var(--text-sm);
   color: var(--dark);
   background: transparent;
+  min-width: 0;
+}
+
+.admin-testimony__filters > * {
+  min-width: 0;
 }
 
 .admin-testimony__search input:focus {

@@ -988,8 +988,8 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
           marginBottom: '1rem'
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
-          <div style={{ position: 'relative' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) repeat(3, minmax(0, 1fr))', gap: '0.75rem', alignItems: 'stretch' }}>
+          <div style={{ position: 'relative', minWidth: 0 }}>
             <Search
               size={18}
               style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: ui.textFaint }}
@@ -1013,6 +1013,7 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
             value={filterType}
             onChange={(event) => setFilterType(event.target.value)}
             style={{
+              minWidth: 0,
               padding: '0.75rem',
               border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
@@ -1029,6 +1030,7 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
             value={filterCategory}
             onChange={(event) => setFilterCategory(event.target.value)}
             style={{
+              minWidth: 0,
               padding: '0.75rem',
               border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
@@ -1047,6 +1049,7 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
             value={filterDate}
             onChange={(event) => setFilterDate(event.target.value)}
             style={{
+              minWidth: 0,
               padding: '0.75rem',
               border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',

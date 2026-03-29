@@ -1496,8 +1496,8 @@ const EventManager = ({ currentUser = null, hasPermission = () => false }) => {
         border: `1px solid ${ui.border}`,
         marginBottom: '1.5rem'
       }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) repeat(3, minmax(0, 1fr))', gap: '1rem', alignItems: 'stretch' }}>
+          <div style={{ minWidth: 0, position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: ui.textFaint }} />
             <input
               type="text"

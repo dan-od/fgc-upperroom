@@ -67,9 +67,13 @@
 
 .admin-blog__filters {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: minmax(0, 2.2fr) repeat(3, minmax(0, 1fr));
   gap: var(--space-md);
   align-items: center;
+}
+
+.admin-blog__filters > * {
+  min-width: 0;
 }
 
 .admin-blog__search {
