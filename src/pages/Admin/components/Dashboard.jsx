@@ -1,52 +1,136 @@
-import { useEffect, useState } from 'react'
-import { ArrowRight, Calendar, FileText, Heart, Image, TrendingUp, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, BarChart3, FileText, HandCoins, MessageSquare, TrendingUp, Users } from 'lucide-react'
+import { fetchAdminAnalytics, fetchAdminAuditLog } from '../../../utils/adminApi'
 import { useAdminTheme } from '../AdminThemeContext'
+
+const formatRelativeTime = (isoString) => {
+  if (!isoString) return 'just now'
+
+  const deltaMs = Date.now() - new Date(isoString).getTime()
+  const deltaSec = Math.max(1, Math.floor(deltaMs / 1000))
+
+  if (deltaSec < 60) return `${deltaSec}s ago`
+  const deltaMin = Math.floor(deltaSec / 60)
+  if (deltaMin < 60) return `${deltaMin}m ago`
+  const deltaHour = Math.floor(deltaMin / 60)
+  if (deltaHour < 24) return `${deltaHour}h ago`
+  const deltaDay = Math.floor(deltaHour / 24)
+  return `${deltaDay}d ago`
+}
+
+const titleize = (value = '') => {
+  return String(value || '')
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+const summarizeAuditEntry = (entry) => {
+  const action = titleize(entry?.action || 'activity')
+  const resource = titleize(entry?.resource || '')
+  const actor = String(entry?.actorEmail || 'System').trim()
+  return resource ? `${actor} • ${action} on ${resource}` : `${actor} • ${action}`
+}
 
 const Dashboard = ({ onNavigate }) => {
   const { darkMode } = useAdminTheme()
-  const [counts, setCounts] = useState({
-    events: 0,
-    media: 0,
-    blog: 0,
-    testimonies: 0,
-    visitors: 0
-  })
+  const [overview, setOverview] = useState(null)
+  const [activities, setActivities] = useState([])
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true)
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true)
+  const [summaryError, setSummaryError] = useState('')
+  const [activityError, setActivityError] = useState('')
 
   useEffect(() => {
-    const readArrayCount = (key) => {
-      const raw = localStorage.getItem(key)
-      if (!raw) return 0
-      try {
-        const parsed = JSON.parse(raw)
-        return Array.isArray(parsed) ? parsed.length : 0
-      } catch {
-        return 0
+    let isMounted = true
+
+    const loadDashboard = async () => {
+      setIsLoadingSummary(true)
+      setIsLoadingActivity(true)
+      setSummaryError('')
+      setActivityError('')
+
+      const [analyticsResult, auditResult] = await Promise.allSettled([
+        fetchAdminAnalytics({ windowDays: 30 }),
+        fetchAdminAuditLog({ limit: 6, offset: 0 })
+      ])
+
+      if (!isMounted) {
+        return
       }
+
+      if (analyticsResult.status === 'fulfilled') {
+        setOverview(analyticsResult.value?.overview || null)
+      } else {
+        setOverview(null)
+        setSummaryError(analyticsResult.reason?.message || 'Unable to load analytics summary.')
+      }
+
+      if (auditResult.status === 'fulfilled') {
+        setActivities(Array.isArray(auditResult.value?.data) ? auditResult.value.data : [])
+      } else {
+        setActivities([])
+        setActivityError(auditResult.reason?.message || 'Unable to load recent activity.')
+      }
+
+      setIsLoadingSummary(false)
+      setIsLoadingActivity(false)
     }
 
-    setCounts({
-      events: readArrayCount('admin_events'),
-      media: readArrayCount('admin_media'),
-      blog: readArrayCount('admin_blog_posts'),
-      testimonies: readArrayCount('admin_testimonies'),
-      visitors: readArrayCount('admin_visitors')
-    })
+    void loadDashboard()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  const stats = [
-    { label: 'Total Events', value: String(counts.events), icon: Calendar, color: '#5a4494', link: 'events' },
-    { label: 'Media Items', value: String(counts.media), icon: Image, color: '#2d3a7a', link: 'media' },
-    { label: 'Blog Posts', value: String(counts.blog), icon: FileText, color: '#d4a82e', link: 'blog' },
-    { label: 'Testimonies', value: String(counts.testimonies), icon: Heart, color: '#e11d48', link: 'testimonies' },
-    { label: 'Visitors', value: String(counts.visitors), icon: Users, color: '#10b981', link: 'visitors' }
-  ]
-
-  const recentActivities = [
-    { type: 'event', text: 'Event "Youth Summit 2026" created', time: '2 hours ago' },
-    { type: 'media', text: '12 new media items uploaded', time: '5 hours ago' },
-    { type: 'blog', text: 'New blog post published', time: '1 day ago' },
-    { type: 'visitor', text: '23 new subscribers joined', time: '1 day ago' }
-  ]
+  const stats = useMemo(() => ([
+    {
+      label: 'Page Views',
+      value: overview ? String(overview.pageViews ?? 0) : '--',
+      icon: TrendingUp,
+      color: '#5a4494',
+      link: 'analytics'
+    },
+    {
+      label: 'Active Subscribers',
+      value: overview ? String(overview.activeSubscribers ?? 0) : '--',
+      icon: Users,
+      color: '#10b981',
+      link: 'visitors'
+    },
+    {
+      label: 'Contact Submissions',
+      value: overview ? String(overview.contactSubmissions ?? 0) : '--',
+      icon: MessageSquare,
+      color: '#2d3a7a',
+      link: 'analytics'
+    },
+    {
+      label: 'Successful Giving',
+      value: overview ? String(overview.givingSuccessfulTransactions ?? 0) : '--',
+      icon: HandCoins,
+      color: '#d4a82e',
+      link: 'giving'
+    },
+    {
+      label: 'Published Blog Posts',
+      value: overview ? String(overview.publishedBlogPosts ?? 0) : '--',
+      icon: FileText,
+      color: '#e11d48',
+      link: 'blog'
+    },
+    {
+      label: 'Audit Events',
+      value: overview ? String(overview.auditEvents ?? 0) : '--',
+      icon: BarChart3,
+      color: '#0ea5e9',
+      link: 'auditLog'
+    }
+  ]), [overview])
 
   const surface = darkMode ? '#1a2235' : 'white'
   const borderColor = darkMode ? '#2a3550' : '#e5e7eb'
@@ -56,96 +140,127 @@ const Dashboard = ({ onNavigate }) => {
   const rowBg = darkMode ? '#222c40' : '#f9fafb'
 
   return (
-    <div>
+    <>
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', color: textPrimary }}>
           Dashboard
         </h1>
         <p style={{ margin: 0, color: textSecondary }}>
-          Manage your website content and monitor activity
+          Monitor live ministry operations from analytics and audit activity instead of browser-local counts.
         </p>
       </div>
 
-      <div style={{ overflowX: 'auto', paddingBottom: '0.35rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(220px, 1fr))', gap: '1.5rem', minWidth: '1160px' }}>
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <div
-                key={stat.label}
-                onClick={() => onNavigate(stat.link)}
-                style={{
-                  background: surface,
-                  padding: '1.5rem',
-                  borderRadius: '0.75rem',
-                  border: `1px solid ${borderColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s, box-shadow 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                <div
+      {summaryError && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.85rem 1rem',
+          borderRadius: '0.6rem',
+          background: darkMode ? '#3b1f28' : '#fef2f2',
+          border: `1px solid ${darkMode ? '#6b2336' : '#fecaca'}`,
+          color: darkMode ? '#fecdd3' : '#991b1b',
+          fontSize: '0.875rem',
+          fontWeight: 600
+        }}>
+          {summaryError}
+        </div>
+      )}
+
+      <div className="admin-dashboard-stats-wrapper">
+        <div className="admin-dashboard-stats-container">
+          <div className="admin-dashboard-stats-grid">
+            {stats.map((stat) => {
+              const Icon = stat.icon
+              return (
+                <button
+                  key={stat.label}
+                  type="button"
+                  className="admin-dashboard-stat-card"
+                  onClick={() => onNavigate(stat.link)}
                   style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '0.75rem',
-                    background: `${stat.color}15`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: stat.color
+                    '--stat-surface': surface,
+                    '--stat-border': borderColor,
+                    '--stat-color': stat.color,
+                    '--stat-accent-bg': `${stat.color}15`,
+                    '--stat-label-color': textSecondary,
+                    '--stat-value-color': textPrimary,
+                    '--stat-arrow-color': darkMode ? '#5a7099' : '#9ca3af',
+                    opacity: isLoadingSummary ? 0.85 : 1
                   }}
                 >
-                  <Icon size={24} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.875rem', color: textSecondary }}>
-                    {stat.label}
+                  <div
+                    className="admin-dashboard-stat-card__icon"
+                  >
+                    <Icon size={20} />
                   </div>
-                  <div style={{ fontSize: '1.875rem', fontWeight: 700, color: textPrimary }}>
-                    {stat.value}
+                  <div className="admin-dashboard-stat-card__content">
+                    <div className="admin-dashboard-stat-card__label">
+                      {stat.label}
+                    </div>
+                    <div className="admin-dashboard-stat-card__value">
+                      {isLoadingSummary ? '...' : stat.value}
+                    </div>
                   </div>
-                </div>
-                <ArrowRight size={20} style={{ color: darkMode ? '#5a7099' : '#9ca3af' }} />
-              </div>
-            )
-          })}
+                  <ArrowRight size={16} className="admin-dashboard-stat-card__arrow" />
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-        <div style={{ 
-          background: surface, 
-          padding: '1.5rem', 
+      <div className="admin-dashboard-content-grid">
+        <div style={{
+          background: surface,
+          padding: '1.5rem',
           borderRadius: '0.75rem',
           border: `1px solid ${borderColor}`
         }}>
           <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', color: textPrimary }}>
             Recent Activity
           </h2>
+
+          {activityError && (
+            <div style={{
+              marginBottom: '1rem',
+              padding: '0.85rem 1rem',
+              borderRadius: '0.6rem',
+              background: darkMode ? '#3b1f28' : '#fef2f2',
+              border: `1px solid ${darkMode ? '#6b2336' : '#fecaca'}`,
+              color: darkMode ? '#fecdd3' : '#991b1b',
+              fontSize: '0.875rem',
+              fontWeight: 600
+            }}>
+              {activityError}
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {recentActivities.map((activity, index) => (
-              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: rowBg, borderRadius: '0.5rem' }}>
-                <span style={{ fontSize: '0.875rem', color: textLabel }}>{activity.text}</span>
-                <span style={{ fontSize: '0.75rem', color: darkMode ? '#5a7099' : '#9ca3af' }}>{activity.time}</span>
+            {isLoadingActivity && (
+              <div style={{ padding: '0.75rem', background: rowBg, borderRadius: '0.5rem', color: textSecondary }}>
+                Loading recent activity...
+              </div>
+            )}
+
+            {!isLoadingActivity && !activities.length && !activityError && (
+              <div style={{ padding: '0.75rem', background: rowBg, borderRadius: '0.5rem', color: textSecondary }}>
+                No audit activity yet.
+              </div>
+            )}
+
+            {!isLoadingActivity && activities.map((activity) => (
+              <div key={activity.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.75rem', background: rowBg, borderRadius: '0.5rem' }}>
+                <span style={{ fontSize: '0.875rem', color: textLabel }}>{summarizeAuditEntry(activity)}</span>
+                <span style={{ fontSize: '0.75rem', color: darkMode ? '#5a7099' : '#9ca3af', whiteSpace: 'nowrap' }}>
+                  {formatRelativeTime(activity.createdAt)}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        <div style={{ 
-          background: surface, 
-          padding: '1.5rem', 
+        <div style={{
+          background: surface,
+          padding: '1.5rem',
           borderRadius: '0.75rem',
           border: `1px solid ${borderColor}`
         }}>
@@ -170,13 +285,13 @@ const Dashboard = ({ onNavigate }) => {
               }}
             >
               Create Event
-              <Calendar size={16} />
+              <BarChart3 size={16} />
             </button>
             <button
-              onClick={() => onNavigate('media')}
+              onClick={() => onNavigate('visitors')}
               style={{
                 padding: '0.75rem 1.5rem',
-                background: '#2d3a7a',
+                background: '#10b981',
                 color: 'white',
                 border: 'none',
                 borderRadius: '0.5rem',
@@ -188,8 +303,8 @@ const Dashboard = ({ onNavigate }) => {
                 justifyContent: 'space-between'
               }}
             >
-              Upload Media
-              <Image size={16} />
+              Review Visitors
+              <Users size={16} />
             </button>
             <button
               onClick={() => onNavigate('blog')}
@@ -211,26 +326,7 @@ const Dashboard = ({ onNavigate }) => {
               <FileText size={16} />
             </button>
             <button
-              onClick={() => onNavigate('testimonies')}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#e11d48',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              Add Testimony
-              <Heart size={16} />
-            </button>
-            <button
-              onClick={() => onNavigate('analytics')}
+              onClick={() => onNavigate('auditLog')}
               style={{
                 padding: '0.75rem 1.5rem',
                 background: darkMode ? '#1e2840' : 'white',
@@ -245,13 +341,13 @@ const Dashboard = ({ onNavigate }) => {
                 justifyContent: 'space-between'
               }}
             >
-              View Analytics
-              <TrendingUp size={16} />
+              Open Audit Log
+              <ArrowRight size={16} />
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

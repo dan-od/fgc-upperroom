@@ -3,14 +3,14 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import dotenv from 'dotenv'
 import pg from 'pg'
+import { loadProjectEnvFile } from '../lib/load-project-env.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const rootDir = path.resolve(__dirname, '..')
 
-dotenv.config({ path: path.join(rootDir, '.env') })
+loadProjectEnvFile({ envPath: path.join(rootDir, '.env') })
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const { Client } = pg

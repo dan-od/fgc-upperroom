@@ -1,6 +1,5 @@
 import { getAdminSessionToken } from './adminApi'
-const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-const toApiUrl = (path) => `${BASE_URL}${path}`
+import { toApiUrl } from './appPaths'
 
 const buildAuthHeaders = (headers = {}) => {
   const token = getAdminSessionToken()

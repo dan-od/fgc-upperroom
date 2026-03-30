@@ -17,7 +17,9 @@ export const messages = {
         about: 'About',
         team: 'Team',
         events: 'Events',
+        live: 'Live',
         media: 'Media',
+        giving: 'Giving',
         blog: 'Blog',
         contact: 'Contact'
       },
@@ -64,6 +66,7 @@ export const messages = {
       heroTagline: 'Raising Kingdom Youths!',
       joinUs: 'Join Us',
       aboutUs: 'About Us',
+      heroLiveCta: 'Watch Live',
       scroll: 'Scroll',
       newsletterTitle: 'Never Miss an Event',
       newsletterIntro:
@@ -74,11 +77,44 @@ export const messages = {
       newsletterEmailPlaceholder: 'Your Email Address',
       newsletterSubmit: 'Subscribe & Get Updates',
       newsletterSubmitting: 'Subscribing...',
-      closeNewsletterModal: 'Close newsletter sign-up modal'
+      closeNewsletterModal: 'Close newsletter sign-up modal',
+      liveModalTitle: 'Live Service Stream',
+      liveModalSubtitle: 'Join the broadcast right here without leaving this page.',
+      liveModalLoading: 'Connecting to live stream...',
+      liveModalError: 'Unable to load live stream right now.',
+      liveModalOffline: 'We are not live at the moment.',
+      liveModalFallback: 'Join directly on YouTube while we prepare the in-page stream.',
+      liveModalOpenYoutube: 'Open on YouTube',
+      closeLiveModal: 'Close live stream modal'
     },
     about: {
       bannerTitle: 'About Us',
       bannerSubtitle: 'Discover who we are and what we believe'
+    },
+    live: {
+      errorFallback: 'Unable to load live stream details right now.',
+      heroEyebrow: 'Live + On Demand',
+      heroTitle: 'Worship Live. Watch Anytime.',
+      heroSubtitle:
+        'Join Sunday service live when broadcast is active. When we are offline, catch up with the latest message and recent sermons on demand.',
+      loading: 'Loading live stream status...',
+      setupRequired: 'YouTube integration needs setup in environment variables.',
+      iframeTitleFallback: 'Live stream',
+      liveNow: 'Live Now',
+      offlineLabel: 'We are offline right now',
+      nextService: 'Next Service: Sunday, 8:00 AM (WAT)',
+      offlineHint: 'Come back at service time, or watch the latest sermon while you wait.',
+      watchLatestSermon: 'Watch Latest Sermon',
+      openMediaArchive: 'Open Media Archive',
+      latestVideo: 'Latest Video',
+      noVideo: 'No video available yet.',
+      latestSermonAlt: 'Latest sermon',
+      watchNow: 'Watch Now',
+      browseArchive: 'Browse full media archive',
+      recentSermons: 'Recent On-Demand Sermons',
+      viewAll: 'View all',
+      sermonCover: 'Sermon cover',
+      watchOnYoutube: 'Watch on YouTube'
     }
   },
   pcm: {
@@ -92,7 +128,9 @@ export const messages = {
         about: 'About Us',
         team: 'Our Team',
         events: 'Programs',
+        live: 'Live',
         media: 'Media Hub',
+        giving: 'Giving',
         blog: 'Stories',
         contact: 'Reach Us'
       },
@@ -139,6 +177,7 @@ export const messages = {
       heroTagline: 'We dey raise kingdom youths!',
       joinUs: 'Join Us',
       aboutUs: 'About Us',
+      heroLiveCta: 'Watch Live',
       scroll: 'Scroll',
       newsletterTitle: 'No Miss Any Event',
       newsletterIntro:
@@ -149,11 +188,44 @@ export const messages = {
       newsletterEmailPlaceholder: 'Your Email Address',
       newsletterSubmit: 'Subscribe & Get Updates',
       newsletterSubmitting: 'Subscribing...',
-      closeNewsletterModal: 'Close newsletter sign-up modal'
+      closeNewsletterModal: 'Close newsletter sign-up modal',
+      liveModalTitle: 'Live Service Stream',
+      liveModalSubtitle: 'Join the broadcast for here without comot this page.',
+      liveModalLoading: 'Dey connect to live stream...',
+      liveModalError: 'We no fit load live stream now now.',
+      liveModalOffline: 'We never dey live right now.',
+      liveModalFallback: 'Join direct for YouTube while we dey prepare in-page stream.',
+      liveModalOpenYoutube: 'Open for YouTube',
+      closeLiveModal: 'Close live stream modal'
     },
     about: {
       bannerTitle: 'About Us',
       bannerSubtitle: 'Know who we be and wetin we believe'
+    },
+    live: {
+      errorFallback: 'We no fit load live stream details now now.',
+      heroEyebrow: 'Live + On Demand',
+      heroTitle: 'Worship Live. Watch Anytime.',
+      heroSubtitle:
+        'Join Sunday service live when broadcast dey active. If we offline, catch up with latest message and recent sermons anytime.',
+      loading: 'Dey load live stream status...',
+      setupRequired: 'YouTube integration need setup for environment variables.',
+      iframeTitleFallback: 'Live stream',
+      liveNow: 'Live Now',
+      offlineLabel: 'We offline right now',
+      nextService: 'Next Service: Sunday, 8:00 AM (WAT)',
+      offlineHint: 'Come back when service start, or watch latest sermon as you dey wait.',
+      watchLatestSermon: 'Watch Latest Sermon',
+      openMediaArchive: 'Open Media Archive',
+      latestVideo: 'Latest Video',
+      noVideo: 'No video available yet.',
+      latestSermonAlt: 'Latest sermon',
+      watchNow: 'Watch Now',
+      browseArchive: 'Browse full media archive',
+      recentSermons: 'Recent On-Demand Sermons',
+      viewAll: 'View all',
+      sermonCover: 'Sermon cover',
+      watchOnYoutube: 'Watch on YouTube'
     }
   }
 }

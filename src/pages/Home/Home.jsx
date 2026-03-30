@@ -1,44 +1,287 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { Button, SectionHeader, Card } from '../../components/common'
+import { Button, SectionHeader } from '../../components/common'
 import { subscribeVisitor, hasSubscribed } from '../../utils/subscribeApi'
+import { trackRumEvent } from '../../utils/rum'
+import { getAttendanceCurrent } from '../../utils/attendanceApi'
+import { getClientAttendanceWindowStatus } from '../../utils/attendanceWindow'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../components/common/SocialIcons'
 import ServiceBar from '../../components/layout/ServiceBar/ServiceBar'
-import { Countdown, FoursquareIcons, Testimonials } from '../../components/features'
+import { Countdown, FoursquareIcons, Testimonials, GivingModal } from '../../components/features'
 import { useI18n } from '../../i18n/LanguageContext'
+import { toAssetUrl } from '../../utils/appPaths'
 import './Home.css'
 
-// Hero Section
-const Hero = ({ t }) => (
-  <section className="hero">
-    <div className="hero__overlay" />
-    <div className="hero__content">
-      <div className="hero__logo hero__logo-icons" aria-label="Foursquare Gospel Symbols">
-        <img src="./assets/icons/icon-cross.png" alt="Jesus the Savior symbol" className="hero__logo-icon" />
-        <img src="./assets/icons/icon-dove.png" alt="Jesus the Baptizer symbol" className="hero__logo-icon" />
-        <img src="./assets/icons/icon-cup.png" alt="Jesus the Healer symbol" className="hero__logo-icon" />
-        <img src="./assets/icons/icon-crown.png" alt="Jesus the Coming King symbol" className="hero__logo-icon" />
-      </div>
-      <p className="hero__welcome">
-        {t('home.heroWelcome', 'Welcome to')}<br />
-        The
-      </p>
-      <img src="./assets/logos/upper_white.png" alt="Upperroom Mgbuoba" className="hero__title" />
-      <p className="hero__tagline">{t('home.heroTagline', 'Raising Kingdom Youths!')}</p>
 
-      <Countdown variant="hero" />
+// ─── Hero Section ─────────────────────────────────────────────────────────────
 
-      <div className="hero__actions">
-        <Button href="#new-here" variant="white" size="lg">{t('home.joinUs', 'Join Us')}</Button>
-        <Button href="/about" variant="outline-light" size="lg">{t('home.aboutUs', 'About Us')}</Button>
+const CHURCH_ADDRESS = '36 Shell Location Road, Mgbuoba, Port Harcourt, Rivers State, Nigeria'
+const HERO_ICONS = {
+  cross: toAssetUrl('assets/icons/icon-cross.png'),
+  dove: toAssetUrl('assets/icons/icon-dove.png'),
+  cup: toAssetUrl('assets/icons/icon-cup.png'),
+  crown: toAssetUrl('assets/icons/icon-crown.png')
+}
+const HERO_WORDMARK = toAssetUrl('assets/logos/upper_white.png')
+const PASTOR_PHOTO = toAssetUrl('assets/media/pictures/Senior Pastor_Home.jpeg')
+const HERO_SUNDAY_CACHE_KEY = 'upperroom_hero_sunday_mode'
+
+const readCachedSundayMode = () => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.sessionStorage.getItem(HERO_SUNDAY_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    const cachedAt = Number(parsed?.cachedAt || 0)
+    if (!cachedAt || Date.now() - cachedAt > 5 * 60 * 1000) {
+      window.sessionStorage.removeItem(HERO_SUNDAY_CACHE_KEY)
+      return null
+    }
+
+    if (typeof parsed?.isSunday === 'boolean') {
+      return parsed.isSunday
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+const writeCachedSundayMode = (isSunday) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.sessionStorage.setItem(HERO_SUNDAY_CACHE_KEY, JSON.stringify({
+      isSunday: Boolean(isSunday),
+      cachedAt: Date.now()
+    }))
+  } catch {
+    // Ignore storage issues and continue with in-memory state only.
+  }
+}
+
+const getInitialSundayMode = () => {
+  const cachedMode = readCachedSundayMode()
+  if (typeof cachedMode === 'boolean') {
+    return cachedMode
+  }
+
+  return getClientAttendanceWindowStatus().isOpen
+}
+
+const Hero = ({ t }) => {
+  const [isSunday, setIsSunday] = useState(getInitialSundayMode)
+  const [showAddress, setShowAddress] = useState(false)
+  const [showGiving, setShowGiving] = useState(false)
+  const [givingFund, setGivingFund] = useState('general')
+  const addressModalRef = useRef(null)
+  const addressCloseRef = useRef(null)
+
+  // Keep the hero CTA aligned with the attendance service's Sunday window.
+  useEffect(() => {
+    let mounted = true
+
+    const syncSundayWindow = async () => {
+      const result = await getAttendanceCurrent()
+      if (!mounted) {
+        return
+      }
+
+      if (!result.ok || !result.data) {
+        const fallbackWindow = getClientAttendanceWindowStatus()
+        setIsSunday(fallbackWindow.isOpen)
+        writeCachedSundayMode(fallbackWindow.isOpen)
+        return
+      }
+
+      const serverWindow = result.data?.window
+      const nextSundayMode = typeof serverWindow?.isOpen === 'boolean'
+        ? serverWindow.isOpen
+        : typeof result.data?.open === 'boolean'
+          ? result.data.open
+          : getClientAttendanceWindowStatus().isOpen
+
+      setIsSunday(nextSundayMode)
+      writeCachedSundayMode(nextSundayMode)
+    }
+
+    syncSundayWindow()
+    const timer = setInterval(syncSundayWindow, 30000)
+
+    return () => {
+      mounted = false
+      clearInterval(timer)
+    }
+  }, [])
+
+  // Focus trap for address modal
+  useEffect(() => {
+    if (!showAddress) {
+      document.body.classList.remove('modal-open')
+      return
+    }
+    document.body.classList.add('modal-open')
+    const focusTimer = window.setTimeout(() => {
+      addressCloseRef.current?.focus()
+    }, 40)
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') { setShowAddress(false); return }
+      if (e.key !== 'Tab') return
+      const panel = addressModalRef.current
+      if (!panel) return
+      const focusable = panel.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])')
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', handleKeydown)
+    return () => {
+      window.clearTimeout(focusTimer)
+      document.body.classList.remove('modal-open')
+      document.removeEventListener('keydown', handleKeydown)
+    }
+  }, [showAddress])
+
+  const openGivingModal = (fund = 'general') => {
+    setGivingFund(fund)
+    setShowGiving(true)
+  }
+
+  return (
+    <section className={`hero${isSunday ? ' hero--sunday' : ''}`}>
+      <div className="hero__overlay" />
+      <div className="hero__content">
+        <div className="hero__logo hero__logo-icons" aria-label="Foursquare Gospel Symbols">
+          <img src={HERO_ICONS.cross} alt="Jesus the Savior symbol" className="hero__logo-icon" />
+          <img src={HERO_ICONS.dove} alt="Jesus the Baptizer symbol" className="hero__logo-icon" />
+          <img src={HERO_ICONS.cup} alt="Jesus the Healer symbol" className="hero__logo-icon" />
+          <img src={HERO_ICONS.crown} alt="Jesus the Coming King symbol" className="hero__logo-icon" />
+        </div>
+        <p className="hero__welcome">
+          {t('home.heroWelcome', 'Welcome to')}<br />The
+        </p>
+        <img src={HERO_WORDMARK} alt="Upperroom Mgbuoba" className="hero__title" />
+        <p className="hero__tagline">{t('home.heroTagline', 'Raising Kingdom Youths!')}</p>
+
+        <Countdown variant="hero" />
+
+        <div className={`hero__actions${isSunday ? ' hero__actions--sunday' : ''}`}>
+          {/* Left button: locked "Join Live" on Sundays, "Join Us" otherwise */}
+          {isSunday ? (
+            <Button
+              variant="outline-light"
+              size="lg"
+              className="hero__action-btn hero__action-btn--live hero__action-btn--sunday"
+              onClick={() => setShowAddress(true)}
+            >
+              <i className="fa-solid fa-lock" aria-hidden="true" style={{ fontSize: '0.85em' }} />
+              {t('home.heroLiveCta', 'Join Live')}
+            </Button>
+          ) : (
+            <Button href="#new-here" variant="white" size="lg" className="hero__action-btn">
+              {t('home.joinUs', 'Join Us')}
+            </Button>
+          )}
+
+          {/* Right button: Sunday Offering on Sundays, general Give otherwise */}
+          {isSunday ? (
+            <Button
+              variant="outline-light"
+              size="lg"
+              className="hero__action-btn hero__action-btn--sunday"
+              onClick={() => {
+                trackRumEvent({ metric: 'SUNDAY_OFFERING_CTA_CLICK', value: 1, source: 'hero-sunday-cta' })
+                openGivingModal('sunday-offering')
+              }}
+            >
+              Sunday Offering
+            </Button>
+          ) : (
+            <Button
+              variant="outline-light"
+              size="lg"
+              className="hero__action-btn"
+              onClick={() => openGivingModal('general')}
+            >
+              Give
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
-    <div className="hero__scroll">
-      <span>{t('home.scroll', 'Scroll')}</span>
-      <div className="hero__scroll-line" />
-    </div>
-  </section>
-)
+
+      <div className="hero__scroll">
+        <span>{t('home.scroll', 'Scroll')}</span>
+        <div className="hero__scroll-line" />
+      </div>
+
+      {/* Church Address modal (locked live button) */}
+      {showAddress && (
+        <div
+          className="hero-live-modal-overlay"
+          onClick={() => setShowAddress(false)}
+        >
+          <div
+            ref={addressModalRef}
+            className="hero-live-modal hero-address-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hero-address-modal-title"
+          >
+            <button
+              ref={addressCloseRef}
+              type="button"
+              className="hero-live-modal__close"
+              aria-label={t('home.closeAddressModal', 'Close')}
+              onClick={() => setShowAddress(false)}
+            >
+              <i className="fa-solid fa-xmark" aria-hidden="true" />
+            </button>
+            <div className="hero-address-modal__icon">
+              <i className="fa-solid fa-location-dot" aria-hidden="true" />
+            </div>
+            <h2 id="hero-address-modal-title">{t('home.addressModalTitle', 'We Are Live!')}</h2>
+            <p className="hero-live-modal__subtitle">
+              {t(
+                'home.addressModalBody',
+                'We are holding our Sunday service in person right now. Please visit us at:'
+              )}
+            </p>
+            <address className="hero-address-modal__address">
+              {CHURCH_ADDRESS}
+            </address>
+            <div className="hero-live-modal__actions">
+              <Button
+                href={`https://maps.google.com/?q=${encodeURIComponent(CHURCH_ADDRESS)}`}
+                external
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="outline-light"
+                size="md"
+              >
+                <i className="fa-solid fa-map" aria-hidden="true" style={{ marginRight: '0.4em' }} />
+                {t('home.addressModalDirections', 'Get Directions')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Giving Modal */}
+      <GivingModal
+        isOpen={showGiving}
+        onClose={() => setShowGiving(false)}
+        defaultFund={givingFund}
+        ctaRef={isSunday ? 'hero-sunday-cta' : 'hero-give-cta'}
+      />
+    </section>
+  )
+}
 
 // Pastor Welcome Section
 const PastorWelcome = () => (
@@ -46,20 +289,20 @@ const PastorWelcome = () => (
     <div className="container">
       <div className="pastor-welcome__grid">
         <div className="pastor-welcome__image">
-          <img src='assets/media/pictures/Senior Pastor_Home.jpeg' alt="Pastor Photo" />
+          <img src={PASTOR_PHOTO} alt="Pastor Photo" />
         </div>
         <div className="pastor-welcome__content">
           <span className="pastor-welcome__tag">From Our Senior Pastor</span>
           <h2>Welcome to Our Family</h2>
           <p>
-            On behalf of the entire Foursquare Gospel Church, Mgbuoba Zonal Headquarters, 
-            I warmly welcome you to our youth fellowship - The Upperroom. We believe that God 
-            has a special plan for every young person, and we are committed to helping you 
+            On behalf of the entire Foursquare Gospel Church, Mgbuoba Zonal Headquarters,
+            I warmly welcome you to our youth fellowship - The Upperroom. We believe that God
+            has a special plan for every young person, and we are committed to helping you
             discover and fulfill that purpose.
           </p>
           <p>
-            Whether you're seeking spiritual growth, meaningful relationships, or a place 
-            to belong, you'll find it here. Come as you are, and let's grow together in 
+            Whether you're seeking spiritual growth, meaningful relationships, or a place
+            to belong, you'll find it here. Come as you are, and let's grow together in
             the knowledge and grace of our Lord Jesus Christ.
           </p>
           <div className="pastor-welcome__signature">
@@ -79,25 +322,25 @@ const WhatWeBelieve = () => {
       title: 'Jesus the Savior',
       description: 'Salvation through faith in Jesus Christ, who died for our sins and rose for our justification.',
       color: 'red',
-      icon: '/fgc-testing/assets/icons/icon-cross.png'
+      icon: HERO_ICONS.cross
     },
     {
       title: 'Jesus the Baptizer',
       description: 'Baptism of the Holy Spirit with evidence of speaking in tongues, empowering believers.',
       color: 'yellow',
-      icon: '/fgc-testing/assets/icons/icon-dove.png'
+      icon: HERO_ICONS.dove
     },
     {
       title: 'Jesus the Healer',
       description: 'Divine healing through faith in Jesus Christ, who bore our sicknesses and diseases.',
       color: 'blue',
-      icon: '/fgc-testing/assets/icons/icon-cup.png'
+      icon: HERO_ICONS.cup
     },
     {
       title: 'Jesus the Coming Soon King',
       description: 'The imminent, personal return of our Lord Jesus Christ to establish His kingdom.',
       color: 'purple',
-      icon: '/fgc-testing/assets/icons/icon-crown.png'
+      icon: HERO_ICONS.crown
     }
   ]
 
@@ -114,7 +357,7 @@ const WhatWeBelieve = () => {
           {beliefs.map((belief, index) => (
             <div key={index} className={`beliefs__card beliefs__card--${belief.color}`}>
               <div className="beliefs__card-header">
-                  <img src={belief.icon} alt="" className="beliefs__icon" />
+                <img src={belief.icon} alt="" className="beliefs__icon" />
                 <h3>{belief.title}</h3>
               </div>
               <p>{belief.description}</p>
@@ -199,11 +442,11 @@ const SocialMedia = () => {
         />
         <div className="social-section__grid">
           {socials.map((social) => (
-            <a 
+            <a
               key={social.name}
-              href={social.url} 
-              className="social-section__card" 
-              target="_blank" 
+              href={social.url}
+              className="social-section__card"
+              target="_blank"
               rel="noopener noreferrer"
             >
               <div className="social-section__icon">

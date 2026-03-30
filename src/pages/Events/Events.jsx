@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { SectionHeader, Button } from '../../components/common'
+import { SectionHeader, Button, DropdownSelect } from '../../components/common'
 import { subscribeVisitor } from '../../utils/subscribeApi'
 import {
   createDefaultRegistrationMethods,
@@ -7,7 +7,10 @@ import {
   fetchBotEvents,
   mapBotEventToPublicEvent
 } from '../../utils/eventsApi'
+import { toAssetUrl } from '../../utils/appPaths'
 import './Events.css'
+
+const DEFAULT_EVENT_IMAGE = toAssetUrl('assets/media/pictures/Senior Pastor_Home.jpeg')
 
 const toWhatsAppLink = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '')
@@ -110,7 +113,7 @@ const Events = () => {
         price: String(item?.price || 'Free').trim() || 'Free',
         organizer: String(item?.organizer || 'Youth Ministry').trim() || 'Youth Ministry',
         contact: String(item?.contact || 'upperroom@fgcmgbuoba.org').trim() || 'upperroom@fgcmgbuoba.org',
-        image: String(item?.imageUrl || item?.image || './assets/media/Senior Pastor.jpeg').trim() || './assets/media/Senior Pastor.jpeg',
+        image: String(item?.imageUrl || item?.image || DEFAULT_EVENT_IMAGE).trim() || DEFAULT_EVENT_IMAGE,
         registrationLink: String(item?.registrationLink || '/contact').trim() || '/contact'
       }
     }
@@ -120,24 +123,6 @@ const Events = () => {
         const botEvents = await fetchBotEvents()
         setEvents(botEvents.map(mapBotEventToPublicEvent))
         return
-      } catch {
-        // Fallback to local cache so the page still works when the bot is offline.
-      }
-
-      try {
-        const raw = localStorage.getItem('admin_events')
-        if (!raw) {
-          setEvents([])
-          return
-        }
-
-        const parsed = JSON.parse(raw)
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          setEvents([])
-          return
-        }
-
-        setEvents(parsed.map(normalizeAdminEvent))
       } catch {
         setEvents([])
       }
@@ -149,10 +134,8 @@ const Events = () => {
     }
 
     window.addEventListener('adminEventsUpdated', handleRefresh)
-    window.addEventListener('storage', handleRefresh)
     return () => {
       window.removeEventListener('adminEventsUpdated', handleRefresh)
-      window.removeEventListener('storage', handleRefresh)
     }
   }, [])
 
@@ -833,7 +816,7 @@ const Events = () => {
                 </button>
 
                 <div className="calendar-month-selectors">
-                  <select
+                  <DropdownSelect
                     className="calendar-select"
                     value={displayedMonthIndex}
                     onChange={handleMonthSelect}
@@ -842,9 +825,9 @@ const Events = () => {
                     {monthNames.map((month, index) => (
                       <option key={month} value={index}>{month}</option>
                     ))}
-                  </select>
+                  </DropdownSelect>
 
-                  <select
+                  <DropdownSelect
                     className="calendar-select"
                     value={displayedMonthYear}
                     onChange={handleYearSelect}
@@ -853,7 +836,7 @@ const Events = () => {
                     {availableYears.map((year) => (
                       <option key={year} value={year}>{year}</option>
                     ))}
-                  </select>
+                  </DropdownSelect>
                 </div>
 
                 <button type="button" className="calendar-nav-btn" onClick={nextMonth} aria-label="Next month">
@@ -1299,7 +1282,7 @@ const Events = () => {
                   <label className="event-newsletter__preferences-label" htmlFor="event-reminder-frequency">
                     How often should we remind you?
                   </label>
-                  <select
+                  <DropdownSelect
                     id="event-reminder-frequency"
                     className="event-newsletter__select"
                     value={subReminderFrequency}
@@ -1309,7 +1292,7 @@ const Events = () => {
                     <option value="daily">Daily (closer countdown updates)</option>
                     <option value="weekly">Weekly (recommended)</option>
                     <option value="key-dates">Key dates only (30/14/7/3/1 days)</option>
-                  </select>
+                  </DropdownSelect>
 
                   <div className="event-newsletter__scope">
                     <label className="event-newsletter__scope-option">

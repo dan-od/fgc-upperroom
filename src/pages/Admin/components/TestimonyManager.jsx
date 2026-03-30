@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, Plus, Search, Trash2, Edit2 } from 'lucide-react'
-import { readTestimonies, seedTestimoniesIfEmpty, writeTestimonies } from '../../../utils/testimonyStorage'
+import { DropdownSelect } from '../../../components/common'
+import { ADMIN_DATE_FILTER_OPTIONS, matchesAdminDateFilter } from '../../../utils/adminDateFilters'
+import { readAdminTestimonies, writeAdminTestimonies } from '../../../utils/testimonyStorage'
+import AdminModal from './AdminModal'
 import './TestimonyManager.css'
 
 const createEmptyTestimony = () => ({
@@ -12,20 +15,88 @@ const createEmptyTestimony = () => ({
   updatedAt: null
 })
 
-const TestimonyManager = () => {
+const TestimonyManager = ({ currentUser = null, hasPermission = () => false }) => {
   const [view, setView] = useState('list')
   const [testimonies, setTestimonies] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterDate, setFilterDate] = useState('all')
   const [formData, setFormData] = useState(createEmptyTestimony)
   const [notice, setNotice] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const canWrite = hasPermission('content:testimonies:write')
+
+  // Modal system
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    tone: 'info',
+    onConfirm: null,
+    showInput: false,
+    inputValue: '',
+    inputPlaceholder: '',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel'
+  })
+
+  const closeModal = () => setModalConfig((prev) => ({ ...prev, isOpen: false }))
+  const openModal = (config) => setModalConfig({
+    isOpen: true,
+    title: config.title || 'Are you sure?',
+    message: config.message || '',
+    tone: config.tone || 'info',
+    onConfirm: config.onConfirm || null,
+    showInput: !!config.showInput,
+    inputValue: config.initialValue || '',
+    inputPlaceholder: config.inputPlaceholder || '',
+    confirmLabel: config.confirmLabel || 'Confirm',
+    cancelLabel: config.cancelLabel || 'Cancel'
+  })
+
+  const handleModalConfirm = () => {
+    if (modalConfig.onConfirm) {
+      modalConfig.onConfirm(modalConfig.inputValue)
+    }
+    closeModal()
+  }
 
   useEffect(() => {
-    setTestimonies(seedTestimoniesIfEmpty())
+    let isMounted = true
+
+    const loadTestimonies = async () => {
+      setIsLoading(true)
+
+      try {
+        const items = await readAdminTestimonies()
+        if (isMounted) {
+          setTestimonies(items)
+        }
+      } catch (error) {
+        if (isMounted) {
+          setTestimonies([])
+          setNotice({ tone: 'error', text: error?.message || 'Unable to load testimonies right now.' })
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadTestimonies()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  const persist = (items) => {
-    setTestimonies(items)
-    writeTestimonies(items)
+  const persist = async (items) => {
+    setIsSaving(true)
+    const saved = await writeAdminTestimonies(items)
+    setTestimonies(saved)
+    setIsSaving(false)
+    return saved
   }
 
   const resetForm = () => {
@@ -44,7 +115,7 @@ const TestimonyManager = () => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const name = formData.name.trim()
     const quote = formData.quote.trim()
     const role = formData.role.trim()
@@ -72,12 +143,17 @@ const TestimonyManager = () => {
         updatedAt: null
       }
 
-      persist([newTestimony, ...testimonies])
-      setNotice({
-        tone: 'success',
-        text: name ? 'Testimony added.' : 'Testimony added as Anonymous.'
-      })
-      resetForm()
+      try {
+        await persist([newTestimony, ...testimonies])
+        setNotice({
+          tone: 'success',
+          text: name ? 'Testimony added.' : 'Testimony added as Anonymous.'
+        })
+        resetForm()
+      } catch (error) {
+        setIsSaving(false)
+        setNotice({ tone: 'error', text: error?.message || 'Unable to save testimony right now.' })
+      }
       return
     }
 
@@ -86,12 +162,17 @@ const TestimonyManager = () => {
       return { ...item, ...payload }
     })
 
-    persist(updated)
-    setNotice({
-      tone: 'success',
-      text: name ? 'Testimony updated.' : 'Testimony updated as Anonymous.'
-    })
-    resetForm()
+    try {
+      await persist(updated)
+      setNotice({
+        tone: 'success',
+        text: name ? 'Testimony updated.' : 'Testimony updated as Anonymous.'
+      })
+      resetForm()
+    } catch (error) {
+      setIsSaving(false)
+      setNotice({ tone: 'error', text: error?.message || 'Unable to update testimony right now.' })
+    }
   }
 
   const handleEdit = (item) => {
@@ -106,10 +187,21 @@ const TestimonyManager = () => {
       ? `Delete testimony from ${selected.name}? This cannot be undone.`
       : 'Delete this testimony? This cannot be undone.'
 
-    if (!window.confirm(confirmMessage)) return
-
-    persist(testimonies.filter((item) => item.id !== id))
-    setNotice({ tone: 'success', text: 'Testimony removed.' })
+    openModal({
+      title: 'Delete Testimony',
+      message: confirmMessage,
+      tone: 'danger',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        try {
+          await persist(testimonies.filter((item) => item.id !== id))
+          setNotice({ tone: 'success', text: 'Testimony removed.' })
+        } catch (error) {
+          setIsSaving(false)
+          setNotice({ tone: 'error', text: error?.message || 'Unable to delete testimony right now.' })
+        }
+      }
+    })
   }
 
   const formatStamp = (value) => {
@@ -133,8 +225,8 @@ const TestimonyManager = () => {
         item.role.toLowerCase().includes(term) ||
         item.quote.toLowerCase().includes(term)
       )
-    })
-  }, [testimonies, searchTerm])
+    }).filter((item) => matchesAdminDateFilter(item.updatedAt || item.createdAt, filterDate))
+  }, [testimonies, searchTerm, filterDate])
 
   const stats = useMemo(() => {
     return {
@@ -161,7 +253,7 @@ const TestimonyManager = () => {
           </div>
         </div>
 
-        <form className="admin-testimony__form" onSubmit={(e) => { e.preventDefault(); handleSave() }}>
+        <form className="admin-testimony__form" onSubmit={(e) => { e.preventDefault(); void handleSave() }}>
           <label className="admin-testimony__field">
             <span>Name</span>
             <input
@@ -198,7 +290,7 @@ const TestimonyManager = () => {
 
           <div className="admin-testimony__actions">
             <button type="submit" className="admin-testimony__primary-btn">
-              {view === 'create' ? 'Add Testimony' : 'Update Testimony'}
+              {isSaving ? 'Saving...' : view === 'create' ? 'Add Testimony' : 'Update Testimony'}
             </button>
             <button type="button" onClick={resetForm} className="admin-testimony__ghost-btn">
               Cancel
@@ -218,10 +310,12 @@ const TestimonyManager = () => {
           <h1>Testimonies</h1>
           <p>Create, edit, and manage member testimonies shown on the public site.</p>
         </div>
-        <button type="button" onClick={openCreate} className="admin-testimony__primary-btn">
-          <Plus size={16} />
-          <span>New Testimony</span>
-        </button>
+        {canWrite && (
+          <button type="button" onClick={openCreate} className="admin-testimony__primary-btn">
+            <Plus size={16} />
+            <span>New Testimony</span>
+          </button>
+        )}
       </div>
 
       <div className="admin-testimony__stats">
@@ -241,10 +335,23 @@ const TestimonyManager = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </label>
+        <DropdownSelect
+          value={filterDate}
+          onChange={(event) => setFilterDate(event.target.value)}
+          wrapperClassName="admin-testimony__date-filter"
+        >
+          {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </DropdownSelect>
       </div>
 
       <div className="admin-testimony__list">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="admin-testimony__empty">
+            <p>Loading testimonies...</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="admin-testimony__empty">
             <p>No testimonies found.</p>
             <p>Use the button above to add your first testimony.</p>
@@ -260,14 +367,16 @@ const TestimonyManager = () => {
                   Last updated: {formatStamp(item.updatedAt || item.createdAt)}
                 </p>
               </div>
-              <div className="admin-testimony__actions">
-                <button onClick={() => handleEdit(item)} className="admin-testimony__icon-btn" title="Edit">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => handleDelete(item.id)} className="admin-testimony__icon-btn" title="Delete">
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              {canWrite && (
+                <div className="admin-testimony__actions">
+                  <button onClick={() => handleEdit(item)} className="admin-testimony__icon-btn" title="Edit">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(item.id)} className="admin-testimony__icon-btn" title="Delete">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
             </div>
           ))
         )}

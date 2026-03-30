@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Button } from '../../components/common'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Button, DropdownSelect } from '../../components/common'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../components/common/SocialIcons'
 import { submitContactForm } from '../../utils/contactApi'
 import './Contact.css'
@@ -15,6 +16,13 @@ const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [status, setStatus] = useState(null)
   const [statusMessage, setStatusMessage] = useState('')
+  const [searchParams] = useSearchParams()
+
+  // Sync subject dropdown with ?subject= query param (reset to '' when absent)
+  useEffect(() => {
+    const subjectParam = searchParams.get('subject') || ''
+    setFormData((prev) => ({ ...prev, subject: subjectParam }))
+  }, [searchParams])
 
   const validateForm = () => {
     const name = formData.name.trim()
@@ -219,21 +227,26 @@ const Contact = () => {
                 </div>
                 <div className="form-group">
                   <label htmlFor="subject">Subject</label>
-                  <select
+                  <DropdownSelect
                     id="subject"
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
+                    placeholder="Select a subject"
                     required
                     disabled={isSubmitting}
                   >
-                    <option value="">Select a subject</option>
                     <option value="general">General Inquiry</option>
                     <option value="visit">Plan a Visit</option>
                     <option value="prayer">Prayer Request</option>
                     <option value="join">Join a Department</option>
                     <option value="other">Other</option>
-                  </select>
+                  </DropdownSelect>
+                  {formData.subject === 'prayer' && (
+                    <p style={{ marginTop: '0.55rem', fontSize: '0.85rem', color: '#5a4494', fontStyle: 'italic', lineHeight: 1.6 }}>
+                      Your request will be held in confidence. Our prayer team will lift you up and one of our leaders will reach out personally.
+                    </p>
+                  )}
                 </div>
                 <div className="form-group">
                   <label htmlFor="message">Your Message</label>
@@ -249,7 +262,10 @@ const Contact = () => {
                   />
                 </div>
                 <Button type="submit" variant="primary" size="lg" disabled={isSubmitting}>
-                  {isSubmitting ? 'Sending...' : 'Send Message'}
+                  {isSubmitting
+                    ? (formData.subject === 'prayer' ? 'Sending Prayer Request...' : 'Sending...')
+                    : (formData.subject === 'prayer' ? 'Send Prayer Request' : 'Send Message')
+                  }
                 </Button>
               </form>
             </div>

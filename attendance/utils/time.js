@@ -62,11 +62,13 @@ export const isAttendanceWindowOpen = (date = new Date()) => {
 }
 
 export const getWindowStatus = (date = new Date()) => {
+  const closesAt = `${formatServiceDate(date)}T18:00:00+01:00`
+
   if (isTestWindowForcedOpen()) {
     return {
       isOpen: true,
       isSunday: true,
-      closesAt: null,
+      closesAt,
       timezone: LAGOS_TZ,
       testMode: true
     }
@@ -79,7 +81,8 @@ export const getWindowStatus = (date = new Date()) => {
   return {
     isOpen,
     isSunday,
-    closesAt: isSunday ? `${formatServiceDate(date)}T18:00:00+01:00` : null,
-    timezone: LAGOS_TZ
+    closesAt: isSunday ? closesAt : null,
+    timezone: LAGOS_TZ,
+    testMode: false
   }
 }

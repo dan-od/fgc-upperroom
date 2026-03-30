@@ -2,7 +2,7 @@ import { createBotApp } from './app.js'
 import { env } from './config/env.js'
 import { logger } from './lib/logger.js'
 import { initDatabase } from './db/connection.js'
-import { registerSchedulerJobs, startEventCacheRefresh } from './scheduler/reminder.scheduler.js'
+import { registerSchedulerJobs, runStartupReminderCatchup, startEventCacheRefresh } from './scheduler/reminder.scheduler.js'
 import { checkAlertThresholds, triggerWebhookAlert } from './services/monitoring.service.js'
 import { sendOpenClawAlertDigest } from './services/openclaw.service.js'
 
@@ -22,6 +22,9 @@ startEventCacheRefresh()
 
 if (env.ENABLE_SCHEDULER) {
   registerSchedulerJobs()
+  runStartupReminderCatchup().catch((error) => {
+    logger.error('Startup reminder catch-up failed', { error: error.message })
+  })
 }
 
 setInterval(async () => {

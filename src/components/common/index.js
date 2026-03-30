@@ -1,3 +1,6 @@
 export { default as Button } from './Button/Button'
 export { default as SectionHeader } from './SectionHeader/SectionHeader'
 export { default as Card } from './Card/Card'
+export { default as DropdownSelect } from './DropdownSelect/DropdownSelect'
+export { default as LoadingScreen } from './LoadingScreen/LoadingScreen'
+export { FeedbackProvider, useFeedback } from './Feedback/FeedbackProvider'

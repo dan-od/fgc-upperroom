@@ -744,3 +744,88 @@
     padding: var(--space-lg) var(--space-md) var(--space-xl);
   }
 }
+
+/* ── Share bar ─────────────────────────────────────────── */
+.blog-modal__share {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid color-mix(in srgb, var(--gray-200) 85%, var(--white));
+}
+
+.blog-modal__share-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-500);
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.blog-modal__share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--gray-300) 80%, transparent);
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  transition: transform var(--transition-fast), background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  background: transparent;
+  cursor: pointer;
+}
+
+.blog-modal__share-btn:hover {
+  transform: translateY(-1px);
+}
+
+.blog-modal__share-btn--wa {
+  color: #25d366;
+  border-color: rgba(37, 211, 102, 0.35);
+}
+.blog-modal__share-btn--wa:hover {
+  background: rgba(37, 211, 102, 0.1);
+}
+
+.blog-modal__share-btn--x {
+  color: var(--dark);
+  border-color: color-mix(in srgb, var(--gray-400) 50%, transparent);
+}
+.blog-modal__share-btn--x:hover {
+  background: color-mix(in srgb, var(--gray-200) 50%, transparent);
+}
+
+.blog-modal__share-btn--fb {
+  color: #1877f2;
+  border-color: rgba(24, 119, 242, 0.30);
+}
+.blog-modal__share-btn--fb:hover {
+  background: rgba(24, 119, 242, 0.08);
+}
+
+.blog-modal__share-btn--copy {
+  color: var(--cup-blue-dark);
+  border-color: color-mix(in srgb, var(--cup-blue) 30%, transparent);
+}
+.blog-modal__share-btn--copy:hover {
+  background: color-mix(in srgb, var(--cup-blue) 8%, transparent);
+}
+
+.blog-modal__share-copied {
+  font-size: 0.68rem;
+  color: #198754;
+  font-weight: 600;
+  margin-left: auto;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { readTestimonies } from '../../../utils/testimonyStorage'
+import { readPublicTestimonies } from '../../../utils/testimonyStorage'
 import './Testimonials.css'
 
 const Testimonials = () => {
@@ -7,11 +7,28 @@ const Testimonials = () => {
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
-    const load = () => setTestimonials(readTestimonies({ fallbackToDefaultOnEmpty: true }))
+    let isMounted = true
 
-    load()
+    const load = async () => {
+      try {
+        const items = await readPublicTestimonies()
+        if (isMounted) {
+          setTestimonials(items)
+        }
+      } catch {
+        if (isMounted) {
+          setTestimonials([])
+        }
+      }
+    }
+
+    void load()
     window.addEventListener('testimoniesUpdated', load)
-    return () => window.removeEventListener('testimoniesUpdated', load)
+
+    return () => {
+      isMounted = false
+      window.removeEventListener('testimoniesUpdated', load)
+    }
   }, [])
 
   useEffect(() => {

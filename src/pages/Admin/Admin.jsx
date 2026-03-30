@@ -5,14 +5,20 @@ import {
   Bell,
   Calendar,
   FileText,
+  HandCoins,
   Heart,
   Image,
   LayoutDashboard,
   Lock,
   LogOut,
+  MessageSquare,
   QrCode,
+  ScrollText,
   Settings as SettingsIcon,
-  Users
+  UserCog,
+  Users,
+  Menu,
+  X
 } from 'lucide-react'
 import { Moon, Sun } from 'lucide-react'
 import Login from './components/Login'
@@ -22,18 +28,26 @@ const loadMediaManager = () => import('./components/MediaManager')
 const loadBlogManager = () => import('./components/BlogManager')
 const loadTestimonyManager = () => import('./components/TestimonyManager')
 const loadVisitorManager = () => import('./components/VisitorManager')
+const loadBotOpsManager = () => import('./components/BotOpsManager')
 const loadAttendanceManager = () => import('./components/AttendanceManager')
 const loadAnalytics = () => import('./components/Analytics')
+const loadGivingManager = () => import('./components/GivingManager')
 const loadSettings = () => import('./components/Settings')
+const loadAdminUsers = () => import('./components/AdminUsers')
+const loadAuditLog = () => import('./components/AuditLog')
 
 const EventManager = lazy(loadEventManager)
 const MediaManager = lazy(loadMediaManager)
 const BlogManager = lazy(loadBlogManager)
 const TestimonyManager = lazy(loadTestimonyManager)
 const VisitorManager = lazy(loadVisitorManager)
+const BotOpsManager = lazy(loadBotOpsManager)
 const AttendanceManager = lazy(loadAttendanceManager)
 const Analytics = lazy(loadAnalytics)
+const GivingManager = lazy(loadGivingManager)
 const Settings = lazy(loadSettings)
+const AdminUsers = lazy(loadAdminUsers)
+const AuditLog = lazy(loadAuditLog)
 import './Admin.css'
 import { AdminThemeContext } from './AdminThemeContext'
 import { ADMIN_SETTINGS_STORAGE_KEY, ADMIN_SETTINGS_UPDATED_EVENT, readAdminSettings } from '../../utils/adminSettings'
@@ -61,33 +75,11 @@ const formatRelativeTime = (isoString) => {
   return `${deltaDay}d ago`
 }
 
-const readArrayCount = (key) => {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return 0
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.length : 0
-  } catch {
-    return 0
-  }
-}
-
-const readDraftCount = () => {
-  try {
-    const raw = localStorage.getItem('admin_blog_posts')
-    if (!raw) return 0
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return 0
-    return parsed.filter((post) => String(post?.status || '').toLowerCase() === 'draft').length
-  } catch {
-    return 0
-  }
-}
-
 const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authUser, setAuthUser] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('adminDark') === '1')
@@ -108,55 +100,7 @@ const Admin = () => {
     setNotificationsEnabled(next)
   }
 
-  const buildFrontendNotifications = () => {
-    const eventsCount = readArrayCount('admin_events')
-    const mediaCount = readArrayCount('admin_media')
-    const visitorsCount = readArrayCount('admin_visitors')
-    const draftCount = readDraftCount()
-
-    const list = []
-    if (eventsCount === 0) {
-      list.push({
-        id: 'frontend-events-empty',
-        source: 'frontend',
-        level: 'warning',
-        title: 'No events published',
-        detail: 'Add at least one upcoming event so visitors see active schedules.'
-      })
-    }
-
-    if (mediaCount === 0) {
-      list.push({
-        id: 'frontend-media-empty',
-        source: 'frontend',
-        level: 'info',
-        title: 'Media gallery is empty',
-        detail: 'Upload media items to improve homepage and media page engagement.'
-      })
-    }
-
-    if (draftCount > 0) {
-      list.push({
-        id: 'frontend-blog-drafts',
-        source: 'frontend',
-        level: 'info',
-        title: `${draftCount} blog draft${draftCount > 1 ? 's' : ''} pending`,
-        detail: 'Review and publish drafts when ready.'
-      })
-    }
-
-    if (visitorsCount === 0) {
-      list.push({
-        id: 'frontend-no-visitors',
-        source: 'frontend',
-        level: 'info',
-        title: 'No visitor records yet',
-        detail: 'Visitor records will appear after subscriptions and admin additions.'
-      })
-    }
-
-    return list
-  }
+  const buildFrontendNotifications = () => []
 
   const fetchJsonWithTimeout = async (url, timeoutMs = 5000) => {
     const controller = new AbortController()
@@ -302,9 +246,13 @@ const Admin = () => {
     blog: loadBlogManager,
     testimonies: loadTestimonyManager,
     visitors: loadVisitorManager,
+    botOps: loadBotOpsManager,
     attendance: loadAttendanceManager,
     analytics: loadAnalytics,
-    settings: loadSettings
+    giving: loadGivingManager,
+    settings: loadSettings,
+    adminUsers: loadAdminUsers,
+    auditLog: loadAuditLog
   }
 
   useEffect(() => {
@@ -393,7 +341,7 @@ const Admin = () => {
     await logoutAdmin()
     setAuthUser(null)
     setIsAuthenticated(false)
-    navigate('/')
+    navigate('/admin')
   }
 
   const hasPermission = (permission) => canAdmin(authUser?.role, permission)
@@ -403,55 +351,92 @@ const Admin = () => {
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      description: 'High-level ministry performance, publishing velocity, and activity snapshots.'
+      description: 'High-level ministry performance, publishing velocity, and activity snapshots.',
+      permission: null
     },
     {
       id: 'events',
       label: 'Events',
       icon: Calendar,
-      description: 'Organize event schedules, service timelines, and communication plans.'
+      description: 'Organize event schedules, service timelines, and communication plans.',
+      permission: 'content:event:read'
     },
     {
       id: 'media',
       label: 'Media',
       icon: Image,
-      description: 'Upload and curate visual assets used across pages and announcements.'
+      description: 'Upload and curate visual assets used across pages and announcements.',
+      permission: 'content:media:read'
     },
     {
       id: 'blog',
       label: 'Blog',
       icon: FileText,
-      description: 'Create polished posts and manage publishing quality from one workspace.'
+      description: 'Create polished posts and manage publishing quality from one workspace.',
+      permission: 'content:blog:read'
     },
     {
       id: 'testimonies',
       label: 'Testimonies',
       icon: Heart,
-      description: 'Upload and manage member testimonies shown publicly.'
+      description: 'Upload and manage member testimonies shown publicly.',
+      permission: 'content:testimonies:read'
     },
     {
       id: 'visitors',
       label: 'Visitors',
       icon: Users,
-      description: 'Track visitor records and follow-up engagement data in one view.'
+      description: 'Track visitor records and follow-up engagement data in one view.',
+      permission: 'content:visitors:read'
+    },
+    {
+      id: 'botOps',
+      label: 'Bot Ops',
+      icon: MessageSquare,
+      description: 'Preview reminders, import visitors, and review message delivery.',
+      permission: 'content:visitors:read'
     },
     {
       id: 'attendance',
       label: 'Attendance',
       icon: QrCode,
-      description: 'Generate Sunday attendance code and QR for service sharing.'
+      description: 'Generate Sunday attendance code and QR for service sharing.',
+      permission: 'content:attendance:read'
+    },
+    {
+      id: 'giving',
+      label: 'Giving',
+      icon: HandCoins,
+      description: 'Review donation transactions, filter records, inspect timeline, and export reconciliation CSV.',
+      permission: 'giving:read'
     },
     {
       id: 'analytics',
       label: 'Analytics',
       icon: BarChart3,
-      description: 'Review trends, channel performance, and audience engagement metrics.'
+      description: 'Review trends, channel performance, and audience engagement metrics.',
+      permission: 'analytics:read'
     },
     {
       id: 'settings',
       label: 'Settings',
       icon: SettingsIcon,
-      description: 'Configure admin defaults, security options, and operational preferences.'
+      description: 'Configure admin defaults, security options, and operational preferences.',
+      permission: 'admin:settings:manage'
+    },
+    {
+      id: 'adminUsers',
+      label: 'Admin Users',
+      icon: UserCog,
+      description: 'Manage admin accounts, roles, and access — create, edit, or remove users.',
+      permission: 'admin:users:manage'
+    },
+    {
+      id: 'auditLog',
+      label: 'Audit Log',
+      icon: ScrollText,
+      description: 'Full history of who changed what and when — filterable and exportable.',
+      permission: 'audit:read'
     }
   ]
 
@@ -477,22 +462,38 @@ const Admin = () => {
     }
 
     if (activeTab === 'testimonies') {
-      return <TestimonyManager />
+      return <TestimonyManager currentUser={authUser} hasPermission={hasPermission} />
     }
 
     if (activeTab === 'visitors') {
-      return <VisitorManager />
+      return <VisitorManager currentUser={authUser} hasPermission={hasPermission} />
+    }
+
+    if (activeTab === 'botOps') {
+      return <BotOpsManager currentUser={authUser} hasPermission={hasPermission} />
     }
 
     if (activeTab === 'attendance') {
-      return <AttendanceManager />
+      return <AttendanceManager currentUser={authUser} hasPermission={hasPermission} />
     }
 
     if (activeTab === 'analytics') {
-      return <Analytics />
+      return <Analytics currentUser={authUser} hasPermission={hasPermission} />
     }
 
-    return <Settings currentUser={authUser} hasPermission={hasPermission} />
+    if (activeTab === 'giving') {
+      return <GivingManager currentUser={authUser} hasPermission={hasPermission} />
+    }
+
+    if (activeTab === 'adminUsers') {
+      return <AdminUsers currentUser={authUser} hasPermission={hasPermission} />
+    }
+
+    if (activeTab === 'auditLog') {
+      return <AuditLog currentUser={authUser} hasPermission={hasPermission} />
+    }
+
+    return <Settings currentUser={authUser} hasPermission={hasPermission} onNavigate={setActiveTab} />
   }
 
   const issueCount = notificationItems.filter((item) => item.level === 'error' || item.level === 'warning').length
@@ -521,7 +522,7 @@ const Admin = () => {
   return (
     <AdminThemeContext.Provider value={{ darkMode, toggleDark }}>
     <div className={`admin-container${darkMode ? ' admin-dark' : ''}`}>
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="admin-logo">
           <div className="admin-logo__icon">
             <Lock size={22} />
@@ -530,16 +531,22 @@ const Admin = () => {
             <h2>Admin Center</h2>
             <p>Upperroom Workspace</p>
           </div>
+          <button className="admin-sidebar-close" onClick={() => setMobileMenuOpen(false)}>
+            <X size={20} />
+          </button>
         </div>
 
         <nav className="admin-nav">
-          {tabs.map((tab) => {
+          {tabs.filter((tab) => !tab.permission || hasPermission(tab.permission)).map((tab) => {
             const Icon = tab.icon
             return (
               <button
                 key={tab.id}
                 className={`admin-nav-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  setMobileMenuOpen(false)
+                }}
                 onMouseEnter={() => componentPreloaders[tab.id]?.()}
                 onFocus={() => componentPreloaders[tab.id]?.()}
               >
@@ -556,12 +563,21 @@ const Admin = () => {
         </button>
       </aside>
 
+      {mobileMenuOpen && (
+        <div className="admin-sidebar-backdrop open" onClick={() => setMobileMenuOpen(false)}></div>
+      )}
+
       <main className="admin-main admin-page">
         <header className="admin-main__header">
-          <div>
-            <p className="admin-main__eyebrow">Operations Workspace</p>
-            <h1>{activeTabMeta.label}</h1>
-            <p>{activeTabMeta.description}</p>
+          <div className="admin-header__left">
+            <button className="admin-mobile-toggle" onClick={() => setMobileMenuOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <p className="admin-main__eyebrow">Operations Workspace</p>
+              <h1>{activeTabMeta.label}</h1>
+              <p>{activeTabMeta.description}</p>
+            </div>
           </div>
           <div className="admin-main__meta">
             <div className="admin-notifications" ref={notificationRef}>
@@ -642,9 +658,9 @@ const Admin = () => {
               onClick={toggleDark}
               title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+              {darkMode ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <span>{authUser?.name ? `${authUser.name} (${authUser.role})` : 'Session Active'}</span>
+            <span className="admin-user-badge">{authUser?.name ? `${authUser.name} (${authUser.role})` : 'Session Active'}</span>
           </div>
         </header>
 
