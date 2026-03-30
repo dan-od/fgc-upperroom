@@ -1,8 +1,11 @@
-const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-const toApiUrl = (path) => `${BASE_URL}${path}`
+import { toApiUrl } from './appPaths'
+import { roleHasPermission } from '../shared/admin-permissions'
 
 export const ADMIN_SESSION_TOKEN_KEY = 'admin_session_token_v1'
 const ADMIN_FALLBACK_PASSWORD_KEY = 'admin_password_override_v1'
+const ADMIN_FALLBACK_ENABLED =
+  import.meta.env.DEV &&
+  String(import.meta.env.VITE_ENABLE_ADMIN_FALLBACK_LOGIN || '').trim().toLowerCase() === 'true'
 
 export const getAdminSessionToken = () => {
   try {
@@ -23,6 +26,10 @@ export const clearAdminSessionToken = () => {
 }
 
 const getFallbackLoginCredentials = () => {
+  if (!ADMIN_FALLBACK_ENABLED) {
+    return null
+  }
+
   const password = String(localStorage.getItem(ADMIN_FALLBACK_PASSWORD_KEY) || '').trim() || String(import.meta.env.VITE_ADMIN_PASSWORD || '').trim()
   if (!password) return null
   return {
@@ -30,6 +37,8 @@ const getFallbackLoginCredentials = () => {
     password
   }
 }
+
+export const isAdminFallbackLoginEnabled = () => ADMIN_FALLBACK_ENABLED
 
 const request = async (path, options = {}) => {
   const token = getAdminSessionToken()
@@ -192,13 +201,63 @@ export const updateAdminUser = async (id, payload) => {
   })
 }
 
-export const fetchAdminAuditLog = async () => {
-  return request('/api/admin/audit-log')
+export const deleteAdminUser = async (id) => {
+  return request(`/api/admin/users/${id}`, { method: 'DELETE' })
+}
+
+export const fetchAdminAuditLog = async ({ action = '', resource = '', actorEmail = '', since = '', limit = 100, offset = 0 } = {}) => {
+  const query = new URLSearchParams()
+  if (action) query.set('action', String(action).trim())
+  if (resource) query.set('resource', String(resource).trim())
+  if (actorEmail) query.set('actorEmail', String(actorEmail).trim())
+  if (since) query.set('since', String(since).trim())
+  query.set('limit', String(Math.max(1, Math.min(500, Number(limit) || 100))))
+  query.set('offset', String(Math.max(0, Number(offset) || 0)))
+  return request(`/api/admin/audit-log?${query.toString()}`)
 }
 
 export const fetchAdminAnalytics = async ({ windowDays = 30 } = {}) => {
   const days = Number.isFinite(Number(windowDays)) ? Math.round(Number(windowDays)) : 30
   return request(`/api/admin/analytics?windowDays=${encodeURIComponent(String(days))}`)
+}
+
+export const fetchAdminGiving = async ({ status = '', fund = '', q = '', since = '', page = 1, limit = 50 } = {}) => {
+  const query = new URLSearchParams()
+  if (status) query.set('status', String(status).trim())
+  if (fund) query.set('fund', String(fund).trim())
+  if (q) query.set('q', String(q).trim())
+  if (since) query.set('since', String(since).trim())
+  query.set('page', String(Math.max(1, Math.round(Number(page) || 1))))
+  query.set('limit', String(Math.max(1, Math.min(200, Math.round(Number(limit) || 50)))))
+  return request(`/api/admin/giving?${query.toString()}`)
+}
+
+export const fetchAdminGivingByReference = async (reference) => {
+  const safeReference = encodeURIComponent(String(reference || '').trim())
+  return request(`/api/admin/giving/${safeReference}`)
+}
+
+export const downloadAdminGivingCsv = async ({ status = '', fund = '', q = '', since = '' } = {}) => {
+  const query = new URLSearchParams()
+  if (status) query.set('status', String(status).trim())
+  if (fund) query.set('fund', String(fund).trim())
+  if (q) query.set('q', String(q).trim())
+  if (since) query.set('since', String(since).trim())
+
+  const token = getAdminSessionToken()
+  const response = await fetch(toApiUrl(`/api/admin/giving/export.csv?${query.toString()}`), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    const error = new Error(payload?.error || `Request failed (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  const content = await response.text()
+  return { content, fileName: `giving-transactions-${new Date().toISOString().slice(0, 10)}.csv` }
 }
 
 export const recordAdminAudit = async ({ action, resource, details = {} }) => {
@@ -210,28 +269,5 @@ export const recordAdminAudit = async ({ action, resource, details = {} }) => {
 }
 
 export const canAdmin = (role, permission) => {
-  const roleName = String(role || '').toLowerCase()
-  if (roleName === 'super_admin') return true
-
-  const map = {
-    editor: [
-      'content:blog:write',
-      'content:blog:publish',
-      'content:event:read',
-      'content:event:write',
-      'content:event:publish',
-      'content:media:read',
-      'content:media:write'
-    ],
-    reviewer: [
-      'content:blog:read',
-      'content:blog:approve',
-      'content:event:read',
-      'content:event:approve',
-      'content:media:read',
-      'audit:read'
-    ]
-  }
-
-  return (map[roleName] || []).includes(permission)
+  return roleHasPermission(role, permission)
 }

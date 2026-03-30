@@ -2,6 +2,12 @@ import { query } from '../db/connection.js'
 import { logger } from '../lib/logger.js'
 import crypto from 'node:crypto'
 
+export const MESSAGE_TYPE_SERVICE_REMINDER = 'service_reminder'
+export const MESSAGE_TYPE_EVENT_REMINDER = 'event_reminder'
+export const MESSAGE_TYPE_EVENT_REMINDER_MEDIA = 'event_reminder_media'
+
+export const MESSAGE_SUCCESS_STATUSES = Object.freeze(['sent', 'delivered', 'read', 'skipped_duplicate'])
+
 const toFingerprint = ({ visitorId, eventId, messageText, messageType }) => {
   const seed = [
     String(visitorId || ''),
@@ -15,6 +21,39 @@ const toFingerprint = ({ visitorId, eventId, messageText, messageType }) => {
   }
 
   return crypto.createHash('sha256').update(seed).digest('hex')
+}
+
+export const listVisitorIdsWithMessageDispatch = async ({
+  messageTypes = [],
+  statuses = MESSAGE_SUCCESS_STATUSES,
+  startAt,
+  endAt
+} = {}) => {
+  const normalizedTypes = Array.isArray(messageTypes)
+    ? Array.from(new Set(messageTypes.map((item) => String(item || '').trim()).filter(Boolean)))
+    : []
+  const normalizedStatuses = Array.isArray(statuses)
+    ? Array.from(new Set(statuses.map((item) => String(item || '').trim()).filter(Boolean)))
+    : []
+
+  if (normalizedTypes.length === 0 || normalizedStatuses.length === 0 || !startAt || !endAt) {
+    return []
+  }
+
+  const result = await query(
+    `
+    SELECT DISTINCT visitor_id
+    FROM messages
+    WHERE visitor_id IS NOT NULL
+      AND message_type = ANY($1::text[])
+      AND status = ANY($2::text[])
+      AND created_at >= $3::timestamptz
+      AND created_at < $4::timestamptz
+    `,
+    [normalizedTypes, normalizedStatuses, startAt, endAt]
+  )
+
+  return result.rows.map((row) => String(row.visitor_id || '').trim()).filter(Boolean)
 }
 
 export const logMessageSent = async (data) => {
@@ -105,29 +144,50 @@ export const hasRecentMessageFingerprint = async ({
 }
 
 export const getMessageLogs = async (filters = {}) => {
-  let sql = 'SELECT * FROM messages WHERE 1=1'
+  const normalizedLimit = Math.max(1, Math.min(500, Number(filters.limit) || 100))
+  let sql = `
+    SELECT
+      m.*,
+      v.name AS visitor_name,
+      v.phone_number AS visitor_phone,
+      v.email AS visitor_email,
+      e.title AS event_title,
+      e.event_date AS related_event_date,
+      e.event_time AS related_event_time
+    FROM messages m
+    LEFT JOIN visitors v ON v.id = m.visitor_id
+    LEFT JOIN events e ON e.id = m.event_id
+    WHERE 1=1
+  `
   const values = []
   let paramCount = 1
 
   if (filters.visitorId) {
-    sql += ` AND visitor_id = $${paramCount}`
+    sql += ` AND m.visitor_id = $${paramCount}`
     values.push(filters.visitorId)
     paramCount++
   }
 
   if (filters.status) {
-    sql += ` AND status = $${paramCount}`
+    sql += ` AND m.status = $${paramCount}`
     values.push(filters.status)
     paramCount++
   }
 
   if (filters.eventId) {
-    sql += ` AND event_id = $${paramCount}`
+    sql += ` AND m.event_id = $${paramCount}`
     values.push(filters.eventId)
     paramCount++
   }
 
-  sql += ' ORDER BY created_at DESC LIMIT 500'
+  if (filters.messageType) {
+    sql += ` AND m.message_type = $${paramCount}`
+    values.push(filters.messageType)
+    paramCount++
+  }
+
+  sql += ` ORDER BY m.created_at DESC LIMIT $${paramCount}`
+  values.push(normalizedLimit)
 
   const result = await query(sql, values)
   return result.rows

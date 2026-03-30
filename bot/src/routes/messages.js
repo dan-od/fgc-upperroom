@@ -7,8 +7,8 @@ const router = express.Router()
 
 router.get('/', async (req, res) => {
   try {
-    const { visitorId, status, eventId } = req.query
-    const logs = await getMessageLogs({ visitorId, status, eventId })
+    const { visitorId, status, eventId, messageType, limit } = req.query
+    const logs = await getMessageLogs({ visitorId, status, eventId, messageType, limit })
     res.json({ count: logs.length, messages: logs })
   } catch (error) {
     logger.error('Failed to get message logs', { error: error.message })

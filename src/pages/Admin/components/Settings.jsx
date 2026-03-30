@@ -1,31 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, Database, Globe, Key, Save, Shield } from 'lucide-react'
+import { ArrowRight, Bell, Database, Globe, Key, Save, ScrollText, Shield, UserCog } from 'lucide-react'
 
 import { useAdminTheme } from '../AdminThemeContext'
+import AdminModal from './AdminModal'
 import {
   readAdminSettings,
   saveAdminSettings
 } from '../../../utils/adminSettings'
 import {
   changeAdminPassword,
-  createAdminUser,
   disableAdminTwoFactor,
-  fetchAdminAuditLog,
-  fetchAdminUsers,
   setupAdminTwoFactor,
-  updateAdminUser,
   verifyAdminTwoFactor
 } from '../../../utils/adminApi'
 
 const YOUTUBE_CHANNEL_ID_PATTERN = /^UC[a-zA-Z0-9_-]{22}$/
 
 const EXPORT_KEYS = [
-  'admin_events',
-  'event_categories',
   'admin_media',
   'admin_blog_posts',
-  'admin_testimonies',
-  'admin_visitors',
   'admin_settings_v1'
 ]
 
@@ -51,8 +44,31 @@ const downloadJsonFile = (fileName, payload) => {
   URL.revokeObjectURL(objectUrl)
 }
 
-const Settings = ({ initialSection = 'general', currentUser = null, hasPermission = () => false }) => {
+const Settings = ({ initialSection = 'general', currentUser = null, hasPermission = () => false, onNavigate = () => {} }) => {
   const { darkMode } = useAdminTheme()
+  const canManageSettings = hasPermission('admin:settings:manage')
+
+  if (!canManageSettings) {
+    return (
+      <div style={{
+        padding: '2rem',
+        background: darkMode ? '#1a2235' : '#ffffff',
+        border: `1px solid ${darkMode ? '#2a3550' : '#e5e7eb'}`,
+        borderRadius: '1rem',
+        textAlign: 'center'
+      }}>
+        <div style={{ padding: '1rem', background: '#fef2f2', color: '#991b1b', borderRadius: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <Shield size={24} />
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Access Denied</h2>
+        </div>
+        <p style={{ margin: 0, color: darkMode ? '#7f93b3' : '#64748b', fontSize: '0.95rem' }}>
+          You do not have permission to view or manage admin settings. 
+          Please contact a Super Admin if you believe this is an error.
+        </p>
+      </div>
+    )
+  }
+
   const [activeSection, setActiveSection] = useState(initialSection)
   const [settings, setSettings] = useState(() => readAdminSettings())
   const [securityForm, setSecurityForm] = useState({
@@ -61,17 +77,46 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
     confirmPassword: ''
   })
   const [securityData, setSecurityData] = useState({
-    users: [],
-    audit: [],
     twoFactorSetup: null,
-    twoFactorCode: '',
-    newAdminEmail: '',
-    newAdminName: '',
-    newAdminRole: 'editor',
-    newAdminPassword: ''
+    twoFactorCode: ''
   })
   const [savingBySection, setSavingBySection] = useState({})
   const [statusBySection, setStatusBySection] = useState({})
+
+  // Modal system
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    tone: 'info',
+    onConfirm: null,
+    showInput: false,
+    inputValue: '',
+    inputPlaceholder: '',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel'
+  })
+
+  const closeModal = () => setModalConfig((prev) => ({ ...prev, isOpen: false }))
+  const openModal = (config) => setModalConfig({
+    isOpen: true,
+    title: config.title || 'Are you sure?',
+    message: config.message || '',
+    tone: config.tone || 'info',
+    onConfirm: config.onConfirm || null,
+    showInput: !!config.showInput,
+    inputValue: config.initialValue || '',
+    inputPlaceholder: config.inputPlaceholder || '',
+    confirmLabel: config.confirmLabel || 'Confirm',
+    cancelLabel: config.cancelLabel || 'Cancel'
+  })
+
+  const handleModalConfirm = () => {
+    if (modalConfig.onConfirm) {
+      modalConfig.onConfirm(modalConfig.inputValue)
+    }
+    closeModal()
+  }
 
   const sections = [
     { id: 'general', label: 'General', icon: Globe },
@@ -225,16 +270,7 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
   }
 
   const loadSecurityData = async () => {
-    const [usersResult, auditResult] = await Promise.allSettled([
-      hasPermission('admin:users:manage') ? fetchAdminUsers() : Promise.resolve({ users: [] }),
-      hasPermission('audit:read') ? fetchAdminAuditLog() : Promise.resolve({ records: [] })
-    ])
-
-    setSecurityData((prev) => ({
-      ...prev,
-      users: usersResult.status === 'fulfilled' ? usersResult.value?.users || [] : [],
-      audit: auditResult.status === 'fulfilled' ? auditResult.value?.records || [] : []
-    }))
+    // Users and audit log are now managed in dedicated Admin Users and Audit Log tabs.
   }
 
   useEffect(() => {
@@ -242,55 +278,7 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
     void loadSecurityData()
   }, [activeSection])
 
-  const handleCreateAdminUser = () => {
-    runSectionAction('security', () => {
-      if (!hasPermission('admin:users:manage')) {
-        setSectionStatus('security', 'error', 'Only super admins can create admin users.')
-        return
-      }
-
-      const email = String(securityData.newAdminEmail || '').trim()
-      const name = String(securityData.newAdminName || '').trim()
-      const role = String(securityData.newAdminRole || 'editor').trim()
-      const password = String(securityData.newAdminPassword || '').trim()
-
-      if (!email || !name || !password) {
-        setSectionStatus('security', 'error', 'Name, email, and password are required.')
-        return
-      }
-
-      return createAdminUser({ email, name, role, password })
-        .then(async () => {
-          setSecurityData((prev) => ({
-            ...prev,
-            newAdminEmail: '',
-            newAdminName: '',
-            newAdminRole: 'editor',
-            newAdminPassword: ''
-          }))
-          await loadSecurityData()
-          setSectionStatus('security', 'success', 'Admin user created.')
-        })
-        .catch((error) => {
-          setSectionStatus('security', 'error', error?.message || 'Unable to create admin user.')
-        })
-    })
-  }
-
-  const handleToggleAdminStatus = (user, isActive) => {
-    runSectionAction('security', () => {
-      if (!hasPermission('admin:users:manage')) {
-        setSectionStatus('security', 'error', 'Only super admins can update admin users.')
-        return
-      }
-      return updateAdminUser(user.id, { isActive })
-        .then(loadSecurityData)
-        .then(() => setSectionStatus('security', 'success', 'Admin user updated.'))
-        .catch((error) => {
-          setSectionStatus('security', 'error', error?.message || 'Unable to update admin user.')
-        })
-    })
-  }
+  const handleToggleAdminStatus = () => {}
 
   const handleStartTwoFactorSetup = () => {
     runSectionAction('security', () => {
@@ -324,16 +312,25 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
   }
 
   const handleDisableTwoFactor = () => {
-    runSectionAction('security', () => {
-      const otpCode = window.prompt('Enter your current 2FA code to disable:')
-      if (!otpCode) return
-      return disableAdminTwoFactor({ otpCode })
-        .then(() => {
-          setSectionStatus('security', 'success', '2FA disabled.')
+    openModal({
+      title: 'Disable 2FA',
+      message: 'Enter your current 6-digit authenticator code to disable Two-Factor Authentication.',
+      showInput: true,
+      inputPlaceholder: '000000',
+      tone: 'warning',
+      confirmLabel: 'Disable Now',
+      onConfirm: (otpCode) => {
+        if (!otpCode) return
+        runSectionAction('security', () => {
+          return disableAdminTwoFactor({ otpCode })
+            .then(() => {
+              setSectionStatus('security', 'success', '2FA disabled.')
+            })
+            .catch((error) => {
+              setSectionStatus('security', 'error', error?.message || 'Unable to disable 2FA.')
+            })
         })
-        .catch((error) => {
-          setSectionStatus('security', 'error', error?.message || 'Unable to disable 2FA.')
-        })
+      }
     })
   }
 
@@ -363,26 +360,31 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
   }
 
   const handleClearCache = () => {
-    runSectionAction('database', () => {
-      const confirmed = window.confirm('Clear non-critical browser cache for this admin workspace?')
-      if (!confirmed) return
+    openModal({
+      title: 'Clear Cache',
+      message: 'Clear non-critical browser cache for this admin workspace?',
+      tone: 'warning',
+      confirmLabel: 'Clear All',
+      onConfirm: () => {
+        runSectionAction('database', () => {
+          let removed = 0
+          for (const key of LOCAL_CACHE_KEYS) {
+            if (localStorage.getItem(key) !== null) {
+              localStorage.removeItem(key)
+              removed += 1
+            }
+          }
 
-      let removed = 0
-      for (const key of LOCAL_CACHE_KEYS) {
-        if (localStorage.getItem(key) !== null) {
-          localStorage.removeItem(key)
-          removed += 1
-        }
+          for (const key of SESSION_CACHE_KEYS) {
+            if (sessionStorage.getItem(key) !== null) {
+              sessionStorage.removeItem(key)
+              removed += 1
+            }
+          }
+
+          setSectionStatus('database', 'success', removed > 0 ? `Cleared ${removed} cached item(s).` : 'No cache items were found.')
+        })
       }
-
-      for (const key of SESSION_CACHE_KEYS) {
-        if (sessionStorage.getItem(key) !== null) {
-          sessionStorage.removeItem(key)
-          removed += 1
-        }
-      }
-
-      setSectionStatus('database', 'success', removed > 0 ? `Cleared ${removed} cached item(s).` : 'No cache items were found.')
     })
   }
 
@@ -664,86 +666,70 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
 
                 {hasPermission('admin:users:manage') ? (
                   <div style={{ display: 'grid', gap: '0.75rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1rem', color: textPrimary }}>Admin Users & RBAC</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Full name"
-                        value={securityData.newAdminName}
-                        onChange={(event) => setSecurityData((prev) => ({ ...prev, newAdminName: event.target.value }))}
-                        style={inputStyle}
-                      />
-                      <input
-                        type="email"
-                        placeholder="Email"
-                        value={securityData.newAdminEmail}
-                        onChange={(event) => setSecurityData((prev) => ({ ...prev, newAdminEmail: event.target.value }))}
-                        style={inputStyle}
-                      />
-                      <select
-                        value={securityData.newAdminRole}
-                        onChange={(event) => setSecurityData((prev) => ({ ...prev, newAdminRole: event.target.value }))}
-                        style={inputStyle}
-                      >
-                        <option value="editor">Editor</option>
-                        <option value="reviewer">Reviewer</option>
-                        <option value="super_admin">Super Admin</option>
-                      </select>
-                      <input
-                        type="password"
-                        placeholder="Initial password"
-                        value={securityData.newAdminPassword}
-                        onChange={(event) => setSecurityData((prev) => ({ ...prev, newAdminPassword: event.target.value }))}
-                        style={inputStyle}
-                      />
-                    </div>
-                    <button type="button" onClick={handleCreateAdminUser} style={saveButtonStyle('security')}>
-                      Create Admin User
-                    </button>
-
-                    <div style={{ display: 'grid', gap: '0.5rem' }}>
-                      {securityData.users.map((user) => (
-                        <div key={user.id} style={{ border: `1px solid ${panelBorder}`, borderRadius: '0.5rem', padding: '0.65rem 0.75rem', background: subtleSurface }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
-                            <div>
-                              <p style={{ margin: 0, fontWeight: 700, color: textPrimary }}>{user.name} ({user.role})</p>
-                              <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: textSecondary }}>{user.email}</p>
-                            </div>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: textMuted, fontSize: '0.8rem' }}>
-                              <input
-                                type="checkbox"
-                                checked={Boolean(user.isActive)}
-                                onChange={(event) => handleToggleAdminStatus(user, event.target.checked)}
-                              />
-                              Active
-                            </label>
-                          </div>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '1rem 1.25rem', borderRadius: '0.625rem',
+                      background: darkMode ? '#1e2d44' : '#f0f4ff',
+                      border: `1px solid ${darkMode ? '#2a3a5a' : '#c7d7f9'}`
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <UserCog size={20} style={{ color: '#5a4494', flexShrink: 0 }} />
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: textPrimary }}>Admin Users</p>
+                          <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: textSecondary }}>
+                            Manage accounts, roles, and access permissions
+                          </p>
                         </div>
-                      ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('adminUsers')}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          padding: '0.5rem 0.9rem', borderRadius: '0.45rem',
+                          background: '#5a4494', color: '#fff', border: 'none',
+                          fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Open <ArrowRight size={13} />
+                      </button>
                     </div>
                   </div>
                 ) : null}
 
                 {hasPermission('audit:read') ? (
                   <div style={{ display: 'grid', gap: '0.75rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1rem', color: textPrimary }}>Audit Logs</h3>
-                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: `1px solid ${panelBorder}`, borderRadius: '0.5rem' }}>
-                      {securityData.audit.slice(0, 50).map((entry) => (
-                        <div key={entry.id} style={{ padding: '0.65rem 0.75rem', borderBottom: `1px solid ${panelBorder}`, background: inputBackground }}>
-                          <p style={{ margin: 0, fontSize: '0.78rem', color: textPrimary }}>
-                            <strong>{entry.action}</strong> on <code>{entry.resource}</code>
-                          </p>
-                          <p style={{ margin: '0.15rem 0 0', fontSize: '0.72rem', color: textSecondary }}>
-                            {entry.actorEmail || 'unknown'} • {new Date(entry.createdAt).toLocaleString()}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '1rem 1.25rem', borderRadius: '0.625rem',
+                      background: darkMode ? '#0e2720' : '#f0fdf4',
+                      border: `1px solid ${darkMode ? '#1a4535' : '#bbf7d0'}`
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <ScrollText size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: textPrimary }}>Audit Log</p>
+                          <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: textSecondary }}>
+                            Full history of all admin actions — filterable and exportable
                           </p>
                         </div>
-                      ))}
-                      {securityData.audit.length === 0 ? (
-                        <p style={{ margin: 0, padding: '0.8rem', fontSize: '0.8rem', color: textSecondary }}>No audit log entries yet.</p>
-                      ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('auditLog')}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          padding: '0.5rem 0.9rem', borderRadius: '0.45rem',
+                          background: '#16a34a', color: '#fff', border: 'none',
+                          fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Open <ArrowRight size={13} />
+                      </button>
                     </div>
                   </div>
                 ) : null}
+
 
                 {renderStatus('security')}
               </div>
@@ -803,6 +789,22 @@ const Settings = ({ initialSection = 'general', currentUser = null, hasPermissio
           ) : null}
         </div>
       </div>
+
+      <AdminModal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        title={modalConfig.title}
+        tone={modalConfig.tone}
+        onConfirm={handleModalConfirm}
+        showInput={modalConfig.showInput}
+        inputValue={modalConfig.inputValue}
+        onInputChange={(val) => setModalConfig(prev => ({ ...prev, inputValue: val }))}
+        inputPlaceholder={modalConfig.inputPlaceholder}
+        confirmLabel={modalConfig.confirmLabel}
+        cancelLabel={modalConfig.cancelLabel}
+      >
+        <p style={{ margin: 0 }}>{modalConfig.message}</p>
+      </AdminModal>
     </div>
   )
 }

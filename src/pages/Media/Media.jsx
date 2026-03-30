@@ -19,14 +19,12 @@ import {
   DEFAULT_MEDIA_THUMBNAIL,
   extractYouTubeId,
   normalizeTitleKey,
-  readAdminMediaItems
+  readPublicMediaItems
 } from '../../utils/mediaStorage'
+import { toApiUrl } from '../../utils/appPaths'
 import './Media.css'
 
 const ITEMS_PER_PAGE = 6
-const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-const toApiUrl = (path) => `${BASE_URL}${path}`
-
 const CATEGORIES = [
   { id: 'all', label: 'All Content', icon: Camera },
   { id: 'youth', label: 'Youth Focus', icon: Heart },
@@ -302,7 +300,7 @@ const Media = () => {
 
   useEffect(() => {
     const hydrateAdminMedia = async () => {
-      const items = await readAdminMediaItems()
+      const items = await readPublicMediaItems()
       setAdminMediaItems(items)
     }
 

@@ -71,21 +71,57 @@ Create `.env` file (or configure in hosting platform):
 ```bash
 # Server
 NODE_ENV=production
+PORT=4100
 BOT_PORT=4100
 BOT_HOST=0.0.0.0
 BOT_TIMEZONE=Africa/Lagos
+ENABLE_SCHEDULER=true
+
+# Base URLs and path overrides
+PUBLIC_SITE_BASE_URL=https://fgcmgbuoba.org
+BOT_PUBLIC_BASE_URL=https://bot.yourchurch.org
+APP_BASE_PATH=/fgc-testing/
+PUBLIC_APP_BASE_PATH=/fgc-testing/
+VITE_APP_BASE_PATH=/fgc-testing/
+VITE_API_BASE_URL=
+VITE_BOT_API_URL=https://bot.yourchurch.org
+VITE_ATTENDANCE_API_URL=
+VITE_ATTENDANCE_ADMIN_KEY=
+VITE_LIVE_STREAM_URL=https://www.youtube.com/@theupperroom_4sq/live
+APP_DATA_DIR=data
+APP_PUBLIC_DIR=public
+APP_DIST_DIR=dist
 
 # Database
 DATABASE_URL=postgresql://user:password@host:5432/church_bot
 
 # Redis
 REDIS_URL=redis://user:password@host:6379
+DB_PASSWORD=strongpass
 
-# Scheduler
-ENABLE_SCHEDULER=true
+# Admin access
+BOT_ADMIN_API_KEY=replace_me_with_a_long_secret
+VITE_ENABLE_ADMIN_FALLBACK_LOGIN=false
+VITE_ADMIN_EMAIL=admin@upperroom.local
+VITE_ADMIN_PASSWORD=replace_me
+ADMIN_DEFAULT_EMAIL=admin@upperroom.local
+ADMIN_DEFAULT_PASSWORD=ChangeMe1234
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+ATTENDANCE_ADMIN_KEY=
+ATTENDANCE_ADMIN_PASSWORD=
+VITE_ATTENDANCE_ADMIN_KEY=
+
+# Attendance sync
+ATTENDANCE_PORT=4201
+ATTENDANCE_PUBLIC_BASE_URL=
+ATTENDANCE_TEST_OPEN=false
+ATTENDANCE_HISTORY_API_URL=http://localhost:4100/bot/api/attendance-history
+ATTENDANCE_HISTORY_SYNC_KEY=
 
 # WhatsApp (Meta Cloud API)
 WHATSAPP_PROVIDER=meta
+WHATSAPP_FALLBACK_PROVIDER=stub
 META_ACCESS_TOKEN=EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 META_PHONE_NUMBER_ID=123456789012345
 META_WABA_ID=987654321098765
@@ -93,25 +129,63 @@ META_WEBHOOK_VERIFY_TOKEN=fgc-upperroom-webhook-2026
 META_APP_SECRET=abcdef1234567890abcdef1234567890
 META_API_VERSION=v21.0
 
-# LLM — set LLM_PROVIDER=auto to try all in order: vertex → openai → gemini → static
+# LLM - set LLM_PROVIDER=auto to try Vertex, OpenAI, Gemini, then static templates
 LLM_PROVIDER=auto
 
-# Option A: Vertex AI Gemini (preferred — service account, no per-call cost)
+# Vertex AI Gemini (preferred in production)
 VERTEX_PROJECT_ID=your-gcp-project-id
 VERTEX_LOCATION=us-central1
 VERTEX_MODEL=gemini-2.5-flash
 VERTEX_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 
-# Option B: OpenAI
+# OpenAI
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_MODEL=gpt-4o-mini
 
-# Option C: Google Gemini direct API
+# Google Gemini direct API
 GEMINI_API_KEY=AIzaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GEMINI_MODEL=gemini-2.5-flash
 
+# Giving
+PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+PAYSTACK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+VITE_PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GIVING_CURRENCY=NGN
+GIVING_CALLBACK_URL=
+GIVING_BANK_ACCOUNTS_JSON=
+GIVING_BANK_TRANSFER_ACCOUNTS_JSON=
+GIVING_BANKS_JSON=
+GIVING_BANK_OPTIONS_JSON=
+GIVING_BANK_NAME=
+GIVING_BANK_ACCOUNT_NAME=
+GIVING_BANK_ACCOUNT_NUMBER=
+GIVING_BANK_TRANSFER_INSTRUCTIONS=
+GIVING_BANK_DETAILS_JSON=
+GIVING_CRYPTO_WALLET_ADDRESS=
+GIVING_CRYPTO_RPC_URL=
+ETHERSCAN_API_KEY=
+ETHEREUM_WALLET_ADDRESS=
+BITCOIN_WALLET_ADDRESS=
+SEPOLIA_RPC_URL=https://rpc.ankr.com/eth_sepolia/...
+CRYPTO_WALLET_ADDRESS=
+PAYSTACK_WEBHOOK_SECRET=
+
 # Monitoring (optional)
 ALERT_WEBHOOK_URL=https://your-webhook-url
+MONITORING_SLOW_QUERY_MS=300
+MONITORING_SLOW_REQUEST_MS=1200
+OPENCLAW_HOOK_URL=
+OPENCLAW_HOOK_TOKEN=
+OPENCLAW_HOOK_MODE=now
+OPENCLAW_HOOK_TIMEOUT_MS=5000
+VITE_RUM_ENABLED=true
+VITE_RUM_ENDPOINT=/fgc-testing/api/observability/rum
+
+# Tooling and maintenance
+TARGET_URL=https://bot.yourchurch.org
+TEMP_DB_NAME=church_bot_drill
+PERF_REQUESTS=60
+PERF_P95_MS=450
 ```
 
 **Security best practices**:
@@ -119,6 +193,9 @@ ALERT_WEBHOOK_URL=https://your-webhook-url
 - Use secrets manager in production
 - Rotate credentials quarterly
 - Use read-only database user for reporting queries
+- Keep `APP_BASE_PATH`, `PUBLIC_APP_BASE_PATH`, and `VITE_APP_BASE_PATH` aligned.
+- Set `ATTENDANCE_HISTORY_SYNC_KEY` on both the attendance service and the bot when history mirroring is enabled.
+- Leave `VITE_ENABLE_ADMIN_FALLBACK_LOGIN=false` in production.
 
 ### Step 3: Install Dependencies
 
@@ -324,6 +401,17 @@ curl -X POST https://bot.yourchurch.org/bot/api/preview/service \
     "name": "John Doe",
     "serviceTime": "08:00",
     "isFirstSunday": false
+  }'
+
+# Preview event reminder
+curl -X POST https://bot.yourchurch.org/bot/api/preview/event \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "eventTitle": "Youth Revival Night",
+    "eventDate": "2026-04-12",
+    "eventTime": "09:00",
+    "registrationLink": "https://bot.yourchurch.org/register"
   }'
 ```
 

@@ -2,13 +2,22 @@ import { listSubscribedVisitors, normalizeReminderPreferences } from './visitor.
 import { listUpcomingEvents } from './event.repository.js'
 import { getSundayServiceTimeWAT, isFirstSunday } from '../utils/time.js'
 import { env } from '../config/env.js'
+import { listVisitorIdsWithMessageDispatch, MESSAGE_TYPE_SERVICE_REMINDER } from './message.repository.js'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const KEY_DATE_OFFSETS = new Set([30, 14, 7, 3, 1])
+export const SATURDAY_SERVICE_DISPATCH_START_HOUR_UTC = 11
+export const SATURDAY_SERVICE_DISPATCH_END_HOUR_UTC = 18
 
 const toUtcMidnight = (value) => {
   const parsed = value instanceof Date ? value : new Date(value)
   return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
+}
+
+const toUtcDayRange = (value = new Date()) => {
+  const start = toUtcMidnight(value)
+  const end = new Date(start.getTime() + ONE_DAY_MS)
+  return { start, end }
 }
 
 const toDateFromSqlDate = (value) => {
@@ -97,6 +106,45 @@ export const getSundayServiceReminders = async () => {
     const isBlocked = blockedUntil && blockedUntil > new Date()
     return preferences.serviceReminders && !isBlocked
   })
+}
+
+export const isSaturdayServiceDispatchWindow = (value = new Date()) => {
+  const parsed = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return false
+  }
+
+  return (
+    parsed.getUTCDay() === 6 &&
+    parsed.getUTCHours() >= SATURDAY_SERVICE_DISPATCH_START_HOUR_UTC &&
+    parsed.getUTCHours() < SATURDAY_SERVICE_DISPATCH_END_HOUR_UTC
+  )
+}
+
+export const listMissingSundayServiceRemindersForDate = async (value = new Date()) => {
+  const visitors = await getSundayServiceReminders()
+  if (visitors.length === 0) {
+    return {
+      allVisitors: [],
+      dispatchedVisitorIds: [],
+      missingVisitors: []
+    }
+  }
+
+  const { start, end } = toUtcDayRange(value)
+  const dispatchedVisitorIds = await listVisitorIdsWithMessageDispatch({
+    messageTypes: [MESSAGE_TYPE_SERVICE_REMINDER],
+    startAt: start.toISOString(),
+    endAt: end.toISOString()
+  })
+  const dispatchedSet = new Set(dispatchedVisitorIds)
+  const missingVisitors = visitors.filter((visitor) => !dispatchedSet.has(String(visitor.id || '').trim()))
+
+  return {
+    allVisitors: visitors,
+    dispatchedVisitorIds,
+    missingVisitors
+  }
 }
 
 export const listUpcomingEventRemindersForDate = async (date) => {

@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react'
 import {
+  approveAdminMediaItem,
   DEFAULT_MEDIA_THUMBNAIL,
   MEDIA_CATEGORIES,
   extractYouTubeId,
@@ -24,8 +25,11 @@ import {
   uploadAdminMediaFiles,
   writeAdminMediaItems
 } from '../../../utils/mediaStorage'
+import { DropdownSelect } from '../../../components/common'
+import { ADMIN_DATE_FILTER_OPTIONS, matchesAdminDateFilter } from '../../../utils/adminDateFilters'
 import { recordAdminAudit } from '../../../utils/adminApi'
 import { useAdminTheme } from '../AdminThemeContext'
+import AdminModal from './AdminModal'
 
 const createEmptyForm = () => ({
   id: '',
@@ -36,6 +40,7 @@ const createEmptyForm = () => ({
   keypoint: '',
   syncKey: '',
   youtubeUrlInput: '',
+  status: 'pending_review',
   media: []
 })
 
@@ -58,13 +63,50 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
+  const [filterDate, setFilterDate] = useState('all')
   const [formData, setFormData] = useState(createEmptyForm)
   const [notice, setNotice] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef(null)
   const canWrite = hasPermission('content:media:write')
+  const canApprove = hasPermission('content:media:approve')
   const audit = (action, details = {}) => {
     recordAdminAudit({ action, resource: 'content.media', details }).catch(() => {})
+  }
+
+  // Modal system for confirmation and prompts
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    tone: 'info',
+    onConfirm: null,
+    showInput: false,
+    inputValue: '',
+    inputPlaceholder: '',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel'
+  })
+
+  const closeModal = () => setModalConfig((prev) => ({ ...prev, isOpen: false }))
+  const openModal = (config) => setModalConfig({
+    isOpen: true,
+    title: config.title || 'Are you sure?',
+    message: config.message || '',
+    tone: config.tone || 'info',
+    onConfirm: config.onConfirm || null,
+    showInput: !!config.showInput,
+    inputValue: config.initialValue || '',
+    inputPlaceholder: config.inputPlaceholder || '',
+    confirmLabel: config.confirmLabel || 'Confirm',
+    cancelLabel: config.cancelLabel || 'Cancel'
+  })
+
+  const handleModalConfirm = () => {
+    if (modalConfig.onConfirm) {
+      modalConfig.onConfirm(modalConfig.inputValue)
+    }
+    closeModal()
   }
 
   useEffect(() => {
@@ -129,20 +171,21 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
 
     const selected = mediaItems.find((item) => item.id === id)
     const confirmMessage = selected
-      ? `Delete \"${selected.title}\"? This cannot be undone.`
+      ? `Delete "${selected.title}"? This cannot be undone.`
       : 'Delete this media item? This cannot be undone.'
 
-    if (!window.confirm(confirmMessage)) {
-      return
-    }
-
-    const saved = await persistMedia(mediaItems.filter((item) => item.id !== id))
-    if (!saved) {
-      return
-    }
-
-    setNotice({ tone: 'success', text: 'Media item deleted.' })
-    audit('media.delete', { id })
+    openModal({
+      title: 'Delete Media Item',
+      message: confirmMessage,
+      tone: 'danger',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        const saved = await persistMedia(mediaItems.filter((item) => item.id !== id))
+        if (!saved) return
+        setNotice({ tone: 'success', text: 'Media item deleted.' })
+        audit('media.delete', { id })
+      }
+    })
   }
 
   const handleChange = (event) => {
@@ -273,6 +316,8 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
     const nowIso = new Date().toISOString()
     const existing = mediaItems.find((item) => item.id === formData.id)
     const mergeKey = normalizeTitleKey(formData.syncKey || title)
+    // Editors submit for review; super_admin/reviewers publish directly
+    const targetStatus = canApprove ? 'published' : 'pending_review'
 
     const payload = normalizeAdminMediaItem({
       id: existing?.id || `admin-media-${Date.now()}`,
@@ -284,6 +329,8 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
       keypoint: String(formData.keypoint || '').trim(),
       syncKey: String(formData.syncKey || '').trim(),
       mergeKey,
+      status: existing?.status === 'published' ? 'published' : targetStatus,
+      publishedAt: targetStatus === 'published' ? nowIso : existing?.publishedAt || null,
       media: formData.media,
       timestamp: existing?.timestamp || Date.now(),
       createdAt: existing?.createdAt || nowIso,
@@ -293,18 +340,51 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
     if (view === 'create') {
       const saved = await persistMedia([payload, ...mediaItems])
       if (!saved) return
-      setNotice({ tone: 'success', text: 'Media uploaded successfully.' })
-      audit('media.create', { id: payload.id, category: payload.category, assets: payload.media.length })
+      setNotice({ tone: 'success', text: canApprove ? 'Media published.' : 'Media submitted for review.' })
+      audit('media.create', { id: payload.id, category: payload.category, assets: payload.media.length, status: payload.status })
     } else {
       const updated = mediaItems.map((item) => (item.id === payload.id ? payload : item))
       const saved = await persistMedia(updated)
       if (!saved) return
-      setNotice({ tone: 'success', text: 'Media updated successfully.' })
-      audit('media.update', { id: payload.id, category: payload.category, assets: payload.media.length })
+      setNotice({ tone: 'success', text: canApprove ? 'Media published.' : 'Media updated and submitted for review.' })
+      audit('media.update', { id: payload.id, category: payload.category, assets: payload.media.length, status: payload.status })
     }
 
     setView('list')
     setFormData(createEmptyForm())
+  }
+
+  const handleApprove = async (item) => {
+    if (!canApprove) {
+      setNotice({ tone: 'error', text: 'Your role cannot approve media.' })
+      return
+    }
+
+    try {
+      await approveAdminMediaItem(item.id)
+      const latest = await readAdminMediaItems()
+      setMediaItems(latest)
+      setNotice({ tone: 'success', text: `"${item.title}" approved and published.` })
+      audit('media.approve_and_publish', { id: item.id })
+    } catch (error) {
+      setNotice({ tone: 'error', text: error?.message || 'Unable to approve media right now.' })
+    }
+  }
+
+  const handleSubmitForReview = async (item) => {
+    if (!canWrite) {
+      setNotice({ tone: 'error', text: 'Your role cannot submit media for review.' })
+      return
+    }
+    const nowIso = new Date().toISOString()
+    const updated = mediaItems.map((m) => {
+      if (m.id !== item.id) return m
+      return { ...m, status: 'pending_review', updatedAt: nowIso }
+    })
+    const saved = await persistMedia(updated)
+    if (!saved) return
+    setNotice({ tone: 'success', text: 'Media submitted for review.' })
+    audit('media.submit_review', { id: item.id })
   }
 
   const filteredMedia = useMemo(() => {
@@ -322,10 +402,11 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
         (Array.isArray(item.media) && item.media.some((asset) => asset.type === filterType))
 
       const inCategory = filterCategory === 'all' || item.category === filterCategory
+      const matchesDate = matchesAdminDateFilter(item.publishedAt || item.updatedAt || item.createdAt || item.date, filterDate)
 
-      return inText && inType && inCategory
+      return inText && inType && inCategory && matchesDate
     })
-  }, [mediaItems, searchTerm, filterType, filterCategory])
+  }, [mediaItems, searchTerm, filterType, filterCategory, filterDate])
 
   const handleSelectMediaItem = (id) => {
     setSelectedMedia((prev) => (
@@ -350,35 +431,48 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
 
     const selectedSet = new Set(selectedMedia.map(String))
     if (action === 'delete') {
-      const confirmed = window.confirm(`Delete ${selectedMedia.length} selected media item(s)?`)
-      if (!confirmed) return
-      const updated = mediaItems.filter((item) => !selectedSet.has(String(item.id)))
-      const saved = await persistMedia(updated)
-      if (!saved) return
-      setSelectedMedia([])
-      setNotice({ tone: 'success', text: 'Selected media items deleted.' })
-      audit('media.bulk_delete', { count: selectedMedia.length })
+      openModal({
+        title: 'Bulk Delete',
+        message: `Delete ${selectedMedia.length} selected media item(s)? This action cannot be undone.`,
+        tone: 'danger',
+        confirmLabel: 'Delete All',
+        onConfirm: async () => {
+          const updated = mediaItems.filter((item) => !selectedSet.has(String(item.id)))
+          const saved = await persistMedia(updated)
+          if (!saved) return
+          setSelectedMedia([])
+          setNotice({ tone: 'success', text: 'Selected media items deleted.' })
+          audit('media.bulk_delete', { count: selectedMedia.length })
+        }
+      })
       return
     }
 
     if (action === 'category') {
-      const category = window.prompt('Enter category (worship/youth/sermons/audio/community/events):')
-      if (!category) return
-      const normalizedCategory = String(category).trim().toLowerCase()
-      const updated = mediaItems.map((item) => {
-        if (!selectedSet.has(String(item.id))) return item
-        return {
-          ...item,
-          category: normalizedCategory,
-          mediaCategory: normalizedCategory,
-          updatedAt: new Date().toISOString()
+      openModal({
+        title: 'Batch Category',
+        message: 'Enter the category for these items (e.g., sermons, worship, youth).',
+        showInput: true,
+        inputPlaceholder: 'Category name...',
+        onConfirm: async (input) => {
+          if (!input) return
+          const normalizedCategory = String(input).trim().toLowerCase()
+          const updated = mediaItems.map((item) => {
+            if (!selectedSet.has(String(item.id))) return item
+            return {
+              ...item,
+              category: normalizedCategory,
+              mediaCategory: normalizedCategory,
+              updatedAt: new Date().toISOString()
+            }
+          })
+          const saved = await persistMedia(updated)
+          if (!saved) return
+          setSelectedMedia([])
+          setNotice({ tone: 'success', text: 'Selected media category updated.' })
+          audit('media.bulk_category', { count: selectedMedia.length, category: normalizedCategory })
         }
       })
-      const saved = await persistMedia(updated)
-      if (!saved) return
-      setSelectedMedia([])
-      setNotice({ tone: 'success', text: 'Selected media category updated.' })
-      audit('media.bulk_category', { count: selectedMedia.length, category: normalizedCategory })
     }
   }
 
@@ -550,7 +644,7 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
 
               <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: ui.textMuted }}>Category *</span>
-                <select
+                <DropdownSelect
                   name="mediaCategory"
                   value={formData.mediaCategory}
                   onChange={handleChange}
@@ -566,7 +660,7 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
                       {category.label}
                     </option>
                   ))}
-                </select>
+                </DropdownSelect>
               </label>
             </div>
 
@@ -894,8 +988,8 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
           marginBottom: '1rem'
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
-          <div style={{ position: 'relative' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) repeat(3, minmax(0, 1fr))', gap: '0.75rem', alignItems: 'stretch' }}>
+          <div style={{ position: 'relative', minWidth: 0 }}>
             <Search
               size={18}
               style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: ui.textFaint }}
@@ -915,10 +1009,11 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
             />
           </div>
 
-          <select
+          <DropdownSelect
             value={filterType}
             onChange={(event) => setFilterType(event.target.value)}
             style={{
+              minWidth: 0,
               padding: '0.75rem',
               border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
@@ -929,12 +1024,13 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
             <option value="image">Image</option>
             <option value="video">Video</option>
             <option value="audio">Audio</option>
-          </select>
+          </DropdownSelect>
 
-          <select
+          <DropdownSelect
             value={filterCategory}
             onChange={(event) => setFilterCategory(event.target.value)}
             style={{
+              minWidth: 0,
               padding: '0.75rem',
               border: `1px solid ${ui.borderSoft}`,
               borderRadius: '0.5rem',
@@ -947,7 +1043,25 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
                 {category.label}
               </option>
             ))}
-          </select>
+          </DropdownSelect>
+
+          <DropdownSelect
+            value={filterDate}
+            onChange={(event) => setFilterDate(event.target.value)}
+            style={{
+              minWidth: 0,
+              padding: '0.75rem',
+              border: `1px solid ${ui.borderSoft}`,
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem'
+            }}
+          >
+            {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </DropdownSelect>
         </div>
 
         {filteredMedia.length > 0 && (
@@ -1026,6 +1140,25 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
                   >
                     {assetCount} asset{assetCount === 1 ? '' : 's'}
                   </span>
+                  {/* Status badge */}
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '0.375rem',
+                      background: item.status === 'published'
+                        ? (darkMode ? '#083127' : '#dcfce7')
+                        : (darkMode ? '#3b1f05' : '#fef9c3'),
+                      color: item.status === 'published'
+                        ? (darkMode ? '#6ee7b7' : '#166534')
+                        : (darkMode ? '#fcd34d' : '#92400e'),
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}
+                  >
+                    {item.status === 'published' ? 'Published' : 'Pending Review'}
+                  </span>
                 </div>
 
                 {item.speaker && (
@@ -1038,42 +1171,90 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
                   Last updated: {formatStamp(item.updatedAt || item.createdAt)}
                 </p>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(item)}
-                    disabled={!canWrite}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      border: 'none',
-                      borderRadius: '0.375rem',
-                      background: ui.panelSubtle,
-                      color: ui.textMuted,
-                      cursor: canWrite ? 'pointer' : 'not-allowed',
-                      opacity: canWrite ? 1 : 0.65,
-                      fontWeight: 600,
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '0.35rem'
-                    }}
-                  >
-                    <Edit2 size={14} /> Edit
-                  </button>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(item)}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        background: ui.panelSubtle,
+                        color: ui.textMuted,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <Edit2 size={14} /> Edit
+                    </button>
+                  )}
+                  {/* Approve button for reviewers on pending items */}
+                  {canApprove && item.status !== 'published' && (
+                    <button
+                      type="button"
+                      onClick={() => handleApprove(item)}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        background: '#dcfce7',
+                        color: '#166534',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.82rem'
+                      }}
+                    >
+                      ✓ Approve
+                    </button>
+                  )}
+                  {/* Submit for review for editors on drafted/pending items */}
+                  {canWrite && !canApprove && item.status !== 'published' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSubmitForReview(item)}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        background: '#fef9c3',
+                        color: '#92400e',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.82rem'
+                      }}
+                    >
+                      Submit for Review
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleDelete(item.id)}
-                    disabled={!canWrite}
+                    disabled={!canWrite && !canApprove}
                     style={{
-                      flex: 1,
-                      padding: '0.5rem',
+                      flex: '0 0 auto',
+                      padding: '0.5rem 0.65rem',
                       border: 'none',
                       borderRadius: '0.375rem',
                       background: '#fee2e2',
                       color: '#991b1b',
-                      cursor: canWrite ? 'pointer' : 'not-allowed',
-                      opacity: canWrite ? 1 : 0.65,
+                      cursor: (canWrite || canApprove) ? 'pointer' : 'not-allowed',
+                      opacity: (canWrite || canApprove) ? 1 : 0.65,
                       fontWeight: 600,
                       display: 'flex',
                       justifyContent: 'center',
@@ -1081,7 +1262,7 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
                       gap: '0.35rem'
                     }}
                   >
-                    <Trash2 size={14} /> Delete
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -1104,6 +1285,22 @@ const MediaManager = ({ currentUser = null, hasPermission = () => false }) => {
           No media items match your filters.
         </div>
       )}
+
+      <AdminModal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        title={modalConfig.title}
+        tone={modalConfig.tone}
+        onConfirm={handleModalConfirm}
+        showInput={modalConfig.showInput}
+        inputValue={modalConfig.inputValue}
+        onInputChange={(val) => setModalConfig(prev => ({ ...prev, inputValue: val }))}
+        inputPlaceholder={modalConfig.inputPlaceholder}
+        confirmLabel={modalConfig.confirmLabel}
+        cancelLabel={modalConfig.cancelLabel}
+      >
+        <p style={{ margin: 0 }}>{modalConfig.message}</p>
+      </AdminModal>
     </div>
   )
 }

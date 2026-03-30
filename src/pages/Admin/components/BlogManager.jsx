@@ -18,10 +18,13 @@ import {
   formatBlogCategory,
   getTagList,
   pushBlogVersion,
-  seedBlogPostsIfEmpty,
+  readBlogPosts,
   writeBlogPosts
 } from '../../../utils/blogStorage'
+import { DropdownSelect } from '../../../components/common'
+import { ADMIN_DATE_FILTER_OPTIONS, matchesAdminDateFilter } from '../../../utils/adminDateFilters'
 import { recordAdminAudit } from '../../../utils/adminApi'
+import AdminModal from './AdminModal'
 import './BlogManager.css'
 
 const categoryIcons = {
@@ -72,48 +75,104 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterDate, setFilterDate] = useState('all')
   const [formData, setFormData] = useState(createEmptyPost)
   const [notice, setNotice] = useState(null)
   const [selectedPosts, setSelectedPosts] = useState([])
   const canWrite = hasPermission('content:blog:write') || hasPermission('content:blog:publish')
-  const canApprove = hasPermission('content:blog:approve') || hasPermission('content:blog:publish')
+  const canPublish = hasPermission('content:blog:publish')
+  const canApprove = hasPermission('content:blog:approve')
   const audit = (action, details = {}) => {
     recordAdminAudit({ action, resource: 'content.blog', details }).catch(() => {})
   }
 
-  useEffect(() => {
-    const seeded = seedBlogPostsIfEmpty()
-    const scheduled = applyBlogPublishingSchedule(seeded)
-    setPosts(scheduled.posts)
-    if (scheduled.changed) {
-      writeBlogPosts(scheduled.posts)
+  // Modal system for confirmation and prompts
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    tone: 'info',
+    onConfirm: null,
+    showInput: false,
+    inputValue: '',
+    inputPlaceholder: '',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel'
+  })
+
+  const closeModal = () => setModalConfig((prev) => ({ ...prev, isOpen: false }))
+  const openModal = (config) => setModalConfig({
+    isOpen: true,
+    title: config.title || 'Are you sure?',
+    message: config.message || '',
+    tone: config.tone || 'info',
+    onConfirm: config.onConfirm || null,
+    showInput: !!config.showInput,
+    inputValue: config.initialValue || '',
+    inputPlaceholder: config.inputPlaceholder || '',
+    confirmLabel: config.confirmLabel || 'Confirm',
+    cancelLabel: config.cancelLabel || 'Cancel'
+  })
+
+  const handleModalConfirm = () => {
+    if (modalConfig.onConfirm) {
+      modalConfig.onConfirm(modalConfig.inputValue)
     }
+    closeModal()
+  }
+
+  const [loading, setLoading] = useState(false)
+
+  const loadPosts = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
+    try {
+      const serverPosts = await readBlogPosts()
+      const scheduled = applyBlogPublishingSchedule(serverPosts)
+      setPosts(scheduled.posts)
+      if (scheduled.changed) {
+        await writeBlogPosts(scheduled.posts)
+      }
+    } catch (error) {
+      setNotice({ tone: 'error', text: 'Failed to load blog posts from server.' })
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadPosts()
   }, [])
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setPosts((prev) => {
-        const result = applyBlogPublishingSchedule(prev)
-        if (result.changed) {
-          writeBlogPosts(result.posts)
+    const interval = window.setInterval(async () => {
+      const result = applyBlogPublishingSchedule(posts)
+      if (result.changed) {
+        setPosts(result.posts)
+        try {
+          await writeBlogPosts(result.posts)
           setNotice({ tone: 'success', text: 'Scheduled blog post published automatically.' })
+        } catch {
+          // Fallback handled by writeBlogPosts
         }
-        return result.posts
-      })
+      }
     }, 60_000)
 
     return () => window.clearInterval(interval)
-  }, [])
+  }, [posts])
 
   useEffect(() => {
     const valid = new Set(posts.map((post) => post.id))
     setSelectedPosts((prev) => prev.filter((id) => valid.has(id)))
   }, [posts])
 
-  const persistPosts = (updatedPosts) => {
+  const persistPosts = async (updatedPosts) => {
     const result = applyBlogPublishingSchedule(updatedPosts)
     setPosts(result.posts)
-    writeBlogPosts(result.posts)
+    try {
+      await writeBlogPosts(result.posts)
+    } catch (error) {
+      setNotice({ tone: 'error', text: error.message || 'Error saving blog posts.' })
+    }
   }
 
   const resetForm = () => {
@@ -248,20 +307,24 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
 
     const postToDelete = posts.find((post) => post.id === id)
     const confirmMessage = postToDelete
-      ? `Delete \"${postToDelete.title}\"? This cannot be undone.`
+      ? `Delete "${postToDelete.title}"? This cannot be undone.`
       : 'Delete this blog post? This cannot be undone.'
 
-    if (!window.confirm(confirmMessage)) {
-      return
-    }
-
-    persistPosts(posts.filter((post) => post.id !== id))
-    setNotice({ tone: 'success', text: 'Post deleted.' })
-    audit('blog.delete', { id })
+    openModal({
+      title: 'Delete Post',
+      message: confirmMessage,
+      tone: 'danger',
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        persistPosts(posts.filter((post) => post.id !== id))
+        setNotice({ tone: 'success', text: 'Post deleted.' })
+        audit('blog.delete', { id })
+      }
+    })
   }
 
   const handleQuickPublish = (post) => {
-    if (!canApprove) {
+    if (!canPublish) {
       setNotice({ tone: 'error', text: 'Your role cannot publish posts directly.' })
       return
     }
@@ -333,9 +396,11 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
     const updatedPosts = posts.map((item) => {
       if (item.id !== post.id) return item
       return {
-        ...pushBlogVersion(item, 'approved'),
+        ...pushBlogVersion(item, 'approved_and_published'),
         ...item,
-        status: 'approved',
+        status: 'published',
+        publishedAt: now,
+        scheduledFor: null,
         workflow: {
           ...(item.workflow || {}),
           reviewedBy: currentUser?.email || null,
@@ -346,42 +411,50 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
     })
 
     persistPosts(updatedPosts)
-    setNotice({ tone: 'success', text: 'Post approved.' })
-    audit('blog.approve', { id: post.id })
+    setNotice({ tone: 'success', text: 'Post approved and published.' })
+    audit('blog.approve_and_publish', { id: post.id })
   }
 
   const handleSchedulePost = (post) => {
-    if (!canApprove) {
+    if (!canPublish) {
       setNotice({ tone: 'error', text: 'Your role cannot schedule posts.' })
       return
     }
 
-    const input = window.prompt('Schedule publish date/time (ISO format, e.g. 2026-03-28T09:30)')
-    if (!input) return
-    const scheduled = new Date(input)
-    if (Number.isNaN(scheduled.getTime())) {
-      setNotice({ tone: 'error', text: 'Invalid schedule format.' })
-      return
-    }
+    openModal({
+      title: 'Schedule Post',
+      message: 'Enter the date and time for this post to be automatically published.',
+      showInput: true,
+      initialValue: new Date().toISOString().slice(0, 16),
+      inputPlaceholder: 'YYYY-MM-DDTHH:MM',
+      onConfirm: (input) => {
+        if (!input) return
+        const scheduled = new Date(input)
+        if (Number.isNaN(scheduled.getTime())) {
+          setNotice({ tone: 'error', text: 'Invalid schedule format.' })
+          return
+        }
 
-    const updatedPosts = posts.map((item) => {
-      if (item.id !== post.id) return item
-      return {
-        ...pushBlogVersion(item, 'scheduled_publish'),
-        ...item,
-        status: 'scheduled',
-        scheduledFor: scheduled.toISOString(),
-        workflow: {
-          ...(item.workflow || {}),
-          approvedBy: currentUser?.email || null
-        },
-        updatedAt: new Date().toISOString()
+        const updatedPosts = posts.map((item) => {
+          if (item.id !== post.id) return item
+          return {
+            ...pushBlogVersion(item, 'scheduled_publish'),
+            ...item,
+            status: 'scheduled',
+            scheduledFor: scheduled.toISOString(),
+            workflow: {
+              ...(item.workflow || {}),
+              approvedBy: currentUser?.email || null
+            },
+            updatedAt: new Date().toISOString()
+          }
+        })
+
+        persistPosts(updatedPosts)
+        setNotice({ tone: 'success', text: 'Post scheduled for publishing.' })
+        audit('blog.schedule', { id: post.id, scheduledFor: scheduled.toISOString() })
       }
     })
-
-    persistPosts(updatedPosts)
-    setNotice({ tone: 'success', text: 'Post scheduled for publishing.' })
-    audit('blog.schedule', { id: post.id, scheduledFor: scheduleDate.toISOString() })
   }
 
   const handleRollback = (post) => {
@@ -396,21 +469,26 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
       return
     }
 
-    const confirmed = window.confirm(`Rollback "${post.title}" to previous version?`)
-    if (!confirmed) return
+    openModal({
+      title: 'Rollback Post',
+      message: `Rollback "${post.title}" to the previous version? The current version will be archived.`,
+      tone: 'warning',
+      confirmLabel: 'Rollback',
+      onConfirm: () => {
+        const updatedPosts = posts.map((item) => {
+          if (item.id !== post.id) return item
+          return {
+            ...latestVersion.snapshot,
+            versions: (post.versions || []).slice(1),
+            updatedAt: new Date().toISOString()
+          }
+        })
 
-    const updatedPosts = posts.map((item) => {
-      if (item.id !== post.id) return item
-      return {
-        ...latestVersion.snapshot,
-        versions: (post.versions || []).slice(1),
-        updatedAt: new Date().toISOString()
+        persistPosts(updatedPosts)
+        setNotice({ tone: 'success', text: 'Post rolled back to previous version.' })
+        audit('blog.rollback', { id: post.id })
       }
     })
-
-    persistPosts(updatedPosts)
-    setNotice({ tone: 'success', text: 'Post rolled back to previous version.' })
-    audit('blog.rollback', { id: post.id })
   }
 
   const handleSelectPost = (id) => {
@@ -473,16 +551,24 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
       }
     }).filter(Boolean)
 
-    if (action === 'delete') {
-      const confirmed = window.confirm(`Delete ${selectedPosts.length} selected post(s)?`)
-      if (!confirmed) return
-      updated = updated
+    const runBulkAction = (targetAction, postList) => {
+      persistPosts(postList)
+      setSelectedPosts([])
+      setNotice({ tone: 'success', text: `Bulk action "${targetAction}" completed.` })
+      audit('blog.bulk_action', { action: targetAction, count: selectedPosts.length })
     }
 
-    persistPosts(updated)
-    setSelectedPosts([])
-    setNotice({ tone: 'success', text: `Bulk action "${action}" completed.` })
-    audit('blog.bulk_action', { action, count: selectedPosts.length })
+    if (action === 'delete') {
+      openModal({
+        title: 'Bulk Delete',
+        message: `Delete ${selectedPosts.length} selected post(s)? This action cannot be undone.`,
+        tone: 'danger',
+        confirmLabel: 'Delete All',
+        onConfirm: () => runBulkAction(action, updated)
+      })
+    } else {
+      runBulkAction(action, updated)
+    }
   }
 
   const filteredPosts = useMemo(() => {
@@ -495,10 +581,11 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
 
       const matchesCategory = filterCategory === 'all' || post.category === filterCategory
       const matchesStatus = filterStatus === 'all' || post.status === filterStatus
+      const matchesDate = matchesAdminDateFilter(post.publishedAt || post.createdAt || post.updatedAt || post.scheduledFor, filterDate)
 
-      return matchesSearch && matchesCategory && matchesStatus
+      return matchesSearch && matchesCategory && matchesStatus && matchesDate
     })
-  }, [posts, searchTerm, filterCategory, filterStatus])
+  }, [posts, searchTerm, filterCategory, filterDate, filterStatus])
 
   const stats = useMemo(() => {
     const published = posts.filter((post) => post.status === 'published').length
@@ -657,13 +744,13 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
 
               <label className="admin-blog__field">
                 <span>Status</span>
-                <select name="status" value={formData.status} onChange={handleChange}>
+                <DropdownSelect name="status" value={formData.status} onChange={handleChange}>
                   {BLOG_WORKFLOW_STATUSES.map((status) => (
                     <option key={status.value} value={status.value}>
                       {status.label}
                     </option>
                   ))}
-                </select>
+                </DropdownSelect>
               </label>
             </div>
 
@@ -699,7 +786,9 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
 
             <div className="admin-blog__editor-actions">
               <button type="submit" className="admin-blog__primary-btn">
-                {canApprove ? (view === 'create' ? 'Save Post' : 'Update Post') : 'Submit For Review'}
+                {canApprove
+                  ? (view === 'create' ? 'Publish Post' : 'Approve & Publish')
+                  : 'Submit For Review'}
               </button>
 
               <button type="button" onClick={handleSaveDraft} className="admin-blog__secondary-btn">
@@ -808,23 +897,31 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
             />
           </label>
 
-          <select value={filterCategory} onChange={(event) => setFilterCategory(event.target.value)}>
+          <DropdownSelect value={filterCategory} onChange={(event) => setFilterCategory(event.target.value)}>
             <option value="all">All Categories</option>
             {BLOG_CATEGORIES.map((category) => (
               <option key={category.value} value={category.value}>
                 {category.label}
               </option>
             ))}
-          </select>
+          </DropdownSelect>
 
-          <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
+          <DropdownSelect value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
             <option value="all">All Status</option>
             {BLOG_WORKFLOW_STATUSES.map((status) => (
               <option key={status.value} value={status.value}>
                 {status.label}
               </option>
             ))}
-          </select>
+          </DropdownSelect>
+
+          <DropdownSelect value={filterDate} onChange={(event) => setFilterDate(event.target.value)}>
+            {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </DropdownSelect>
         </div>
       </section>
 
@@ -937,7 +1034,7 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
                   </button>
                 )}
 
-                {(post.status === 'pending_review' || post.status === 'approved') && canApprove && (
+                {post.status === 'pending_review' && canApprove && (
                   <button
                     type="button"
                     onClick={() => handleApprove(post)}
@@ -948,7 +1045,7 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
                   </button>
                 )}
 
-                {canApprove && (
+                {canPublish && (
                   <button
                     type="button"
                     onClick={() => handleQuickPublish(post)}
@@ -959,7 +1056,7 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
                   </button>
                 )}
 
-                {canApprove && (
+                {canPublish && (
                   <button
                     type="button"
                     onClick={() => handleSchedulePost(post)}
@@ -992,15 +1089,32 @@ const BlogManager = ({ currentUser = null, hasPermission = () => false }) => {
         })}
       </div>
 
-      {filteredPosts.length === 0 && (
+      {posts.length === 0 && (
         <div className="admin-blog__empty">
-          <h3>No posts match your filters.</h3>
-          <p>Adjust search or filter options, or create a new post.</p>
+          <Sparkles size={48} />
+          <h2>No Blog Posts Yet</h2>
+          <p>Get started by creating your very first article or devotional.</p>
           <button type="button" onClick={openCreate} className="admin-blog__primary-btn">
-            Create Post
+            Create First Post
           </button>
         </div>
       )}
+
+      <AdminModal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        title={modalConfig.title}
+        tone={modalConfig.tone}
+        onConfirm={handleModalConfirm}
+        showInput={modalConfig.showInput}
+        inputValue={modalConfig.inputValue}
+        onInputChange={(val) => setModalConfig(prev => ({ ...prev, inputValue: val }))}
+        inputPlaceholder={modalConfig.inputPlaceholder}
+        confirmLabel={modalConfig.confirmLabel}
+        cancelLabel={modalConfig.cancelLabel}
+      >
+        <p style={{ margin: 0 }}>{modalConfig.message}</p>
+      </AdminModal>
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { SectionHeader, Button } from '../../components/common'
 import { useI18n } from '../../i18n/LanguageContext'
+import { toAssetUrl } from '../../utils/appPaths'
 import './About.css'
 
 const About = () => {
   const { t } = useI18n()
-  const baseUrl = String(import.meta.env.BASE_URL || '/')
-  const youthPhoto = `${baseUrl}assets/media/pictures/IMG_1769.png`
+  const youthPhoto = toAssetUrl('assets/media/pictures/IMG_1769.png')
   const beliefs = [
     {
       title: 'Jesus the Savior',

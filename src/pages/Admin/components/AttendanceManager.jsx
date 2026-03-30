@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Copy, Download, QrCode, RefreshCw } from 'lucide-react'
+import { useFeedback } from '../../../components/common'
 import { FacebookIcon, InstagramIcon, TikTokIcon, TwitterIcon, YoutubeIcon } from '../../../components/common/SocialIcons'
 import { useAdminTheme } from '../AdminThemeContext'
 
@@ -76,6 +77,7 @@ const downloadBlobAsFile = (blob, fileName) => {
 }
 
 const AttendanceManager = () => {
+  const { showError, showSuccess } = useFeedback()
   const { darkMode } = useAdminTheme()
   const ui = {
     panel: darkMode ? '#1a2235' : '#fff',
@@ -200,8 +202,10 @@ const AttendanceManager = () => {
     try {
       await navigator.clipboard.writeText(value)
       setMessage(successLabel)
+      showSuccess(successLabel, { title: 'Copied' })
     } catch {
       setMessage('Unable to copy. Please copy manually.')
+      showError('Unable to copy. Please copy manually.', { title: 'Copy failed' })
     }
   }
 

@@ -131,6 +131,18 @@ export const listSubscribedVisitors = async () => {
   return result.rows.map(withReminderPreferences)
 }
 
+export const listVisitors = async ({ subscribedOnly = false } = {}) => {
+  const whereClause = subscribedOnly
+    ? 'WHERE is_subscribed = true AND do_not_contact = false AND deleted_at IS NULL'
+    : 'WHERE deleted_at IS NULL'
+
+  const result = await query(
+    `SELECT * FROM visitors ${whereClause} ORDER BY created_at DESC`
+  )
+
+  return result.rows.map(withReminderPreferences)
+}
+
 export const updateVisitorSubscription = async (phoneNumber, isSubscribed) => {
   const result = await query(
     'UPDATE visitors SET is_subscribed = $1, updated_at = now() WHERE phone_number = $2 AND deleted_at IS NULL RETURNING *',

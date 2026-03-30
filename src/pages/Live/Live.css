@@ -1,0 +1,244 @@
+.live-page {
+  --hero-primary: var(--cup-blue);
+  background:
+    radial-gradient(circle at 90% 0%, rgba(45, 58, 122, 0.12), transparent 32%),
+    radial-gradient(circle at 0% 32%, rgba(212, 168, 46, 0.12), transparent 30%),
+    linear-gradient(180deg, #f6f8ff 0%, #f3efe3 100%);
+  min-height: 100vh;
+}
+
+.live-page__hero {
+  padding: calc(var(--space-5xl) + 2.5rem) 0 var(--space-3xl);
+}
+
+.live-page__hero-inner {
+  max-width: 760px;
+}
+
+.live-page__eyebrow {
+  display: inline-flex;
+  border: 1px solid color-mix(in srgb, var(--cup-blue) 35%, white);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.7rem;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cup-blue);
+  margin-bottom: 0.8rem;
+}
+
+.live-page__hero h1 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.live-page__hero p {
+  color: #334155;
+}
+
+.live-page__section {
+  padding-bottom: var(--space-3xl);
+}
+
+.live-page__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.live-page__panel {
+  border: 1px solid #d7deed;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.live-page__panel h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.live-page__status {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.live-page__status--error {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.live-page__embed-wrap {
+  position: relative;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  border: 1px solid #c9d5ea;
+}
+
+.live-page__embed-wrap iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.live-page__live-pill {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: linear-gradient(90deg, #dc2626, #f97316);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  font-weight: 700;
+}
+
+.live-page__offline-card {
+  border: 1px dashed #bec8dd;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 1rem;
+}
+
+.live-page__offline-label {
+  margin: 0 0 0.35rem;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.live-page__offline-card h2 {
+  margin: 0;
+  font-size: 1.22rem;
+}
+
+.live-page__offline-card p {
+  margin-top: 0.55rem;
+  color: #475569;
+}
+
+.live-page__offline-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.live-page__latest-card {
+  margin-top: 0.65rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.live-page__latest-card img {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid #c9d4e8;
+}
+
+.live-page__latest-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.live-page__latest-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.live-page__more-link {
+  display: inline-flex;
+  margin-top: 0.8rem;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.live-page__section--vod {
+  padding-bottom: var(--space-4xl);
+}
+
+.live-page__vod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.8rem;
+}
+
+.live-page__vod-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.live-page__vod-header a {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.live-page__vod-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.live-page__vod-card {
+  border: 1px solid #d7deed;
+  border-radius: 0.8rem;
+  background: #fff;
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.live-page__vod-card img {
+  width: 100%;
+  border-radius: 0.55rem;
+  border: 1px solid #ccd5e8;
+}
+
+.live-page__vod-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.live-page__vod-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.live-page__vod-card a {
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .live-page__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .live-page__vod-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .live-page__hero {
+    padding-top: calc(var(--space-4xl) + 2.4rem);
+  }
+
+  .live-page__vod-grid {
+    grid-template-columns: 1fr;
+  }
+}

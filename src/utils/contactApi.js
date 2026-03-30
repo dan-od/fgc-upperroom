@@ -1,5 +1,4 @@
-const BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-const toApiUrl = (path) => `${BASE_URL}${path}`
+import { toApiUrl } from './appPaths'
 
 const request = async (url, options = {}) => {
   const response = await fetch(url, options)

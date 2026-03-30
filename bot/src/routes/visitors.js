@@ -5,6 +5,7 @@ import {
   findPotentialVisitorDuplicates,
   getVisitorByPhone,
   getVisitorReminderPreferences,
+  listVisitors,
   listSubscribedVisitors,
   markDoNotContact,
   normalizeReminderPreferences,
@@ -67,7 +68,7 @@ router.post('/', async (req, res) => {
     if (!existingBefore) {
       const jobId = `welcome-${visitor.id}-${Date.now()}`
       const welcomeName = visitor.name ? `, ${visitor.name}` : ''
-      const fallbackWelcomeText = `Welcome to FGC Upper Room${welcomeName}! 🙏 You're now subscribed to service reminders. We'll send you WhatsApp notifications before Sunday services and upcoming events. Reply STOP at any time to unsubscribe.`
+      const fallbackWelcomeText = `Welcome to FGC Upper Room${welcomeName}. You're now on our WhatsApp list for Sunday reminders and event updates. Reply STOP any time to unsubscribe.`
       const welcomeText = (await renderTemplateByKey('welcome_message', {
         name: visitor.name || 'there',
         nameSuffix: welcomeName
@@ -169,7 +170,10 @@ router.get('/:phoneNumber', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const visitors = await listSubscribedVisitors()
+    const subscribedOnly = String(req.query.subscribedOnly || '').trim().toLowerCase() === 'true'
+    const visitors = subscribedOnly
+      ? await listSubscribedVisitors()
+      : await listVisitors()
     res.json({ count: visitors.length, visitors })
   } catch (error) {
     logger.error('Failed to list visitors', { error: error.message })
