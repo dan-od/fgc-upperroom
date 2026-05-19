@@ -9,7 +9,7 @@ const isWeakSecret = (value = '') => {
 }
 
 export const getAdminSecret = () => {
-  const value = process.env.BOT_ADMIN_API_KEY || process.env.VITE_ADMIN_PASSWORD || ''
+  const value = process.env.BOT_ADMIN_API_KEY || ''
   return isWeakSecret(value) ? '' : value
 }
 

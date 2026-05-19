@@ -29,7 +29,12 @@ export const createBotApp = () => {
 
   app.disable('x-powered-by')
   app.use(cors())
-  app.use(express.json({ limit: '1mb' }))
+
+  const _rawBodyStore = new WeakMap()
+  app.use(express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => { _rawBodyStore.set(req, buf) },
+  }))
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('X-Frame-Options', 'DENY')
@@ -105,6 +110,29 @@ export const createBotApp = () => {
   // Meta webhook events (POST) — inbound messages + delivery statuses
   app.post('/bot/webhooks/whatsapp', async (req, res) => {
     try {
+      // Verify X-Hub-Signature-256 before processing any payload
+      const appSecret = env.META_APP_SECRET
+      if (appSecret) {
+        const sig = String(req.headers['x-hub-signature-256'] || '')
+        const rawBody = _rawBodyStore.get(req)
+        if (!sig || !rawBody) {
+          logger.warn('WhatsApp webhook rejected — missing signature or raw body', { event: 'webhook_sig_missing', path: req.path })
+          return res.status(403).json({ error: 'Forbidden' })
+        }
+        const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+        const sigBuf = Buffer.from(sig)
+        const expectedBuf = Buffer.from(expected)
+        const signaturesMatch =
+          sigBuf.length === expectedBuf.length &&
+          crypto.timingSafeEqual(sigBuf, expectedBuf)
+        if (!signaturesMatch) {
+          logger.warn('WhatsApp webhook rejected — invalid X-Hub-Signature-256', { event: 'webhook_sig_invalid', path: req.path })
+          return res.status(403).json({ error: 'Forbidden' })
+        }
+      } else {
+        logger.warn('META_APP_SECRET not configured — skipping webhook signature verification')
+      }
+
       // Always acknowledge immediately — Meta retries if it doesn't get 200 quickly
       res.status(200).json({ received: true })
 

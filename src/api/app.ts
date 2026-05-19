@@ -56,11 +56,14 @@ async function ensureSeedAdminUser() {
     process.env.ADMIN_DEFAULT_EMAIL ||
     "admin@upperroom.local"
   ).trim();
-  const password = String(
-    process.env.ADMIN_PASSWORD ||
-    process.env.ADMIN_DEFAULT_PASSWORD ||
-    "Admin123!"
-  ).trim();
+  const rawPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_DEFAULT_PASSWORD || "";
+  if (!rawPassword) {
+    throw new Error(
+      "[BACKEND_API] ADMIN_PASSWORD or ADMIN_DEFAULT_PASSWORD must be set before first run. " +
+      "Set it in your .env file and restart."
+    );
+  }
+  const password = rawPassword.trim();
   const { hash, salt } = hashPassword(password);
   const nowIso = new Date().toISOString();
 
