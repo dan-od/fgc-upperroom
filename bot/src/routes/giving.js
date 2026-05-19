@@ -6,14 +6,9 @@ import { logMessageSent } from '../services/message.repository.js'
 import { renderTemplateByKey } from '../services/template.repository.js'
 import { normalizePhoneNumber, isValidPhoneNumber } from '../services/identity.service.js'
 import { logger } from '../lib/logger.js'
+import { maskPhone } from '../utils/privacy.js'
 
 const router = express.Router()
-
-const maskPhone = (phone) => {
-  if (!phone) return '[redacted]'
-  const s = String(phone)
-  return s.slice(0, 3) + '***' + s.slice(-2)
-}
 
 const formatFundName = (fund) => {
   if (!fund || fund === 'general') return 'General'

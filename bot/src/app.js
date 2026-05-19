@@ -17,12 +17,7 @@ import prayerRequestRoutes from './routes/prayer-requests.js'
 import memberRoutes from './routes/members.js'
 import privacyRoutes from './routes/privacy.js'
 import givingRoutes from './routes/giving.js'
-
-const maskPhone = (phone) => {
-  if (!phone) return '[redacted]'
-  const s = String(phone)
-  return s.slice(0, 3) + '***' + s.slice(-2)
-}
+import { maskPhone } from './utils/privacy.js'
 
 export const createBotApp = () => {
   const app = express()
