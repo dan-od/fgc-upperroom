@@ -2,7 +2,8 @@ import express from 'express'
 import cors from 'cors'
 
 import attendanceRoutes from './routes/attendance.js'
-import { autoGenerateSundaySession, getSocialLinkRedirectTarget } from './services/attendance.service.js'
+import { autoGenerateSundaySession, getSocialLinkRedirectTarget, rehydrateAttendanceStore } from './services/attendance.service.js'
+import { closeAttendancePool } from './db/connection.js'
 import { loadProjectEnvFile } from '../lib/load-project-env.js'
 
 loadProjectEnvFile()
@@ -35,6 +36,7 @@ const autoGenerate = () => {
   }
 }
 
+await rehydrateAttendanceStore()
 autoGenerate()
 const autoGenInterval = setInterval(autoGenerate, 60 * 1000)
 
@@ -53,6 +55,7 @@ const gracefulShutdown = async (signal) => {
   try {
     clearInterval(autoGenInterval)
     await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
+    await closeAttendancePool()
     clearTimeout(forceExit)
     console.log('[ATTENDANCE] Graceful shutdown complete')
     process.exit(0)

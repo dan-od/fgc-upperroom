@@ -1,6 +1,7 @@
 import { loadProjectEnv } from "./load-env.js";
 import express from "express";
 import crypto from "node:crypto";
+import pg from "pg";
 import {
   buildGivingReference,
   normalizeGivingStatus,
@@ -9,7 +10,6 @@ import {
 } from "../../lib/giving-utils.js";
 import type { GivingTransaction, GivingTransactionStatus } from "./types.js";
 import { buildPublicAppUrl } from "./server-paths.js";
-import { paths, readJsonArray, writeJsonArray } from "./storage.js";
 
 const router = express.Router();
 type BankTransferDetail = {
@@ -276,29 +276,113 @@ const withCryptoVerificationLock = async <T>(fn: () => Promise<T>) => {
   }
 };
 
-const findTransactionByHash = (records: GivingTransaction[], txHash: string, excludeReference = '') => {
-  const normalizedHash = String(txHash || '').trim().toLowerCase();
-  if (!normalizedHash) {
-    return null;
+// ── PostgreSQL pool (lazy-init) ─────────────────────────────────────────────
+const { Pool } = pg;
+let _givingPool: pg.Pool | null = null;
+
+const getGivingPool = (): pg.Pool => {
+  if (!_givingPool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL must be set for giving transactions");
+    }
+    _givingPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+    _givingPool.on("error", (err) => {
+      console.error("[giving] DB pool error:", err.message);
+    });
   }
-
-  return records.find((item) => {
-    const itemHash = String(item.txHash || '').trim().toLowerCase();
-    return itemHash === normalizedHash && item.reference !== excludeReference;
-  }) || null;
+  return _givingPool;
 };
 
-const readGivingTransactions = async () => {
-  const rows = await readJsonArray<GivingTransaction>(paths.givingTransactions);
-  return rows
-    .map((item) => normalizeGivingTransaction(item))
-    .filter((item) => item.reference)
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+const rowToTransaction = (row: Record<string, unknown>): GivingTransaction =>
+  normalizeGivingTransaction({
+    id: String(row.id || ""),
+    reference: String(row.reference || ""),
+    provider: row.provider as GivingTransaction["provider"],
+    status: row.status as GivingTransactionStatus,
+    amountKobo: Number(row.amount_kobo) || 0,
+    currency: String(row.currency || "NGN"),
+    fund: String(row.fund || "general"),
+    donorName: String(row.donor_name || ""),
+    donorEmail: String(row.donor_email || ""),
+    donorPhone: String(row.donor_phone || ""),
+    message: String(row.message || ""),
+    source: String(row.source || "website"),
+    providerStatus: String(row.provider_status || ""),
+    providerMessage: String(row.provider_message || ""),
+    initializedAt: row.initialized_at ? String(row.initialized_at) : new Date().toISOString(),
+    updatedAt: row.updated_at ? String(row.updated_at) : new Date().toISOString(),
+    paidAt: row.paid_at ? String(row.paid_at) : null,
+    timeline: Array.isArray(row.timeline) ? (row.timeline as GivingTransaction["timeline"]) : [],
+    metadata: row.metadata && typeof row.metadata === "object" ? (row.metadata as Record<string, unknown>) : {},
+    txHash: row.tx_hash ? String(row.tx_hash) : undefined,
+    walletAddress: row.wallet_address ? String(row.wallet_address) : undefined,
+  });
+
+const getTransactionByReference = async (reference: string): Promise<GivingTransaction | null> => {
+  const result = await getGivingPool().query(
+    "SELECT * FROM giving_transactions WHERE reference = $1",
+    [reference]
+  );
+  return result.rows.length ? rowToTransaction(result.rows[0]) : null;
 };
 
-const writeGivingTransactions = async (records: GivingTransaction[]) => {
-  const normalized = records.map((item) => normalizeGivingTransaction(item));
-  await writeJsonArray(paths.givingTransactions, normalized.slice(0, 5000));
+const referenceExists = async (reference: string): Promise<boolean> => {
+  const result = await getGivingPool().query(
+    "SELECT 1 FROM giving_transactions WHERE reference = $1",
+    [reference]
+  );
+  return result.rows.length > 0;
+};
+
+const insertGivingTransaction = async (tx: GivingTransaction): Promise<void> => {
+  await getGivingPool().query(
+    `INSERT INTO giving_transactions
+       (id, reference, provider, status, amount_kobo, currency, fund,
+        donor_name, donor_email, donor_phone, message, source,
+        provider_status, provider_message, initialized_at, updated_at,
+        paid_at, timeline, metadata, tx_hash, wallet_address)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+    [
+      tx.id, tx.reference, tx.provider, tx.status, tx.amountKobo,
+      tx.currency, tx.fund, tx.donorName, tx.donorEmail, tx.donorPhone,
+      tx.message, tx.source, tx.providerStatus, tx.providerMessage,
+      tx.initializedAt, tx.updatedAt, tx.paidAt ?? null,
+      JSON.stringify(tx.timeline), JSON.stringify(tx.metadata),
+      tx.txHash ?? null, tx.walletAddress ?? null,
+    ]
+  );
+};
+
+const updateGivingTransaction = async (tx: GivingTransaction): Promise<void> => {
+  await getGivingPool().query(
+    `UPDATE giving_transactions SET
+       status=$1, amount_kobo=$2, currency=$3, provider_status=$4,
+       provider_message=$5, updated_at=$6, paid_at=$7,
+       timeline=$8, metadata=$9, tx_hash=$10, wallet_address=$11
+     WHERE reference=$12`,
+    [
+      tx.status, tx.amountKobo, tx.currency, tx.providerStatus,
+      tx.providerMessage, tx.updatedAt, tx.paidAt ?? null,
+      JSON.stringify(tx.timeline), JSON.stringify(tx.metadata),
+      tx.txHash ?? null, tx.walletAddress ?? null,
+      tx.reference,
+    ]
+  );
+};
+
+const findTransactionByTxHashDb = async (txHash: string, excludeReference: string): Promise<GivingTransaction | null> => {
+  const normalizedHash = String(txHash || "").trim().toLowerCase();
+  if (!normalizedHash) return null;
+  const result = await getGivingPool().query(
+    "SELECT * FROM giving_transactions WHERE tx_hash = $1 AND reference != $2",
+    [normalizedHash, excludeReference]
+  );
+  return result.rows.length ? rowToTransaction(result.rows[0]) : null;
 };
 
 const parseGivingAmountKobo = (value: unknown) => {
@@ -347,8 +431,7 @@ const markGivingTransactionAbandoned = async (reference: string, providerMessage
   const safeReference = String(reference || "").trim();
   if (!safeReference) return null;
 
-  const records = await readGivingTransactions();
-  const current = records.find((item) => item.reference === safeReference);
+  const current = await getTransactionByReference(safeReference);
   if (!current) return null;
   if (current.status === "success") return current;
 
@@ -366,7 +449,7 @@ const markGivingTransactionAbandoned = async (reference: string, providerMessage
     payloadHash: hashPayload({ reference: safeReference, providerMessage: current.providerMessage, at: nowIso }),
   });
 
-  await writeGivingTransactions(records);
+  await updateGivingTransaction(current);
   return current;
 };
 
@@ -446,9 +529,8 @@ router.post("/initialize", async (req, res) => {
     return res.status(400).json({ error: `Minimum giving amount is ${minLabel}.` });
   }
 
-  const records = await readGivingTransactions();
   let reference = buildGivingReference("URG");
-  while (records.some((item) => item.reference === reference)) {
+  while (await referenceExists(reference)) {
     reference = buildGivingReference("URG");
   }
 
@@ -479,7 +561,7 @@ router.post("/initialize", async (req, res) => {
       walletAddress: runtimeConfig.ethereumWalletAddress,
     });
 
-    await writeGivingTransactions([pending, ...records]);
+    await insertGivingTransaction(pending);
     return res.json({
       ok: true,
       reference,
@@ -536,7 +618,7 @@ router.post("/initialize", async (req, res) => {
       },
     });
 
-    await writeGivingTransactions([pending, ...records]);
+    await insertGivingTransaction(pending);
     return res.json({
       ok: true,
       reference,
@@ -581,7 +663,7 @@ router.post("/initialize", async (req, res) => {
     },
   });
 
-  await writeGivingTransactions([pending, ...records]);
+  await insertGivingTransaction(pending);
   return res.json({
     ok: true,
     reference,
@@ -637,8 +719,7 @@ router.post("/verify-crypto", async (req, res) => {
     }
 
     return await withCryptoVerificationLock(async () => {
-      const records = await readGivingTransactions();
-      const current = records.find((item) => item.reference === reference);
+      const current = await getTransactionByReference(reference);
 
       if (!current) return res.status(404).json({ error: "Reference not found." });
       if (current.provider !== "crypto") return res.status(400).json({ error: "This is not a crypto transaction." });
@@ -646,7 +727,7 @@ router.post("/verify-crypto", async (req, res) => {
         return res.json({ ok: true, message: "Transaction already verified.", data: toGivingConfirmation(current) });
       }
 
-      const duplicate = findTransactionByHash(records, txHash, reference);
+      const duplicate = await findTransactionByTxHashDb(txHash, reference);
       if (duplicate) {
         const nowIso = new Date().toISOString();
         current.status = "failed";
@@ -666,7 +747,7 @@ router.post("/verify-crypto", async (req, res) => {
           }),
         });
 
-        await writeGivingTransactions(records);
+        await updateGivingTransaction(current);
         return res.status(409).json({
           error: current.providerMessage,
           duplicateOfReference: duplicate.reference,
@@ -688,7 +769,7 @@ router.post("/verify-crypto", async (req, res) => {
         payloadHash: hashPayload(transaction),
       });
 
-      await writeGivingTransactions(records);
+      await updateGivingTransaction(current);
       return res.json({
         ok: true,
         message: "Transaction verified successfully!",
@@ -707,8 +788,7 @@ router.get("/confirm", async (req, res) => {
     return res.status(400).json({ error: "reference is required." });
   }
 
-  const records = await readGivingTransactions();
-  const current = records.find((item) => item.reference === reference);
+  const current = await getTransactionByReference(reference);
   if (!current) {
     return res.status(404).json({ error: "Transaction not found." });
   }
@@ -738,7 +818,7 @@ router.get("/confirm", async (req, res) => {
         payloadHash: hashPayload(verified),
       });
 
-      await writeGivingTransactions(records);
+      await updateGivingTransaction(current);
     }
   }
 
@@ -811,11 +891,10 @@ router.post(
       }
 
       try {
-        const records = await readGivingTransactions();
-        const current = records.find((item) => item.reference === reference);
+        const current = await getTransactionByReference(reference);
 
         if (!current) {
-          console.warn(`[giving] charge.success webhook — reference ${reference} not found in local store.`);
+          console.warn(`[giving] charge.success webhook — reference ${reference} not found in DB.`);
           return;
         }
 
@@ -839,7 +918,7 @@ router.post(
           payloadHash: hashPayload(data),
         });
 
-        await writeGivingTransactions(records);
+        await updateGivingTransaction(current);
         console.log(`[giving] Webhook processed: charge.success for reference=${reference}.`);
       } catch (err: any) {
         console.error(`[giving] Webhook handler error for reference=${reference}:`, err?.message || err);
