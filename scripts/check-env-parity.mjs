@@ -11,7 +11,6 @@ const ENV_FILES = [
 ]
 
 const REQUIRED_KEYS = [
-  'VITE_ADMIN_PASSWORD',
   'BOT_PORT',
   'BOT_HOST',
   'BOT_TIMEZONE',
