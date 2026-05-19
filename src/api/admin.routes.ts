@@ -12,6 +12,33 @@ const router = express.Router();
 const logPrefix = "[ADMIN_API]";
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
 
+// ─── AUTH RATE LIMITER ────────────────────────────────────────────────────────
+// 5 attempts per 15 minutes per IP, applied to login and password-reset/confirm
+const _authRlStore = new Map<string, { count: number; resetAt: number }>();
+const AUTH_RL_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_RL_MAX = 5;
+
+const authRateLimit = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = String(req.ip || (req.socket as any)?.remoteAddress || "unknown");
+  const now = Date.now();
+  if (_authRlStore.size > 5_000) {
+    for (const [key, val] of _authRlStore) {
+      if (now > val.resetAt) _authRlStore.delete(key);
+    }
+  }
+  const entry = _authRlStore.get(ip);
+  if (!entry || now > entry.resetAt) {
+    _authRlStore.set(ip, { count: 1, resetAt: now + AUTH_RL_WINDOW_MS });
+    return next();
+  }
+  if (entry.count >= AUTH_RL_MAX) {
+    console.warn(`${logPrefix} Auth rate limit exceeded`, { ip });
+    return res.status(429).json({ error: "Too many attempts. Please wait 15 minutes and try again." });
+  }
+  entry.count++;
+  return next();
+};
+
 const hashToken = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 const toIsoOrFallback = (value: unknown, fallback = new Date().toISOString()) => {
   const parsed = new Date(String(value || ""));
@@ -53,8 +80,9 @@ const appendAuditLog = async (entry: Omit<AdminAuditLogEntry, "id" | "createdAt"
 // ─── AUTH ROUTES ────────────────────────────────────────────────────────────
 
 // POST /api/admin/auth/login
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", authRateLimit, async (req, res) => {
   const { email, password, otpCode } = req.body || {};
+  const ip = String(req.ip || req.headers["x-forwarded-for"] || "");
 
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
@@ -64,11 +92,23 @@ router.post("/auth/login", async (req, res) => {
   const user = users.find((u) => u.email.toLowerCase() === String(email).toLowerCase().trim());
 
   if (!user || !user.isActive) {
+    await appendAuditLog({
+      actorUserId: "", actorEmail: String(email).toLowerCase().trim(), actorRole: "reviewer",
+      action: "auth.login_failed", resource: "session",
+      ip, userAgent: String(req.headers["user-agent"] || ""),
+      details: { reason: "user_not_found" },
+    });
     return res.status(401).json({ error: "Invalid credentials." });
   }
 
   const valid = verifyPassword(String(password), user.passwordHash, user.passwordSalt);
   if (!valid) {
+    await appendAuditLog({
+      actorUserId: user.id, actorEmail: user.email, actorRole: user.role,
+      action: "auth.login_failed", resource: "session",
+      ip, userAgent: String(req.headers["user-agent"] || ""),
+      details: { reason: "bad_password" },
+    });
     return res.status(401).json({ error: "Invalid credentials." });
   }
 
@@ -79,6 +119,12 @@ router.post("/auth/login", async (req, res) => {
     }
     const otpValid = verifyTotpCode(user.twoFactorSecret, String(otpCode));
     if (!otpValid) {
+      await appendAuditLog({
+        actorUserId: user.id, actorEmail: user.email, actorRole: user.role,
+        action: "auth.login_failed", resource: "session",
+        ip, userAgent: String(req.headers["user-agent"] || ""),
+        details: { reason: "bad_otp" },
+      });
       return res.status(401).json({ error: "Invalid two-factor authentication code." });
     }
   }
@@ -216,7 +262,7 @@ router.post("/auth/password-reset/request", async (req, res) => {
 });
 
 // POST /api/admin/auth/password-reset/confirm
-router.post("/auth/password-reset/confirm", async (req, res) => {
+router.post("/auth/password-reset/confirm", authRateLimit, async (req, res) => {
   const { token, newPassword } = req.body || {};
   if (!token || !newPassword) {
     return res.status(400).json({ error: "token and newPassword are required." });
