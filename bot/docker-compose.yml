@@ -87,6 +87,21 @@ services:
       META_API_VERSION: ${META_API_VERSION:-v21.0}
     restart: unless-stopped
 
+  pg-backup:
+    image: postgres:15-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://botuser:${DB_PASSWORD}@postgres:5432/church_bot
+      BACKUP_DIR: /backups
+      KEEP_DAYS: "7"
+    volumes:
+      - ../scripts/pg-backup.sh:/pg-backup.sh:ro
+      - ./backups:/backups
+    entrypoint: ["sh", "-c", "while true; do sh /pg-backup.sh; sleep 86400; done"]
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

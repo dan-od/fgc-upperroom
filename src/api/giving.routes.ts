@@ -136,11 +136,13 @@ const getGivingRuntimeConfig = (): GivingRuntimeConfig => {
   const paystackSecretKey = cleanEnv(process.env.PAYSTACK_SECRET_KEY);
   const givingCurrency = cleanEnv(process.env.GIVING_CURRENCY || "NGN").toUpperCase() || "NGN";
   const givingCallbackUrl = cleanEnv(process.env.GIVING_CALLBACK_URL);
+  // Canonical: GIVING_CRYPTO_WALLET_ADDRESS — ETHEREUM_WALLET_ADDRESS and CRYPTO_WALLET_ADDRESS are deprecated aliases kept for backward compat.
   const ethereumWalletAddress = cleanEnv(
     process.env.GIVING_CRYPTO_WALLET_ADDRESS || process.env.ETHEREUM_WALLET_ADDRESS || process.env.CRYPTO_WALLET_ADDRESS
   );
   const bitcoinWalletAddress = cleanEnv(process.env.BITCOIN_WALLET_ADDRESS);
   const sepoliaRpcUrl = cleanEnv(process.env.GIVING_CRYPTO_RPC_URL || process.env.SEPOLIA_RPC_URL);
+  // Canonical: GIVING_BANK_ACCOUNTS_JSON — GIVING_BANK_TRANSFER_ACCOUNTS_JSON, GIVING_BANK_OPTIONS_JSON, and GIVING_BANKS_JSON are deprecated aliases.
   const bankAccountsFromJson = parseBankTransferAccounts(
     cleanEnv(
       process.env.GIVING_BANK_ACCOUNTS_JSON ||
