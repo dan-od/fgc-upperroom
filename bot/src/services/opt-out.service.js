@@ -1,11 +1,6 @@
 import { updateVisitorSubscription, markDoNotContact, getVisitorByPhone } from './visitor.repository.js'
 import { logger } from '../lib/logger.js'
-
-const maskPhone = (phone) => {
-  if (!phone) return '[redacted]'
-  const s = String(phone)
-  return s.slice(0, 3) + '***' + s.slice(-2)
-}
+import { maskPhone } from '../utils/privacy.js'
 
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'cancel', 'quit', 'end', 'optout', 'opt-out']
 

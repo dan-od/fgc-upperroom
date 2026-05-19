@@ -151,6 +151,11 @@ export const createApp = async (options: CreateAppOptions = {}) => {
     });
   }
 
+  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("[API] Unhandled error", err.message);
+    res.status(500).json({ error: "An unexpected error occurred." });
+  });
+
   return app;
 };
 

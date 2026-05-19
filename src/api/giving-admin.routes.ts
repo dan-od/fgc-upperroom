@@ -2,6 +2,7 @@ import express from "express";
 import pg from "pg";
 import { requireAdminPermission } from "./auth.middleware.js";
 import type { AuthenticatedRequest } from "./auth.middleware.js";
+import { maskEmail, maskPhone } from "./utils/privacy.js";
 
 const router = express.Router();
 const { Pool } = pg;
@@ -19,17 +20,6 @@ const getPool = (): pg.Pool => {
     _pool.on("error", (err) => console.error("[admin-giving] DB pool error:", err.message));
   }
   return _pool;
-};
-
-const maskEmail = (email: string): string => {
-  if (!email || !email.includes("@")) return email;
-  const atIndex = email.indexOf("@");
-  return `${email[0] || ""}***${email.slice(atIndex)}`;
-};
-
-const maskPhone = (phone: string): string => {
-  if (!phone || phone.length < 5) return phone;
-  return `${phone.slice(0, 3)}***${phone.slice(-2)}`;
 };
 
 // GET /api/admin/giving/summary
