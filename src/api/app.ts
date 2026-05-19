@@ -141,6 +141,28 @@ export const startServer = async () => {
     const server = app.listen(port, () => {
       console.log(`[BACKEND_API] Server running on http://localhost:${port}`);
       resolve(server);
+
+      const gracefulShutdown = async (signal: string) => {
+        console.log(`[BACKEND_API] ${signal} received — starting graceful shutdown`);
+
+        const forceExit = setTimeout(() => {
+          console.error("[BACKEND_API] Graceful shutdown timed out after 15s — forcing exit");
+          process.exit(1);
+        }, 15_000);
+
+        try {
+          await new Promise<void>((res, rej) => server.close((err) => (err ? rej(err) : res())));
+          clearTimeout(forceExit);
+          console.log("[BACKEND_API] Graceful shutdown complete");
+          process.exit(0);
+        } catch (error) {
+          console.error("[BACKEND_API] Error during graceful shutdown", error);
+          process.exit(1);
+        }
+      };
+
+      process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+      process.on("SIGINT", () => gracefulShutdown("SIGINT"));
     });
   });
 };

@@ -17,6 +17,12 @@ import prayerRequestRoutes from './routes/prayer-requests.js'
 import memberRoutes from './routes/members.js'
 import privacyRoutes from './routes/privacy.js'
 
+const maskPhone = (phone) => {
+  if (!phone) return '[redacted]'
+  const s = String(phone)
+  return s.slice(0, 3) + '***' + s.slice(-2)
+}
+
 export const createBotApp = () => {
   const app = express()
 
@@ -90,7 +96,7 @@ export const createBotApp = () => {
       return res.status(200).send(challenge)
     }
 
-    logger.warn('Meta webhook verification failed', { mode, token })
+    logger.warn('Meta webhook verification failed', { event: 'webhook_verification_failed', mode })
     res.status(403).send('Forbidden')
   })
 
@@ -110,7 +116,7 @@ export const createBotApp = () => {
         const { updateMessageStatus } = await import('./services/message.repository.js')
         const { recordDeliveryFailure, recordDeliverySuccess } = await import('./services/visitor.repository.js')
         for (const status of changes.statuses) {
-          logger.info('Meta delivery status', { wamid: status.id, status: status.status, recipient: status.recipient_id })
+          logger.info('Meta delivery status', { wamid: status.id, status: status.status, recipient: maskPhone(status.recipient_id) })
           if (status.id) {
             await updateMessageStatus(status.id, status.status, status?.errors?.[0]?.title || null)
           }
@@ -138,7 +144,7 @@ export const createBotApp = () => {
         const text = message.text?.body     // message body text
         const wamid = message.id
 
-        logger.info('Received inbound WhatsApp message', { from, text, wamid })
+        logger.info('Received inbound WhatsApp message', { from: maskPhone(from), wamid })
 
         if (!from || !text) return
 

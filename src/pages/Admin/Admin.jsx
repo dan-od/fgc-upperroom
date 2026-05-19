@@ -55,7 +55,7 @@ import {
   bootstrapAdminSession,
   canAdmin,
   confirmAdminPasswordReset,
-  loginAdminWithFallback,
+  loginAdmin,
   logoutAdmin,
   requestAdminPasswordReset
 } from '../../utils/adminApi'
@@ -321,7 +321,7 @@ const Admin = () => {
   }, [isAuthenticated, notificationsEnabled])
 
   const handleLogin = async ({ email, password, otpCode }) => {
-    const result = await loginAdminWithFallback({ email, password, otpCode })
+    const result = await loginAdmin({ email, password, otpCode })
     if (result?.ok && result?.user) {
       setAuthUser(result.user)
       setIsAuthenticated(true)

@@ -36,8 +36,31 @@ const autoGenerate = () => {
 }
 
 autoGenerate()
-setInterval(autoGenerate, 60 * 1000)
+const autoGenInterval = setInterval(autoGenerate, 60 * 1000)
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Attendance service running on port ${PORT}`)
 })
+
+const gracefulShutdown = async (signal) => {
+  console.log(`[ATTENDANCE] ${signal} received — starting graceful shutdown`)
+
+  const forceExit = setTimeout(() => {
+    console.error('[ATTENDANCE] Graceful shutdown timed out after 15s — forcing exit')
+    process.exit(1)
+  }, 15_000)
+
+  try {
+    clearInterval(autoGenInterval)
+    await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
+    clearTimeout(forceExit)
+    console.log('[ATTENDANCE] Graceful shutdown complete')
+    process.exit(0)
+  } catch (error) {
+    console.error('[ATTENDANCE] Error during graceful shutdown', error)
+    process.exit(1)
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))

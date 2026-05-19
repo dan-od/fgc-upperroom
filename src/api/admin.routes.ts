@@ -119,7 +119,6 @@ router.post("/auth/login", async (req, res) => {
     details: {},
   });
 
-  console.log(`${logPrefix} Login: ${user.email}`);
   return res.json({
     token: rawToken,
     user: { id: user.id, email: user.email, name: user.name, role: user.role, twoFactorEnabled: user.twoFactorEnabled },
@@ -210,8 +209,7 @@ router.post("/auth/password-reset/request", async (req, res) => {
     const tokens = await readJsonArray<AdminResetTokenRecord>(paths.adminResetTokens);
     tokens.push(record);
     await writeJsonArray(paths.adminResetTokens, tokens);
-    // In production, this token would be emailed. Log it for dev.
-    console.log(`${logPrefix} Password reset token for ${user.email}: ${rawToken}`);
+    // TODO: email rawToken to user.email via a transactional email service.
   }
 
   return res.json({ ok: true, message: "If the account exists, a reset link has been noted." });
