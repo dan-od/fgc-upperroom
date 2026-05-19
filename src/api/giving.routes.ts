@@ -38,6 +38,7 @@ type GivingRuntimeConfig = {
   bankAccounts: BankTransferAccount[];
   bankTransferEnabled: boolean;
   defaultBankAccount: BankTransferAccount | null;
+  cryptoEnabled: boolean;
 };
 
 let cryptoVerificationQueue: Promise<void> = Promise.resolve();
@@ -164,6 +165,10 @@ const getGivingRuntimeConfig = (): GivingRuntimeConfig => {
       ? [legacyBank]
       : []);
 
+  const cryptoEnabled =
+    ["1", "true", "yes"].includes(cleanEnv(process.env.GIVING_ENABLE_CRYPTO || "false").toLowerCase()) &&
+    Boolean(ethereumWalletAddress || bitcoinWalletAddress);
+
   return {
     paystackPublicKey,
     paystackSecretKey,
@@ -176,6 +181,7 @@ const getGivingRuntimeConfig = (): GivingRuntimeConfig => {
     bankAccounts,
     bankTransferEnabled: bankAccounts.length > 0,
     defaultBankAccount: bankAccounts[0] || null,
+    cryptoEnabled,
   };
 };
 
@@ -375,6 +381,38 @@ const updateGivingTransaction = async (tx: GivingTransaction): Promise<void> => 
   );
 };
 
+const notifyBotGivingSuccess = async (tx: GivingTransaction): Promise<void> => {
+  const botApiUrl = cleanEnv(process.env.BOT_API_URL);
+  const botAdminKey = cleanEnv(process.env.BOT_ADMIN_API_KEY);
+  if (!botApiUrl || !botAdminKey) return;
+
+  try {
+    const response = await fetch(`${botApiUrl}/bot/api/giving/notify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-bot-admin-key": botAdminKey,
+      },
+      body: JSON.stringify({
+        reference: tx.reference,
+        amount_kobo: tx.amountKobo,
+        currency: tx.currency,
+        fund: tx.fund,
+        donor_name: tx.donorName,
+        donor_phone: tx.donorPhone,
+        donor_email: tx.donorEmail,
+        paid_at: tx.paidAt,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      console.warn(`[giving] Bot notification failed (status ${response.status}) for reference=${tx.reference}`);
+    }
+  } catch (err: any) {
+    console.warn(`[giving] Bot notification error for reference=${tx.reference}:`, err?.message);
+  }
+};
+
 const findTransactionByTxHashDb = async (txHash: string, excludeReference: string): Promise<GivingTransaction | null> => {
   const normalizedHash = String(txHash || "").trim().toLowerCase();
   if (!normalizedHash) return null;
@@ -557,9 +595,9 @@ router.get("/config", (_req, res) => {
     bankAccounts: runtimeConfig.bankAccounts,
     paystackEnabled: Boolean(runtimeConfig.paystackSecretKey && runtimeConfig.paystackPublicKey),
     paystackPublicKey: runtimeConfig.paystackPublicKey,
-    cryptoEnabled: Boolean(runtimeConfig.ethereumWalletAddress || runtimeConfig.bitcoinWalletAddress),
-    ethereumAddress: runtimeConfig.ethereumWalletAddress,
-    bitcoinAddress: runtimeConfig.bitcoinWalletAddress,
+    cryptoEnabled: runtimeConfig.cryptoEnabled,
+    ethereumAddress: runtimeConfig.cryptoEnabled ? runtimeConfig.ethereumWalletAddress : "",
+    bitcoinAddress: runtimeConfig.cryptoEnabled ? runtimeConfig.bitcoinWalletAddress : "",
   });
 });
 
@@ -602,6 +640,10 @@ router.post("/initialize", initializeRateLimit, async (req, res) => {
   const timelineHash = hashPayload({ reference, event: "initialize.requested", amountKobo, fund, donorEmail });
 
   if (isCrypto) {
+    if (!runtimeConfig.cryptoEnabled) {
+      return res.status(400).json({ error: "Crypto payments are not currently available." });
+    }
+
     const pending: GivingTransaction = normalizeGivingTransaction({
       id: crypto.randomUUID(),
       provider: "crypto",
@@ -996,6 +1038,7 @@ router.post(
 
         await updateGivingTransaction(current);
         console.log(`[giving] Webhook processed: charge.success for reference=${reference}.`);
+        void notifyBotGivingSuccess(current);
       } catch (err: any) {
         console.error(`[giving] Webhook handler error for reference=${reference}:`, err?.message || err);
       }

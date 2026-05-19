@@ -16,6 +16,7 @@ import attendanceHistoryRoutes from './routes/attendance-history.js'
 import prayerRequestRoutes from './routes/prayer-requests.js'
 import memberRoutes from './routes/members.js'
 import privacyRoutes from './routes/privacy.js'
+import givingRoutes from './routes/giving.js'
 
 const maskPhone = (phone) => {
   if (!phone) return '[redacted]'
@@ -80,6 +81,7 @@ export const createBotApp = () => {
   app.use('/bot/api/prayer-requests', prayerRequestRoutes)
   app.use('/bot/api/members', memberRoutes)
   app.use('/bot/api/privacy', privacyRoutes)
+  app.use('/bot/api/giving', givingRoutes)
   app.use('/bot/api', importRoutes)
   app.use('/bot/api', previewRoutes)
   app.use('/bot/api/admin', adminRoutes)

@@ -298,7 +298,8 @@ VALUES
   ('faq_contact', 'whatsapp', 'You can reach us on WhatsApp at +2347031526399 or email upperroom@fgcmgbuoba.org.', '{"category":"faq"}'::jsonb),
   ('prayer_ack', 'whatsapp', 'Thanks {{name}}. We have your prayer request, and the prayer team will keep it in prayer.', '{"category":"inbound"}'::jsonb),
   ('feedback_ack', 'whatsapp', 'Thanks {{name}}. We have your feedback and will read it carefully.', '{"category":"inbound"}'::jsonb),
-  ('default_auto_reply', 'whatsapp', 'Thanks for reaching out to FGC Upper Room. Send PRAYER for prayer requests, FEEDBACK for feedback, or ask about service time, location, or contact details.', '{"category":"inbound"}'::jsonb)
+  ('default_auto_reply', 'whatsapp', 'Thanks for reaching out to FGC Upper Room. Send PRAYER for prayer requests, FEEDBACK for feedback, or ask about service time, location, or contact details.', '{"category":"inbound"}'::jsonb),
+  ('giving_thanks', 'whatsapp', 'Hi {{firstName}}, thank you for your generous gift of ₦{{amountNaira}} to the {{fund}} Fund. Your giving is a blessing to this community. May God richly reward your faithfulness. – FGC Upper Room. Reply STOP to opt out.', '{"category":"giving"}'::jsonb)
 ON CONFLICT (template_key) DO NOTHING;
 
 INSERT INTO holiday_exceptions (holiday_date, holiday_name, timezone, skip_reminders, metadata)
