@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import givingRouter from "./giving.routes.js";
 import commonRouter from "./common.routes.js";
 import adminRouter from "./admin.routes.js";
+import givingAdminRouter from "./giving-admin.routes.js";
 import newsletterRouter from "./newsletter.routes.js";
 import { adminMediaRouter, publicMediaRouter } from "./media.routes.js";
 import { hashPassword } from "./auth.utils.js";
@@ -93,10 +94,28 @@ export const createApp = async (options: CreateAppOptions = {}) => {
   app.disable("x-powered-by");
   app.use(express.json({ limit: "2mb" }));
 
+  app.use((req, res, next) => {
+    const startedAt = process.hrtime.bigint();
+    res.on("finish", () => {
+      if (req.path.endsWith("/health")) return;
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+      console.log(
+        JSON.stringify({
+          method: req.method,
+          path: req.originalUrl,
+          status: res.statusCode,
+          durationMs: Number(durationMs.toFixed(1)),
+        })
+      );
+    });
+    next();
+  });
+
   const apiRouter = express.Router();
   apiRouter.use("/giving", givingRouter);
   apiRouter.use("/media", publicMediaRouter);
   apiRouter.use("/admin/media", adminMediaRouter);
+  apiRouter.use("/admin/giving", givingAdminRouter);
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/newsletter", newsletterRouter);
   apiRouter.use("/", commonRouter);
