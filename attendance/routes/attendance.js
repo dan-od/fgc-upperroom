@@ -17,8 +17,13 @@ import { ensureBrowserToken } from '../utils/id.js'
 const router = express.Router()
 
 const getAdminSecret = () => {
-  return process.env.ATTENDANCE_ADMIN_KEY || process.env.ATTENDANCE_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'admin123'
+  const secret = process.env.ATTENDANCE_ADMIN_KEY
+  if (!secret) throw new Error('ATTENDANCE_ADMIN_KEY must be set')
+  return secret
 }
+
+// Fail fast: crash at startup rather than silently using no key.
+getAdminSecret()
 
 const assertAdmin = (req, res) => {
   const provided = req.headers['x-attendance-admin-key']

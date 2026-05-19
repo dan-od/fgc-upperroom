@@ -1,6 +1,12 @@
 import { updateVisitorSubscription, markDoNotContact, getVisitorByPhone } from './visitor.repository.js'
 import { logger } from '../lib/logger.js'
 
+const maskPhone = (phone) => {
+  if (!phone) return '[redacted]'
+  const s = String(phone)
+  return s.slice(0, 3) + '***' + s.slice(-2)
+}
+
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'cancel', 'quit', 'end', 'optout', 'opt-out']
 
 export const parseOptOutIntent = (messageBody) => {
@@ -19,19 +25,19 @@ export const handleOptOutRequest = async (phoneNumber, reason = 'User requested 
     const visitor = await getVisitorByPhone(normalizedPhone)
 
     if (!visitor) {
-      logger.warn('Opt-out request for unknown visitor', { phoneNumber: normalizedPhone })
+      logger.warn('Opt-out request for unknown visitor', { phoneNumber: maskPhone(normalizedPhone) })
       return { success: false, message: 'Visitor not found' }
     }
 
     if (!visitor.is_subscribed) {
-      logger.info('Visitor already unsubscribed', { phoneNumber: normalizedPhone })
+      logger.info('Visitor already unsubscribed', { phoneNumber: maskPhone(normalizedPhone) })
       return { success: true, message: 'Already unsubscribed' }
     }
 
     await updateVisitorSubscription(normalizedPhone, false)
     await markDoNotContact(normalizedPhone, reason)
 
-    logger.info('Visitor opted out successfully', { phoneNumber: normalizedPhone, visitorId: visitor.id })
+    logger.info('Visitor opted out successfully', { phoneNumber: maskPhone(normalizedPhone), visitorId: visitor.id })
 
     return {
       success: true,
@@ -39,7 +45,7 @@ export const handleOptOutRequest = async (phoneNumber, reason = 'User requested 
       visitorId: visitor.id
     }
   } catch (error) {
-    logger.error('Failed to process opt-out', { phoneNumber, error: error.message })
+    logger.error('Failed to process opt-out', { phoneNumber: maskPhone(phoneNumber), error: error.message })
     return { success: false, message: 'Failed to process opt-out', error: error.message }
   }
 }
