@@ -2,126 +2,13 @@ import QRCode from 'qrcode'
 
 import { getSocialLinkByKey, listSocialLinks } from '../config/social-links.js'
 import { attendanceStore } from '../store/attendance.store.js'
-import { getAttendancePool } from '../db/connection.js'
 import { generateAttendanceCode, sha256 } from '../utils/id.js'
 import { formatServiceDate, getWindowStatus, isAttendanceWindowOpen, lagosNow } from '../utils/time.js'
 import { syncAttendanceCheckin, syncAttendanceSession } from './attendance-history-sync.js'
+import { writeSessionToDb, writeCheckinToDb } from './attendance.db.js'
+import { rehydrateAttendanceStore as _rehydrateAttendanceStore } from './attendance.rehydrate.js'
 
-const writeSessionToDb = async (session) => {
-  try {
-    const pool = getAttendancePool()
-    await pool.query(
-      `INSERT INTO attendance_sessions (session_id, service_date, code, qr_token_hash, qr_token, source_service)
-       VALUES ($1, $2, $3, $4, $5, 'attendance-service')
-       ON CONFLICT (session_id) DO UPDATE SET
-         code = EXCLUDED.code,
-         qr_token_hash = EXCLUDED.qr_token_hash,
-         qr_token = EXCLUDED.qr_token,
-         updated_at = now()`,
-      [
-        session.id,
-        session.serviceDate,
-        session.code,
-        sha256(session.qrToken),
-        session.qrToken,
-      ]
-    )
-  } catch (err) {
-    console.error('[attendance-db] Failed to write session to DB:', err.message)
-  }
-}
-
-const writeCheckinToDb = async (checkin) => {
-  try {
-    const pool = getAttendancePool()
-    await pool.query(
-      `INSERT INTO attendance_checkins
-         (checkin_id, session_id, checkin_type, attendee_name, helper_name, assisted_name,
-          phone_hash, token_hash, fingerprint_hash, ip_hash, source_service, occurred_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'attendance-service',$11)
-       ON CONFLICT (checkin_id) DO NOTHING`,
-      [
-        checkin.id,
-        checkin.sessionId,
-        checkin.type,
-        checkin.name || checkin.assistedName || null,
-        checkin.helperName || null,
-        checkin.assistedName || null,
-        checkin.phoneHash || null,
-        checkin.tokenHash || null,
-        checkin.fingerprintHash || null,
-        checkin.ipHash || null,
-        checkin.createdAt,
-      ]
-    )
-  } catch (err) {
-    console.error('[attendance-db] Failed to write check-in to DB:', err.message)
-  }
-}
-
-export const rehydrateAttendanceStore = async () => {
-  try {
-    const pool = getAttendancePool()
-
-    const sessionsResult = await pool.query(
-      `SELECT session_id, service_date, code, qr_token
-       FROM attendance_sessions
-       WHERE service_date >= (CURRENT_DATE - INTERVAL '1 day')
-       ORDER BY service_date DESC
-       LIMIT 10`
-    )
-
-    for (const row of sessionsResult.rows) {
-      const session = {
-        id: row.session_id,
-        serviceDate: row.service_date instanceof Date
-          ? row.service_date.toISOString().slice(0, 10)
-          : String(row.service_date).slice(0, 10),
-        code: row.code,
-        qrToken: row.qr_token || null,
-        createdAt: new Date().toISOString(),
-      }
-      attendanceStore.saveSession(session.serviceDate, session)
-    }
-
-    if (sessionsResult.rows.length === 0) return
-
-    const sessionIds = sessionsResult.rows.map((r) => r.session_id)
-    const checkinsResult = await pool.query(
-      `SELECT checkin_id, session_id, checkin_type, attendee_name, helper_name,
-              assisted_name, phone_hash, token_hash, fingerprint_hash, ip_hash, occurred_at
-       FROM attendance_checkins
-       WHERE session_id = ANY($1)`,
-      [sessionIds]
-    )
-
-    for (const row of checkinsResult.rows) {
-      attendanceStore.addCheckin({
-        id: row.checkin_id,
-        sessionId: row.session_id,
-        type: row.checkin_type,
-        name: row.attendee_name || undefined,
-        helperName: row.helper_name || undefined,
-        assistedName: row.assisted_name || undefined,
-        phoneHash: row.phone_hash || undefined,
-        tokenHash: row.token_hash || undefined,
-        fingerprintHash: row.fingerprint_hash || undefined,
-        ipHash: row.ip_hash || undefined,
-        normalizedName: row.attendee_name
-          ? String(row.attendee_name).trim().replace(/\s+/g, ' ').toLowerCase()
-          : undefined,
-        createdAt: row.occurred_at ? String(row.occurred_at) : new Date().toISOString(),
-      })
-    }
-
-    console.log(
-      `[attendance-db] Rehydrated ${sessionsResult.rows.length} session(s), ` +
-      `${checkinsResult.rows.length} check-in(s) from DB`
-    )
-  } catch (err) {
-    console.error('[attendance-db] Rehydration failed (in-memory store will start empty):', err.message)
-  }
-}
+export { rehydrateAttendanceStore } from './attendance.rehydrate.js'
 
 const RATE_LIMIT_WINDOW_MS = 20 * 60 * 1000
 const SELF_IP_LIMIT_PER_WINDOW = 5
