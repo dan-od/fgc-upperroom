@@ -393,6 +393,16 @@
   font-size: 1rem;
 }
 
+.footer__privacy-link {
+  color: #6f7682;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footer__privacy-link:hover {
+  color: #fff;
+}
+
 @media (max-width: 900px) {
   .footer__main {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,0 +1,301 @@
+{
+  "framework": {
+    "id": "code-quality-v1",
+    "name": "Code Quality & Maintainability Evaluation",
+    "version": "1.0.0",
+    "created": "2026-05-19",
+    "description": "Evaluates structural quality, maintainability, readability, and technical debt across the FGC Upper Room codebase. Targets the Vite/React frontend, Express backend services, shared utilities, and database layer.",
+    "scoring": {
+      "scale": "1-10 per criterion",
+      "rubric": {
+        "1-2": "Critical: Codebase is unmaintainable, high risk of introducing bugs on any change.",
+        "3-4": "Poor: Significant structural problems. Major refactoring needed.",
+        "5-6": "Fair: Functional but messy. Technical debt accumulating.",
+        "7-8": "Good: Well-structured with minor improvements possible.",
+        "9-10": "Excellent: Clean, modular, well-documented, easy to onboard new developers."
+      },
+      "overall_calculation": "Weighted average of all category scores."
+    }
+  },
+  "categories": [
+    {
+      "id": "structure",
+      "name": "Project Structure & Organization",
+      "weight": 1.3,
+      "criteria": [
+        {
+          "id": "struct-01",
+          "name": "Directory Organization",
+          "what_to_check": [
+            "Clear separation between frontend, bot, attendance service, and shared code",
+            "Consistent folder naming conventions across services",
+            "Logical grouping: routes, controllers, middleware, models, utils, config",
+            "No orphaned files or directories without clear purpose",
+            "README exists at project root AND each service root explaining structure"
+          ],
+          "remediation": "Adopt monorepo structure with clear boundaries. Each service should have: src/, config/, tests/, README.md."
+        },
+        {
+          "id": "struct-02",
+          "name": "File Size & Complexity",
+          "what_to_check": [
+            "No file exceeds 300 lines (flag files > 200 lines)",
+            "Functions/methods are under 50 lines each",
+            "Cyclomatic complexity per function is reasonable (< 10)",
+            "Check the monolithic server.ts (~1200 lines found in previous audit)"
+          ],
+          "known_issues": [
+            "server.ts was ~1200 lines in original audit — check current line count after 5 phases of changes. May have been partially refactored or grown further.",
+            "Multiple data/*.json files still in use (contact-submissions, newsletter-subscribers, admin-users, admin-sessions, admin-audit-log, admin-blog-posts, admin-media, admin-testimonies, rum-events) — assess whether their read/write logic adds to file complexity"
+          ],
+          "remediation": "Split large files by responsibility. Extract route handlers into separate files. Use a router pattern for Express."
+        },
+        {
+          "id": "struct-03",
+          "name": "Separation of Concerns",
+          "what_to_check": [
+            "Route handlers don't contain business logic AND database queries",
+            "Database access is abstracted (repository/service pattern or at least separate query files)",
+            "Configuration is centralized, not scattered across files",
+            "Middleware is modular and reusable",
+            "Frontend components separate UI from data fetching"
+          ],
+          "remediation": "Implement layers: routes -> controllers -> services -> repositories. Each layer has a single concern."
+        }
+      ]
+    },
+    {
+      "id": "naming",
+      "name": "Naming & Conventions",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "name-01",
+          "name": "Consistent Naming",
+          "what_to_check": [
+            "Variables and functions use camelCase (JavaScript convention)",
+            "React components use PascalCase",
+            "File names match their default export",
+            "Database columns use snake_case (PostgreSQL convention)",
+            "Constants use UPPER_SNAKE_CASE",
+            "Boolean variables use is/has/should prefix",
+            "No single-letter variables except loop counters"
+          ],
+          "remediation": "Document naming conventions in CONTRIBUTING.md. Add ESLint naming-convention rules."
+        },
+        {
+          "id": "name-02",
+          "name": "Meaningful Names",
+          "what_to_check": [
+            "Function names describe what they do (sendServiceReminder, not doStuff)",
+            "Variable names are descriptive (memberPhoneNumber, not mpn)",
+            "No ambiguous abbreviations",
+            "Route paths follow REST conventions (/api/v1/members, not /api/getMembers)"
+          ],
+          "remediation": "Rename unclear identifiers. Follow verb-noun pattern for functions. Use REST conventions for API paths."
+        }
+      ]
+    },
+    {
+      "id": "duplication",
+      "name": "Code Duplication & DRY",
+      "weight": 1.2,
+      "criteria": [
+        {
+          "id": "dup-01",
+          "name": "Duplicate Code Detection",
+          "what_to_check": [
+            "No copy-pasted blocks of logic across files",
+            "Database query patterns are not repeated (extract to shared query functions)",
+            "Error handling patterns are consistent (not reimplemented per route)",
+            "Validation logic is not duplicated between frontend and backend unnecessarily",
+            "WhatsApp message formatting is centralized, not scattered"
+          ],
+          "remediation": "Extract shared logic into utility modules. Create shared middleware for common patterns. Use a query builder for repeated DB patterns."
+        },
+        {
+          "id": "dup-02",
+          "name": "Dead Code Elimination",
+          "what_to_check": [
+            "No unused functions, variables, or imports",
+            "No commented-out code blocks left in production files",
+            "No unused React components or pages",
+            "No unreachable code paths",
+            "No unused npm dependencies"
+          ],
+          "remediation": "Run ESLint no-unused-vars. Use depcheck for unused packages. Remove all commented-out code (git history preserves it)."
+        },
+        {
+          "id": "dup-03",
+          "name": "Known Duplication: maskPhone() and Utility Helpers",
+          "what_to_check": [
+            "maskPhone() helper is duplicated in at least 3 files: bot/src/app.js, bot/src/services/opt-out.service.js, bot/src/routes/giving.js",
+            "Check for other utility functions copy-pasted across files (date formatting, phone number normalization, error response helpers)",
+            "Verify whether a shared utils/ module exists and is actually used consistently"
+          ],
+          "known_issues": [
+            "maskPhone() was added during Phase 3-4 in multiple files independently — should be extracted to bot/src/utils/format.js or similar"
+          ],
+          "remediation": "Extract maskPhone() and other repeated helpers to a shared utility module (e.g., bot/src/utils/format.js). Import from the single source everywhere."
+        }
+      ]
+    },
+    {
+      "id": "errorhandling",
+      "name": "Error Handling Patterns",
+      "weight": 1.1,
+      "criteria": [
+        {
+          "id": "err-01",
+          "name": "Consistent Error Handling",
+          "what_to_check": [
+            "All async functions have try-catch or .catch() handlers",
+            "Express routes use async error wrapper or express-async-errors",
+            "Database errors are caught and handled appropriately",
+            "Redis/BullMQ errors are caught (connection failures, queue errors)",
+            "Errors are classified (operational vs programmer errors)"
+          ],
+          "remediation": "Create centralized error handling middleware. Use async wrapper: const asyncHandler = fn => (req, res, next) => fn(req, res, next).catch(next). Define custom error classes."
+        },
+        {
+          "id": "err-02",
+          "name": "Error Propagation",
+          "what_to_check": [
+            "Errors bubble up with context (not swallowed silently)",
+            "catch blocks don't just console.log and continue silently",
+            "Failed operations return appropriate HTTP status codes",
+            "Error responses follow a consistent format: { error: string, code?: string }"
+          ],
+          "remediation": "Define error response format. Never swallow errors silently. Add context when re-throwing."
+        }
+      ]
+    },
+    {
+      "id": "react",
+      "name": "React Code Quality",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "react-01",
+          "name": "Component Design",
+          "what_to_check": [
+            "Components follow single responsibility principle",
+            "No god components (doing too many things)",
+            "Props are well-defined (PropTypes or TypeScript interfaces)",
+            "Proper use of hooks (no rules of hooks violations)",
+            "Custom hooks extract reusable logic from components",
+            "No business logic in JSX return statements"
+          ],
+          "remediation": "Split large components. Extract logic into custom hooks. Define prop types."
+        },
+        {
+          "id": "react-02",
+          "name": "State Management",
+          "what_to_check": [
+            "State is lifted to the appropriate level (not prop-drilled excessively)",
+            "No redundant state (derived values should be computed, not stored)",
+            "useEffect dependencies are correct (no missing or extra deps)",
+            "No state updates in render phase",
+            "Global state (if used) is organized by domain"
+          ],
+          "known_issues": [
+            "Blog/testimonies were originally localStorage — admin data was migrated to server-side JSON files (data/admin-blog-posts.json, data/admin-testimonies.json). Verify React state management properly fetches from API, not localStorage"
+          ],
+          "remediation": "Audit useEffect dependencies. Remove redundant state. Consider React Query/SWR for server state."
+        },
+        {
+          "id": "react-03",
+          "name": "Performance Patterns",
+          "what_to_check": [
+            "React.memo used where appropriate for expensive re-renders",
+            "useMemo/useCallback used for expensive computations and stable references",
+            "No inline object/array creation in JSX props (causes unnecessary re-renders)",
+            "Images are lazy-loaded and optimized",
+            "Route-based code splitting with React.lazy"
+          ],
+          "remediation": "Profile with React DevTools. Add memo to list items. Implement code splitting for admin pages."
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "Code Documentation",
+      "weight": 0.8,
+      "criteria": [
+        {
+          "id": "docs-01",
+          "name": "Inline Documentation",
+          "what_to_check": [
+            "Complex business logic has explanatory comments (why, not what)",
+            "API endpoint handlers describe expected input/output",
+            "Database queries have comments explaining complex joins or conditions",
+            "WhatsApp message flow logic is documented",
+            "Magic numbers are named constants with comments"
+          ],
+          "remediation": "Add JSDoc comments to all exported functions. Document complex algorithms. Replace magic numbers with named constants."
+        },
+        {
+          "id": "docs-02",
+          "name": "API Documentation",
+          "what_to_check": [
+            "All API endpoints are documented (path, method, params, body, response)",
+            "Error responses are documented",
+            "Authentication requirements per endpoint are documented",
+            "WhatsApp command format (@email, STOP, etc.) is documented"
+          ],
+          "remediation": "Create API docs (OpenAPI/Swagger or markdown). Document each endpoint with examples."
+        }
+      ]
+    },
+    {
+      "id": "testing",
+      "name": "Test Coverage",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "test-01",
+          "name": "Test Existence & Coverage",
+          "what_to_check": [
+            "Unit tests exist for critical business logic (scheduling, message formatting, opt-out)",
+            "Integration tests exist for API endpoints",
+            "Frontend component tests exist for key user flows",
+            "Test runner is configured (Jest, Vitest, or similar)",
+            "Tests can be run with a single command (npm test)",
+            "Evaluate actual code coverage percentage, not just test existence"
+          ],
+          "known_issues": [
+            "10 unit tests currently passing, 9 integration tests (1 flaky deadlock on visitor.repository.test.mjs)",
+            "E2E, accessibility, performance, security, and load smoke tests exist in CI",
+            "Evaluate actual coverage percentage and whether critical paths (auth, giving, attendance check-in) are covered"
+          ],
+          "remediation": "Fix the flaky visitor.repository.test.mjs deadlock. Add coverage reporting (c8 or istanbul). Target 60% coverage on business logic. Add tests for the new giving flow."
+        },
+        {
+          "id": "test-02",
+          "name": "Test Quality",
+          "what_to_check": [
+            "Tests are not just snapshot tests — they test behavior",
+            "Edge cases are covered (empty inputs, invalid data, concurrent requests)",
+            "Tests are independent (no shared mutable state between tests)",
+            "Mocks are used appropriately (external APIs, database)"
+          ],
+          "remediation": "Write behavior tests, not implementation tests. Mock external dependencies. Test error paths."
+        }
+      ]
+    }
+  ],
+  "evaluation_instructions": {
+    "for_claude_code": "Read this framework, then systematically evaluate the codebase. Use tools like: find . -name '*.js' -o -name '*.jsx' -o -name '*.ts' | xargs wc -l (for file sizes), grep -r patterns for conventions, and manual review of key files. Score each criterion 1-10 with evidence. Output markdown report to evaluation/results/.",
+    "report_format": {
+      "filename_pattern": "code-quality-eval-{YYYY-MM-DD-HHmmss}.md",
+      "sections": [
+        "Executive Summary",
+        "Category Scores Table",
+        "Detailed Findings Per Criterion",
+        "Top 10 Refactoring Priorities",
+        "Technical Debt Inventory",
+        "Progress Tracking"
+      ]
+    }
+  }
+}
