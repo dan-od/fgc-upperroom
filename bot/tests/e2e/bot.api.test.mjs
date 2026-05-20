@@ -86,7 +86,9 @@ test('GET /bot/health returns core service status', async () => {
 
 test('GET /bot/monitoring/metrics returns APM snapshot', async () => {
   if (!canRunHttpTests) return
-  const response = await fetch(`${baseUrl}/bot/monitoring/metrics`)
+  const response = await fetch(`${baseUrl}/bot/monitoring/metrics`, {
+    headers: adminHeaders()
+  })
   assert.equal(response.status, 200)
   const body = await response.json()
   assert.equal(typeof body?.telemetry?.http?.total, 'number')
@@ -206,7 +208,7 @@ test('preview and import utilities expose the current bot workflow', async () =>
 
   const previewResponse = await fetch(`${baseUrl}/bot/api/preview/event`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: adminJsonHeaders(),
     body: JSON.stringify({
       name: 'Preview User',
       eventTitle: 'Youth Revival Night',
@@ -234,6 +236,7 @@ test('preview and import utilities expose the current bot workflow', async () =>
 
   const importResponse = await fetch(`${baseUrl}/bot/api/import-csv`, {
     method: 'POST',
+    headers: adminHeaders(),
     body: formData
   })
   assert.equal(importResponse.status, 200)
