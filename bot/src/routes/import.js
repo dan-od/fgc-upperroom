@@ -3,11 +3,13 @@ import multer from 'multer'
 
 import { importVisitorsCsv } from '../services/csv-import.service.js'
 import { logger } from '../lib/logger.js'
+import { assertAdmin } from '../lib/admin-auth.js'
 
 const router = express.Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })
 
 router.post('/import-csv', upload.single('file'), async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'CSV file is required' })

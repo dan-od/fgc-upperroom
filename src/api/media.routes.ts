@@ -18,6 +18,12 @@ const upload = multer({
   },
 });
 
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/gif",
+  "video/mp4", "video/webm",
+  "audio/mpeg", "audio/mp4",
+]);
+
 const inferAssetType = (mimetype: string) => {
   if (mimetype.startsWith("video/")) return "video";
   if (mimetype.startsWith("audio/")) return "audio";
@@ -56,6 +62,13 @@ adminMediaRouter.post(
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       return res.status(400).json({ error: "No files uploaded." });
+    }
+
+    const rejected = files.filter((f) => !ALLOWED_MIME_TYPES.has(f.mimetype));
+    if (rejected.length > 0) {
+      return res.status(400).json({
+        error: `Unsupported file type(s): ${rejected.map((f) => f.mimetype).join(", ")}. Allowed: ${[...ALLOWED_MIME_TYPES].join(", ")}.`,
+      });
     }
 
     await fs.mkdir(MEDIA_UPLOAD_DIR, { recursive: true });

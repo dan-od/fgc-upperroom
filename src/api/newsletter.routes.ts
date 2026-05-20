@@ -2,12 +2,15 @@ import express from "express";
 import crypto from "node:crypto";
 import { requireAdminAuth } from "./auth.middleware.js";
 import { paths, readJsonArray, writeJsonArray } from "./storage.js";
+import { createRateLimit } from "./middleware/rateLimit.js";
+
+const subscribeRateLimit = createRateLimit(5, 60 * 60 * 1000, "Too many subscription attempts. Please try again in an hour.");
 
 const router = express.Router();
 
 const normalizeEmail = (value: unknown) => String(value || "").trim().toLowerCase();
 
-router.post("/subscribe", async (req, res) => {
+router.post("/subscribe", subscribeRateLimit, async (req, res) => {
   const name = String(req.body?.name || "").trim();
   const email = normalizeEmail(req.body?.email);
   const phoneNumber = String(req.body?.phoneNumber || "").trim();
@@ -46,10 +49,7 @@ router.post("/subscribe", async (req, res) => {
   await writeJsonArray(paths.newsletterSubscribers, subscribers);
   return res.json({
     ok: true,
-    message: existingIndex >= 0
-      ? "You are already subscribed for email updates."
-      : "You are subscribed for event email updates.",
-    data: nextRecord,
+    message: "You are subscribed for event email updates.",
   });
 });
 

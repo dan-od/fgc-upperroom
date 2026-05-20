@@ -1,5 +1,6 @@
 import "./load-env.js";
 import express from "express";
+import helmet from "helmet";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { createServer as createViteServer } from "vite";
@@ -95,6 +96,7 @@ export const createApp = async (options: CreateAppOptions = {}) => {
 
   const app = express();
   app.disable("x-powered-by");
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: "2mb" }));
 
   app.use((req, res, next) => {
@@ -190,6 +192,9 @@ export const startServer = async () => {
 
       process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
       process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+      process.on("unhandledRejection", (reason) => {
+        console.error("[BACKEND_API] Unhandled rejection", String(reason));
+      });
     });
   });
 };

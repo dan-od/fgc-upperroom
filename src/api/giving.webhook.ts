@@ -24,7 +24,6 @@ export const notifyBotGivingSuccess = async (tx: GivingTransaction): Promise<voi
         fund: tx.fund,
         donor_name: tx.donorName,
         donor_phone: tx.donorPhone,
-        donor_email: tx.donorEmail,
         paid_at: tx.paidAt,
       }),
       signal: AbortSignal.timeout(10_000),
@@ -56,7 +55,9 @@ export const webhookHandler: express.RequestHandler = async (req, res) => {
     .update(rawBody)
     .digest("hex");
 
-  if (signature !== expected) {
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
     console.warn("[giving] Webhook rejected — invalid signature.");
     return res.sendStatus(401);
   }

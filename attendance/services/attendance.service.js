@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import QRCode from 'qrcode'
 
 import { getSocialLinkByKey, listSocialLinks } from '../config/social-links.js'
@@ -30,7 +31,7 @@ const createSessionForServiceDate = (serviceDate) => {
     id: `session-${serviceDate}`,
     serviceDate,
     code: generateAttendanceCode(),
-    qrToken: sha256(`qr:${serviceDate}:${Date.now()}:${Math.random()}`).slice(0, 24),
+    qrToken: crypto.randomBytes(12).toString('hex'),
     createdAt: new Date().toISOString()
   })
 

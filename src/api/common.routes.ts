@@ -3,6 +3,10 @@ import crypto from "node:crypto";
 import { ContactSubmission, RumMetricEvent } from "./types.js";
 import { getPublicBlogPosts, getPublicSermonVideos, getPublicTestimonies } from "./public-content.js";
 import { paths, readJsonArray, writeJsonArray } from "./storage.js";
+import { createRateLimit } from "./middleware/rateLimit.js";
+
+const contactRateLimit = createRateLimit(3, 60 * 60 * 1000, "Too many contact submissions. Please try again in an hour.");
+const rumRateLimit = createRateLimit(60, 60 * 1000, "Too many events. Please slow down.");
 
 const router = express.Router();
 
@@ -27,7 +31,7 @@ const summarizeRumEvents = (events: RumMetricEvent[]) => {
     .sort((a, b) => a.metric.localeCompare(b.metric));
 };
 
-router.post("/contact/submit", async (req, res) => {
+router.post("/contact/submit", contactRateLimit, async (req, res) => {
   const name = String(req.body?.name || "").trim();
   const email = String(req.body?.email || "").trim();
   const phoneNumber = String(req.body?.phoneNumber || "").trim();
@@ -64,7 +68,7 @@ router.post("/contact/submit", async (req, res) => {
   });
 });
 
-router.post("/observability/rum", async (req, res) => {
+router.post("/observability/rum", rumRateLimit, async (req, res) => {
   const entry: RumMetricEvent = {
     id: crypto.randomUUID(),
     metric: String(req.body?.metric || "").trim(),
