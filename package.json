@@ -22,6 +22,8 @@
     "attendance:start": "node attendance/app.js",
     "build": "vite build",
     "preview": "vite preview",
+    "convert:webp": "node scripts/convert-to-webp.mjs",
+    "setup:fonts": "node scripts/download-fonts.mjs",
     "bot:dev": "node --watch bot/src/index.js",
     "bot:start": "node bot/src/index.js",
     "bot:worker": "node bot/src/worker.js",
@@ -54,6 +56,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-helmet-async": "^3.0.0",
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
@@ -62,6 +65,7 @@
     "@types/node": "^25.5.0",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
+    "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "vite": "^8.0.0"

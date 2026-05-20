@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { hasSubscribed } from '../../utils/subscribeApi'
 import ServiceBar from '../../components/layout/ServiceBar/ServiceBar'
 import { FoursquareIcons, Testimonials } from '../../components/features'
@@ -60,6 +61,15 @@ export default function Home() {
 
   return (
     <main id="main-content" className="home-page">
+      <Helmet>
+        <title>FGC Upper Room Mgbuoba — Raising Kingdom Youth</title>
+        <meta name="description" content="Youth Fellowship of Foursquare Gospel Church Mgbuoba Zonal HQ, Port Harcourt. Join us for Sunday services, events, and community." />
+        <meta property="og:title" content="FGC Upper Room Mgbuoba — Raising Kingdom Youth" />
+        <meta property="og:description" content="Youth Fellowship of Foursquare Gospel Church Mgbuoba, Port Harcourt. Join us for Sunday services, events, and community." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/" />
+      </Helmet>
       <NewsletterModal isOpen={showNewsletter} onClose={handleCloseNewsletter} />
       <HeroSection />
       <ServiceBar />

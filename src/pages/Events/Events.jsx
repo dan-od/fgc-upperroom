@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { Button } from '../../components/common'
 import usePublicEvents, { getRegistrationOptions, getWhatToExpectText } from './usePublicEvents'
 import EventCountdown from './EventCountdown'
@@ -38,6 +39,15 @@ export default function Events() {
 
   return (
     <main id="main-content" className="events-page">
+      <Helmet>
+        <title>Events — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Upcoming events at FGC Upper Room Mgbuoba — services, youth programs, and special gatherings. Stay connected and never miss out." />
+        <meta property="og:title" content="Events — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="See upcoming events and services at Upper Room Mgbuoba youth fellowship." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/events" />
+      </Helmet>
       <section className="page-banner bg-red">
         <div className="container">
           <h1>Events</h1>
