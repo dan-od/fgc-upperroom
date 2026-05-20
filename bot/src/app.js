@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import crypto from 'node:crypto'
 
 import { env } from './config/env.js'
@@ -23,7 +24,8 @@ export const createBotApp = () => {
   const app = express()
 
   app.disable('x-powered-by')
-  app.use(cors())
+  app.use(helmet({ contentSecurityPolicy: false }))
+  app.use(cors({ origin: ['https://fgcupperroom.org', 'https://www.fgcupperroom.org', 'http://localhost:5173', 'http://localhost:3000'] }))
 
   const _rawBodyStore = new WeakMap()
   app.use(express.json({
@@ -125,7 +127,11 @@ export const createBotApp = () => {
           return res.status(403).json({ error: 'Forbidden' })
         }
       } else {
-        logger.warn('META_APP_SECRET not configured — skipping webhook signature verification')
+        if (process.env.NODE_ENV === 'production') {
+          logger.error('META_APP_SECRET not configured in production — rejecting webhook')
+          return res.status(503).json({ error: 'Webhook verification not configured.' })
+        }
+        logger.warn('META_APP_SECRET not configured — skipping webhook signature verification (non-production)')
       }
 
       // Always acknowledge immediately — Meta retries if it doesn't get 200 quickly
@@ -223,6 +229,11 @@ export const createBotApp = () => {
     } catch (error) {
       logger.error('Webhook processing error', { error: error.message })
     }
+  })
+
+  app.use((err, req, res, next) => {
+    logger.error('Unhandled error', { error: err.message, path: req.originalUrl })
+    res.status(500).json({ error: 'Internal server error' })
   })
 
   return app

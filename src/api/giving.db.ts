@@ -3,6 +3,7 @@ import pg from "pg";
 import { normalizeGivingStatus, resolveGivingStatus } from "../../lib/giving-utils.js";
 import type { GivingTransaction, GivingTransactionStatus } from "./types.js";
 import { getGivingRuntimeConfig } from "./giving.config.js";
+import { maskEmail, maskPhone } from "./utils/privacy.js";
 
 // ── Pure helpers (exported for use in route handlers) ──────────────────────
 export const normalizeEmail = (value: unknown): string => {
@@ -24,15 +25,15 @@ export const hashPayload = (value: unknown): string => {
   return crypto.createHash("sha256").update(body).digest("hex");
 };
 
-export const toGivingConfirmation = (record: GivingTransaction) => ({
+export const toGivingConfirmation = (record: GivingTransaction, maskPii = true) => ({
   reference: record.reference,
   status: record.status,
   amountNaira: record.amountKobo / 100,
   currency: record.currency,
   fund: record.fund,
   donorName: record.donorName,
-  donorEmail: record.donorEmail,
-  donorPhone: record.donorPhone,
+  donorEmail: maskPii ? maskEmail(record.donorEmail) : record.donorEmail,
+  donorPhone: maskPii ? maskPhone(record.donorPhone) : record.donorPhone,
   provider: record.provider,
   providerStatus: record.providerStatus,
   providerMessage: record.providerMessage,

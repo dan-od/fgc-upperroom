@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 
 import attendanceRoutes from './routes/attendance.js'
 import { autoGenerateSundaySession, getSocialLinkRedirectTarget, rehydrateAttendanceStore } from './services/attendance.service.js'
@@ -11,7 +12,9 @@ loadProjectEnvFile()
 const app = express()
 const PORT = Number(process.env.ATTENDANCE_PORT || 4201)
 
-app.use(cors())
+app.disable('x-powered-by')
+app.use(helmet())
+app.use(cors({ origin: ['https://fgcupperroom.org', 'https://www.fgcupperroom.org', 'http://localhost:5173', 'http://localhost:3000'] }))
 app.use(express.json({ limit: '1mb' }))
 
 app.get('/attendance/health', (req, res) => {
@@ -28,6 +31,11 @@ app.get('/attendance/go/:socialKey', (req, res) => {
 })
 
 app.use('/attendance/api', attendanceRoutes)
+
+app.use((err, req, res, next) => {
+  console.error(JSON.stringify({ level: 'error', msg: 'Unhandled error', error: err.message, path: req.originalUrl }))
+  res.status(500).json({ error: 'Internal server error' })
+})
 
 const autoGenerate = () => {
   const outcome = autoGenerateSundaySession()
@@ -67,3 +75,6 @@ const gracefulShutdown = async (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+process.on('unhandledRejection', (reason) => {
+  console.error(JSON.stringify({ level: 'error', msg: 'Unhandled rejection', reason: String(reason) }))
+})

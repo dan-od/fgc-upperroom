@@ -7,6 +7,8 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
@@ -22,17 +24,20 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       redis:
-        image: redis:7-alpine
+        image: bitnami/redis:7.0
+        env:
+          REDIS_PASSWORD: ci-redis-password
         ports:
           - 6379:6379
         options: >-
-          --health-cmd="redis-cli ping"
+          --health-cmd="redis-cli -a ci-redis-password ping"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/church_bot
-      REDIS_URL: redis://localhost:6379
+      REDIS_URL: redis://:ci-redis-password@localhost:6379
+      REDIS_PASSWORD: ci-redis-password
       WHATSAPP_PROVIDER: stub
       ENABLE_SCHEDULER: false
       BOT_ADMIN_API_KEY: ci-admin-key
@@ -42,16 +47,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
 
       - name: Check env parity
         run: npm run env:parity
@@ -81,7 +90,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68cf7e19c5e1a39abb82b34 # v4.6.0
         with:
           name: build-preview
           path: dist/

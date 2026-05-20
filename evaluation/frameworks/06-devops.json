@@ -1,0 +1,288 @@
+{
+  "framework": {
+    "id": "devops-v1",
+    "name": "DevOps & CI/CD Security Evaluation",
+    "version": "1.0.0",
+    "created": "2026-05-19",
+    "description": "Evaluates the deployment pipeline, infrastructure security, monitoring, and operational practices for the FGC platform. Covers GitHub Actions CI/CD, Proxmox homelab deployment, Docker containerization, nginx reverse proxy, Cloudflare Tunnel, and operational monitoring.",
+    "context": {
+      "infrastructure": "Proxmox homelab server",
+      "deployment": "GitHub Actions -> Tailscale OAuth -> rsync -> nginx restart",
+      "networking": "Cloudflare Tunnel for external access",
+      "services": "nginx reverse proxy, PostgreSQL, Redis, Node.js services (bot:4100, attendance:4201)",
+      "collaborators": "dykdee (GitHub collaborator with branch protection)"
+    },
+    "scoring": {
+      "scale": "1-10 per criterion",
+      "rubric": {
+        "1-2": "Critical: Pipeline or infrastructure actively compromised or compromisable.",
+        "3-4": "Poor: Major security gaps in deployment or infrastructure.",
+        "5-6": "Fair: Basic pipeline works but security controls lacking.",
+        "7-8": "Good: Solid pipeline with proper secret handling and some monitoring.",
+        "9-10": "Excellent: Defense in depth from code commit to production with full observability."
+      }
+    }
+  },
+  "categories": [
+    {
+      "id": "cicd",
+      "name": "CI/CD Pipeline Security",
+      "weight": 1.5,
+      "criteria": [
+        {
+          "id": "ci-01",
+          "name": "GitHub Actions Security",
+          "what_to_check": [
+            "Workflow files (.github/workflows/) don't contain hardcoded secrets",
+            "All secrets use GitHub Secrets (${{ secrets.NAME }}), not environment variables in YAML",
+            "Actions are pinned to specific SHA or version (not @latest or @main)",
+            "Third-party actions are from trusted sources and audited",
+            "Workflow permissions are minimal (not permissions: write-all)",
+            "Pull request workflows from forks can't access secrets",
+            "Branch protection rules enforce review before merge to main"
+          ],
+          "remediation": "Pin all actions to SHA. Set minimal permissions per workflow. Review all third-party actions. Ensure branch protection requires review."
+        },
+        {
+          "id": "ci-02",
+          "name": "Secret Management in CI",
+          "what_to_check": [
+            "CODEANT_TOKEN (if used), Tailscale keys, SSH keys are in GitHub Secrets",
+            "Secrets are not echoed in logs (no 'echo $SECRET' in scripts)",
+            "Deployment SSH keys are scoped (not root access)",
+            "Tailscale OAuth token has minimal permissions",
+            "Secrets are rotated periodically"
+          ],
+          "remediation": "Audit all workflow files for secret handling. Use GitHub Actions masks for any dynamic secret values. Scope SSH keys to deployment user only."
+        },
+        {
+          "id": "ci-03",
+          "name": "Build & Deploy Process",
+          "what_to_check": [
+            "Build artifacts are verified before deployment (checksums, tests pass)",
+            "Deploy only happens on main branch (not on PRs or feature branches)",
+            "Rollback mechanism exists (can quickly revert to previous version)",
+            "Build environment is clean (no persistent state between builds)",
+            "npm ci used instead of npm install (deterministic installs)"
+          ],
+          "remediation": "Add build verification step. Implement rollback script. Use npm ci for reproducible builds."
+        },
+        {
+          "id": "ci-04",
+          "name": "Automated Security Checks in Pipeline",
+          "what_to_check": [
+            "npm audit runs in CI (fails on high/critical vulnerabilities)",
+            "Linting runs in CI (ESLint with security rules)",
+            "Dependency check runs before deploy",
+            "Optional: SAST scanning (CodeAnt.ai, Semgrep, or similar)",
+            "Build fails on security violations (not just warnings)"
+          ],
+          "remediation": "Add npm audit --audit-level=high to CI. Add ESLint with eslint-plugin-security. Consider free SAST tools."
+        },
+        {
+          "id": "ci-05",
+          "name": "Environment Parity Check",
+          "what_to_check": [
+            "scripts/check-env-parity.mjs exists and runs in CI pipeline",
+            "Validates env vars across all .env.example files (bot, attendance, website)",
+            "Catches drift between services (missing vars, typos, stale entries)",
+            "Fails the build if parity check fails",
+            "Coverage: does it check all services or only some?"
+          ],
+          "known_issues": [
+            "scripts/check-env-parity.mjs was added as a quality gate — evaluate its coverage and whether it catches real drift"
+          ],
+          "remediation": "Ensure check-env-parity.mjs is in CI pipeline and blocks deploys on failure. Verify it covers all .env.example files across all services."
+        }
+      ]
+    },
+    {
+      "id": "infra",
+      "name": "Infrastructure Security",
+      "weight": 1.4,
+      "criteria": [
+        {
+          "id": "infra-01",
+          "name": "Proxmox & Server Hardening",
+          "what_to_check": [
+            "SSH access uses key-only auth (password disabled)",
+            "SSH port is non-default or protected by Tailscale/VPN",
+            "Firewall (ufw/iptables) is configured and active",
+            "Unnecessary services are disabled",
+            "Automatic security updates enabled (unattended-upgrades)",
+            "Server is not running services as root"
+          ],
+          "remediation": "Disable SSH password auth. Configure ufw to allow only required ports. Enable unattended-upgrades. Run services as non-root users."
+        },
+        {
+          "id": "infra-02",
+          "name": "nginx Configuration",
+          "what_to_check": [
+            "nginx is up to date",
+            "Server tokens are hidden (server_tokens off)",
+            "HTTPS is enforced (redirect HTTP -> HTTPS)",
+            "Security headers added in nginx config (if not handled by app)",
+            "Rate limiting at nginx level for additional protection",
+            "Access to admin paths is IP-restricted or behind additional auth",
+            "Proxy headers are set correctly (X-Real-IP, X-Forwarded-For, X-Forwarded-Proto)"
+          ],
+          "remediation": "Add server_tokens off. Configure security headers. Set correct proxy headers for Express to see real IPs."
+        },
+        {
+          "id": "infra-03",
+          "name": "Cloudflare Tunnel Security",
+          "what_to_check": [
+            "Tunnel token is stored securely (not in source code)",
+            "Access policies are configured in Cloudflare dashboard",
+            "Only intended services are exposed through the tunnel",
+            "Cloudflare WAF rules are enabled (even basic free tier)",
+            "Bot protection is enabled"
+          ],
+          "remediation": "Review Cloudflare Tunnel configuration. Ensure only intended routes are exposed. Enable available WAF protections."
+        },
+        {
+          "id": "infra-04",
+          "name": "Database & Redis Security",
+          "what_to_check": [
+            "PostgreSQL is not exposed to the internet (localhost or private network only)",
+            "PostgreSQL uses password auth (not trust) for all connections",
+            "Redis is bound to localhost or requires a password",
+            "Database backups are automated and tested",
+            "PostgreSQL user has minimal privileges (not superuser for app connections)",
+            "PostgreSQL pool is configured with max:20, min:2, idleTimeoutMillis:30000, connectionTimeoutMillis:5000 — verify these values are appropriate for expected load"
+          ],
+          "remediation": "Verify pg_hba.conf restricts to localhost. Set Redis bind to 127.0.0.1 with requirepass. Create app-specific DB user with limited grants."
+        }
+      ]
+    },
+    {
+      "id": "docker",
+      "name": "Container Security",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "docker-01",
+          "name": "Dockerfile Best Practices",
+          "what_to_check": [
+            "Base images are pinned to specific versions (not :latest)",
+            "Multi-stage builds used to minimize final image size",
+            "Running as non-root user in container",
+            "No secrets in Docker build args or layers",
+            ".dockerignore excludes sensitive files (.env, .git, node_modules)",
+            "HEALTHCHECK defined for service containers"
+          ],
+          "remediation": "Pin base images. Add USER directive. Create .dockerignore. Add HEALTHCHECK."
+        },
+        {
+          "id": "docker-02",
+          "name": "Docker Compose Configuration",
+          "what_to_check": [
+            "Services use restart policies (restart: unless-stopped)",
+            "Ports are bound to localhost where not needed externally",
+            "Environment variables use env_file, not hardcoded in compose",
+            "Volume mounts are minimal (only what's needed)",
+            "Network segmentation: frontend, backend, database on separate networks",
+            "pg-backup service is configured — verify volume mount for backups, restart policy, and that DATABASE_URL isn't hardcoded in docker-compose.yml"
+          ],
+          "remediation": "Use Docker networks for segmentation. Bind internal services to 127.0.0.1. Use env_file for all secrets."
+        }
+      ]
+    },
+    {
+      "id": "monitoring",
+      "name": "Monitoring & Observability",
+      "weight": 1.1,
+      "criteria": [
+        {
+          "id": "mon-01",
+          "name": "Application Logging",
+          "what_to_check": [
+            "Structured logging format (JSON) for easy parsing",
+            "Log levels used appropriately (error, warn, info, debug)",
+            "Request logging with correlation IDs",
+            "Logs are persisted (not just stdout that disappears on restart)",
+            "Log rotation configured (logs don't fill disk)",
+            "Phase 5 added request logging to the website API (method, path, status, duration) — verify it doesn't log request bodies (PII risk) and skips health check endpoints"
+          ],
+          "known_issues": [
+            "Bot service has structured JSON logging and monitoring route with dependency health probes",
+            "Main website API only got basic request logging in Phase 5 — note the gap in logging maturity between services"
+          ],
+          "remediation": "Use winston or pino for structured logging. Configure log rotation. Add request correlation IDs."
+        },
+        {
+          "id": "mon-02",
+          "name": "Health Checks & Uptime",
+          "what_to_check": [
+            "Health check endpoints exist for each service (/health or /healthz)",
+            "Health checks verify downstream dependencies (DB, Redis)",
+            "Process manager (PM2, systemd, Docker) restarts crashed services",
+            "Uptime monitoring is configured (UptimeRobot, Healthchecks.io, or similar)",
+            "Alerting on service downtime (email, WhatsApp notification to admin)"
+          ],
+          "remediation": "Add /health endpoints. Configure PM2 or Docker restart policies. Set up free UptimeRobot monitoring."
+        },
+        {
+          "id": "mon-03",
+          "name": "Error Tracking",
+          "what_to_check": [
+            "Unhandled exceptions are captured and reported",
+            "Frontend errors are tracked (Sentry free tier or similar)",
+            "Backend errors are logged with full stack traces (server-side only)",
+            "WhatsApp bot errors are tracked (failed message sends, webhook errors)",
+            "BullMQ failed jobs are monitored"
+          ],
+          "remediation": "Consider Sentry free tier for error tracking. Monitor BullMQ dead letter queue. Set up alerts for repeated errors."
+        }
+      ]
+    },
+    {
+      "id": "backup",
+      "name": "Backup & Recovery",
+      "weight": 1.2,
+      "criteria": [
+        {
+          "id": "backup-01",
+          "name": "Database Backups",
+          "what_to_check": [
+            "scripts/pg-backup.sh exists and Docker pg-backup service is configured — verify they actually run, produce valid backups, and rotation works (keep 7 days)",
+            "Backups are stored off-server (or at minimum, separate drive)",
+            "Backup restoration has been tested (at least once)",
+            "Backup retention policy is enforced (automated cleanup of old backups)",
+            "Backups are encrypted if stored remotely"
+          ],
+          "known_issues": [
+            "scripts/pg-backup.sh and Docker pg-backup service were added — verify they produce valid, restorable backups"
+          ],
+          "remediation": "Test backup restoration: run pg_restore on a recent backup to verify integrity. Verify retention rotation. Consider off-site backup storage. Document recovery steps."
+        },
+        {
+          "id": "backup-02",
+          "name": "Configuration Backups",
+          "what_to_check": [
+            "nginx configs, Docker configs, .env templates are version controlled",
+            "Server setup is documented (can be recreated from documentation)",
+            "Cloudflare Tunnel configuration is documented",
+            "DNS records are documented"
+          ],
+          "remediation": "Create infrastructure-as-code documentation. Version control all config files (without secrets). Document server setup steps."
+        }
+      ]
+    }
+  ],
+  "evaluation_instructions": {
+    "for_claude_code": "Evaluate by: 1) Review .github/workflows/ files for CI/CD patterns, 2) Check Dockerfiles and docker-compose.yml, 3) Review nginx configuration files, 4) Check for health endpoints in Express apps, 5) Review logging configuration, 6) Check for backup scripts/cron jobs. Note: Some infrastructure items (server config, Cloudflare settings) may need manual verification — flag these as 'requires manual check' with instructions for what to verify.",
+    "report_format": {
+      "filename_pattern": "devops-eval-{YYYY-MM-DD-HHmmss}.md",
+      "sections": [
+        "Executive Summary",
+        "Pipeline Security Assessment",
+        "Infrastructure Security Assessment",
+        "Category Scores",
+        "Detailed Findings",
+        "Items Requiring Manual Server Verification",
+        "Action Items by Priority"
+      ]
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { requireAdminAuth, requireAdminPermission, AuthenticatedRequest } from "
 import { readStoredBlogPosts, readStoredTestimonies } from "./public-content.js";
 import { paths, readJsonArray, writeJsonArray } from "./storage.js";
 import { toIsoOrFallback, requireBlogMutationAccess, appendAuditLog } from "./admin.helpers.js";
+import { maskEmail, maskPhone } from "./utils/privacy.js";
 import authRouter from "./admin.auth.js";
 import usersRouter from "./admin.users.js";
 import analyticsRouter from "./admin.analytics.js";
@@ -32,7 +33,7 @@ router.get("/audit-log", requireAdminPermission("audit:read"), async (req, res) 
   return res.json({ total: logs.length, records: logs.slice(offsetN, offsetN + limitN) });
 });
 
-router.post("/audit-log", requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+router.post("/audit-log", requireAdminPermission("audit:write"), async (req: AuthenticatedRequest, res) => {
   const { action, resource, details = {} } = req.body || {};
   if (!action || !resource) return res.status(400).json({ error: "action and resource are required." });
   await appendAuditLog({
@@ -46,8 +47,9 @@ router.post("/audit-log", requireAdminAuth, async (req: AuthenticatedRequest, re
 
 // ─── GIVING ADMIN ROUTES ───────────────────────────────────────────────────
 
-router.get("/giving", requireAdminPermission("giving:read"), async (req, res) => {
+router.get("/giving", requireAdminPermission("giving:read"), async (req: AuthenticatedRequest, res) => {
   const { status = "", fund = "", q = "", since = "", page = "1", limit = "50" } = req.query as Record<string, string>;
+  const isSuperAdmin = req.user?.role === "super_admin";
   let records = await readJsonArray<any>(paths.givingTransactions);
   if (status) records = records.filter((r: any) => r.status === status);
   if (fund) records = records.filter((r: any) => r.fund === fund);
@@ -70,7 +72,10 @@ router.get("/giving", requireAdminPermission("giving:read"), async (req, res) =>
   }
   const pageN = Math.max(1, Number(page) || 1);
   const limitN = Math.max(1, Math.min(200, Number(limit) || 50));
-  return res.json({ total: records.length, page: pageN, limit: limitN, data: records.slice((pageN - 1) * limitN, pageN * limitN) });
+  const page_records = records.slice((pageN - 1) * limitN, pageN * limitN).map((r: any) =>
+    isSuperAdmin ? r : { ...r, donorEmail: maskEmail(String(r.donorEmail || "")), donorPhone: maskPhone(String(r.donorPhone || "")) }
+  );
+  return res.json({ total: records.length, page: pageN, limit: limitN, data: page_records });
 });
 
 router.get("/giving/export.csv", requireAdminPermission("giving:read"), async (req, res) => {
