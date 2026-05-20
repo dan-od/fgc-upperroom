@@ -24,7 +24,9 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       redis:
-        image: redis:7-alpine
+        image: bitnami/redis:7.0
+        env:
+          REDIS_PASSWORD: ci-redis-password
         ports:
           - 6379:6379
         options: >-
@@ -32,11 +34,10 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-        env:
-          REDIS_ARGS: "--requirepass ci-redis-password"
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/church_bot
-      REDIS_URL: redis://localhost:6379
+      REDIS_URL: redis://:ci-redis-password@localhost:6379
+      REDIS_PASSWORD: ci-redis-password
       WHATSAPP_PROVIDER: stub
       ENABLE_SCHEDULER: false
       BOT_ADMIN_API_KEY: ci-admin-key
