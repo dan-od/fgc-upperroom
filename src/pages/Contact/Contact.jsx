@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { Button, DropdownSelect } from '../../components/common'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../components/common/SocialIcons'
 import { submitContactForm } from '../../utils/contactApi'
@@ -122,6 +123,15 @@ const Contact = () => {
 
   return (
     <main id="main-content" className="contact-page">
+      <Helmet>
+        <title>Contact Us — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Get in touch with FGC Upper Room Mgbuoba. Plan a visit, ask a question, or connect with our ministry teams." />
+        <meta property="og:title" content="Contact Us — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Reach out to the Upper Room Mgbuoba team — we'd love to hear from you." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/contact" />
+      </Helmet>
       {/* Banner */}
       <section className="page-banner bg-red">
         <div className="container">

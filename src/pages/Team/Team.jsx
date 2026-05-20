@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { SectionHeader } from '../../components/common'
 import { toAssetUrl } from '../../utils/appPaths'
 import './Team.css'
@@ -30,7 +31,7 @@ const Team = () => {
       name: 'Rev. Olayemi Ayoko',
       role: 'District & Regional Overseer',
       description: 'Foursquare Gospel Church Nigeria, South South Region',
-      image: withBasePath('/assets/media/pictures/IMG_1819.png'),
+      image: withBasePath('/assets/media/pictures/IMG_1819.webp'),
       featured: true
     },
     {
@@ -45,26 +46,26 @@ const Team = () => {
       name: 'Rev. Dr. Martins Okoro',
       role: 'Senior Zonal Pastor',
       description: 'Foursquare Gospel Church, Mgbuoba',
-      image: withBasePath('/assets/media/pictures/IMG_1824.png'),
+      image: withBasePath('/assets/media/pictures/IMG_1824.webp'),
       featured: true
     },
     {
       name: 'Bro. Babatunde Alepaye',
       role: 'Youth Pastor',
       description: 'Upperroom Mgbuoba',
-      image: withBasePath('/assets/media/pictures/IMG_1785.png')
+      image: withBasePath('/assets/media/pictures/IMG_1785.webp')
     },
     {
       name: 'Dr. Austen Sado',
       role: 'Youth Advisor',
       description: 'Upperroom Mgbuoba',
-      image: withBasePath('/assets/media/pictures/IMG_1784.png')
+      image: withBasePath('/assets/media/pictures/IMG_1784.webp')
     },
     {
       name: 'Pst. Dr. Wilson Sokari',
       role: 'Assistant Youth Pastor/Teens Pastor',
       description: 'Upperroom Mgbuoba',
-      image: withBasePath('/assets/media/pictures/IMG_1793.png')
+      image: withBasePath('/assets/media/pictures/IMG_1793.webp')
     }
     
   ]
@@ -76,9 +77,9 @@ const Team = () => {
   const leadershipGrid = leadership.filter((person) => !person.featured)
 
   const excos = [
-    { name: 'Sis. Rejoice Lazarus', role: 'Youth Vice President', image: withBasePath('/assets/media/pictures/IMG_1801.png') },
-    { name: 'Bro. Gibson Ekikere', role: 'Youth President', image: withBasePath('/assets/media/pictures/IMG_1788.png') },
-    { name: 'Bro. Thompson Ogemdi', role: 'Youth Church Secretary', image: withBasePath('/assets/media/pictures/IMG_1799.png') },
+    { name: 'Sis. Rejoice Lazarus', role: 'Youth Vice President', image: withBasePath('/assets/media/pictures/IMG_1801.webp') },
+    { name: 'Bro. Gibson Ekikere', role: 'Youth President', image: withBasePath('/assets/media/pictures/IMG_1788.webp') },
+    { name: 'Bro. Thompson Ogemdi', role: 'Youth Church Secretary', image: withBasePath('/assets/media/pictures/IMG_1799.webp') },
   ]
 
   const avatarTones = ['cross', 'dove', 'cup', 'crown']
@@ -310,6 +311,15 @@ const Team = () => {
 
   return (
     <main id="main-content" className="team-page">
+      <Helmet>
+        <title>Our Team — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Meet the leadership, executives, and ministry units behind FGC Upper Room Mgbuoba youth fellowship." />
+        <meta property="og:title" content="Our Team — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Meet the shepherds, youth executives, and dedicated units serving at Upper Room Mgbuoba." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1819.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/team" />
+      </Helmet>
       {/* Banner */}
       <section className="page-banner bg-purple">
         <div className="container">

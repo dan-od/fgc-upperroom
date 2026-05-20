@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { Button } from '../../components/common'
 import { GivingModal } from '../../components/features'
 import { confirmGiving } from '../../utils/givingApi'
@@ -46,6 +47,15 @@ const Giving = () => {
 
   return (
     <main id="main-content" className="giving-page">
+      <Helmet>
+        <title>Give — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Support the ministry of FGC Upper Room Mgbuoba through your tithes and offerings. Give securely online." />
+        <meta property="og:title" content="Give — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Partner with God's work at Upper Room Mgbuoba through your generous giving." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/giving" />
+      </Helmet>
       <section className="giving-page__hero">
         <div className="container giving-page__hero-inner">
           <p className="giving-page__eyebrow">Online Giving</p>

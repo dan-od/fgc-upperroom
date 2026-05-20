@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Helmet } from 'react-helmet-async'
 import {
   Camera,
   Heart,
@@ -762,6 +763,15 @@ const Media = () => {
 
   return (
     <main id="main-content" className="media-page">
+      <Helmet>
+        <title>Media — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Photos, videos, and audio from FGC Upper Room Mgbuoba services, events, and youth programs." />
+        <meta property="og:title" content="Media — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Browse our media gallery — highlights, sermons, and moments from Upper Room Mgbuoba." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/media" />
+      </Helmet>
       <section className="page-banner bg-purple">
         <div className="container">
           <h1>Media</h1>

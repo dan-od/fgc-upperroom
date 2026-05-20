@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { AnimatePresence, motion } from 'motion/react'
 import { X, Calendar, User, Clock, Download } from 'lucide-react'
 import { Sidebar } from '../../components/Sidebar'
@@ -317,6 +318,15 @@ const Blog = () => {
 
   return (
     <>
+      <Helmet>
+        <title>Blog — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Faith-filled reflections, Sunday school notes, devotionals, and stories from the Upper Room Mgbuoba fellowship." />
+        <meta property="og:title" content="Blog — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Read devotionals, teaching notes, and articles from FGC Upper Room Mgbuoba." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/blog" />
+      </Helmet>
       <main id="main-content" className="blog-page">
         <section className="page-banner bg-blue blog-banner">
           <div className="container">

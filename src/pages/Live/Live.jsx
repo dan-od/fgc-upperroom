@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { Button } from '../../components/common'
 import { fetchLiveStatus, fetchVodFeed } from '../../utils/liveApi'
 import { useI18n } from '../../i18n/LanguageContext'
@@ -60,6 +61,15 @@ const Live = () => {
 
   return (
     <main id="main-content" className="live-page">
+      <Helmet>
+        <title>Watch Live — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Watch FGC Upper Room Mgbuoba services live on YouTube, or catch up on past messages and sermons on demand." />
+        <meta property="og:title" content="Watch Live — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Join our live Sunday services and watch past messages from Upper Room Mgbuoba." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/live" />
+      </Helmet>
       <section className="live-page__hero">
         <div className="container live-page__hero-inner">
           <p className="live-page__eyebrow">{t('live.heroEyebrow', 'Live + On Demand')}</p>

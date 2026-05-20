@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async'
 import { SectionHeader, Button } from '../../components/common'
 import { useI18n } from '../../i18n/LanguageContext'
 import { toAssetUrl } from '../../utils/appPaths'
@@ -5,7 +6,7 @@ import './About.css'
 
 const About = () => {
   const { t } = useI18n()
-  const youthPhoto = toAssetUrl('assets/media/pictures/IMG_1769.png')
+  const youthPhoto = toAssetUrl('assets/media/pictures/IMG_1769.webp')
   const beliefs = [
     {
       title: 'Jesus the Savior',
@@ -35,6 +36,15 @@ const About = () => {
 
   return (
     <main id="main-content" className="about-page">
+      <Helmet>
+        <title>About Us — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Learn about FGC Upper Room Mgbuoba — who we are, what we believe, and our mission to raise kingdom-minded youth in Port Harcourt." />
+        <meta property="og:title" content="About Us — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Discover the story, vision, and Foursquare Gospel foundation of Upper Room Mgbuoba youth fellowship." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/about" />
+      </Helmet>
       {/* Hero Banner */}
       <section className="page-banner bg-blue">
         <div className="container">
@@ -68,7 +78,7 @@ const About = () => {
               </p>
             </div>
             <div className="about-intro__image">
-              <img src={youthPhoto} alt="Upperroom Youth Church" />
+              <img src={youthPhoto} alt="Upperroom Youth Church" width="600" height="450" loading="lazy" />
             </div>
           </div>
         </div>

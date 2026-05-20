@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n/LanguageContext'
 const NewsletterModal = ({ isOpen, onClose }) => {
   const { t } = useI18n()
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' })
+  const [consented, setConsented] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState(null) // null | 'success' | 'error'
   const [statusMessage, setStatusMessage] = useState('')
@@ -84,6 +85,7 @@ const NewsletterModal = ({ isOpen, onClose }) => {
     if (result.ok) {
       setSubmitStatus('success')
       setFormData({ name: '', phone: '', email: '' })
+      setConsented(false)
       setTimeout(() => handleClose(), 3000)
     } else {
       setSubmitStatus('error')
@@ -165,7 +167,24 @@ const NewsletterModal = ({ isOpen, onClose }) => {
                   required
                   disabled={submitting}
                 />
-                <Button type="submit" variant="primary" size="lg" disabled={submitting}>
+                <div className="newsletter-modal__consent">
+                  <label className="newsletter-modal__consent-label">
+                    <input
+                      type="checkbox"
+                      checked={consented}
+                      onChange={(e) => setConsented(e.target.checked)}
+                      disabled={submitting}
+                      required
+                    />
+                    <span>
+                      {t('home.newsletterConsentText', 'I agree to receive WhatsApp messages about services and events from FGC Upper Room.')}{' '}
+                      <a href="/privacy" className="newsletter-modal__privacy-link">
+                        {t('home.newsletterPrivacyLink', 'Privacy Policy')}
+                      </a>
+                    </span>
+                  </label>
+                </div>
+                <Button type="submit" variant="primary" size="lg" disabled={submitting || !consented}>
                   {submitting ? t('home.newsletterSubmitting', 'Subscribing...') : t('home.newsletterSubmit', 'Subscribe & Get Updates')}
                 </Button>
               </form>
