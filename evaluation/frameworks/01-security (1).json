@@ -1,0 +1,497 @@
+{
+  "framework": {
+    "id": "security-v1",
+    "name": "Security Practices Evaluation",
+    "version": "1.0.0",
+    "created": "2026-05-19",
+    "description": "Comprehensive security audit framework for the FGC Upper Room platform. Covers authentication, authorization, secrets management, input validation, session handling, cryptography, error handling, and secure defaults across the full stack: Vite/React frontend, Express.js backend services (WhatsApp Bot port 4100, Attendance Service port 4201), PostgreSQL database, Redis/BullMQ, and Cloudflare Tunnel deployment.",
+    "scoring": {
+      "scale": "1-10 per criterion",
+      "rubric": {
+        "1-2": "Critical: Actively exploitable vulnerability present. Immediate remediation required.",
+        "3-4": "Poor: Major security gaps. Missing fundamental controls.",
+        "5-6": "Fair: Some controls in place but significant gaps remain.",
+        "7-8": "Good: Solid security posture with minor improvements needed.",
+        "9-10": "Excellent: Industry best practices implemented and verified."
+      },
+      "overall_calculation": "Weighted average of all category scores. Categories weighted by risk impact."
+    }
+  },
+  "categories": [
+    {
+      "id": "auth",
+      "name": "Authentication & Identity",
+      "weight": 1.5,
+      "description": "How users prove their identity to the system. Covers the admin login system, session tokens, 2FA/TOTP, and any public-facing authentication flows.",
+      "criteria": [
+        {
+          "id": "auth-01",
+          "name": "Password Storage",
+          "what_to_check": [
+            "Passwords are hashed with bcrypt (cost >= 12), Argon2, or scrypt — never MD5, SHA-256 alone, or plaintext",
+            "Check admin user JSON files and any DB tables for password field handling",
+            "Verify salt is unique per user (bcrypt does this automatically)",
+            "No password is ever logged, returned in API responses, or stored in localStorage/sessionStorage"
+          ],
+          "known_issues": [
+            "Previous audit found VITE_ADMIN_PASSWORD baked into the JS bundle via Vite env vars",
+            "Fallback login bypass pattern (getFallbackLogin / fallback-local-admin) was discovered",
+            "Phase 1 removed VITE_ADMIN_PASSWORD and fallback login — verify removal is complete and no remnants exist in git history or dist/"
+          ],
+          "remediation": "Use bcrypt with cost factor 12+. Remove all VITE_ADMIN_PASSWORD references. Eliminate any fallback/bypass login paths. Server-side only password verification."
+        },
+        {
+          "id": "auth-02",
+          "name": "Session Management",
+          "what_to_check": [
+            "Session tokens are cryptographically random (crypto.randomBytes, not Math.random)",
+            "Tokens have expiration (recommend 1-4 hours for admin sessions)",
+            "Sessions are invalidated on logout (server-side deletion, not just client cookie removal)",
+            "Session fixation prevention: new token issued after successful login",
+            "Cookie flags: HttpOnly, Secure, SameSite=Strict or Lax",
+            "No session tokens stored in localStorage (XSS-accessible)"
+          ],
+          "known_issues": [
+            "Admin system uses JSON files on disk for session storage — verify token generation quality",
+            "Admin sessions still use JSON files on disk (data/admin-sessions.json) — verify this wasn't migrated to PostgreSQL in Phase 2 (it wasn't — still a gap)"
+          ],
+          "remediation": "Use crypto.randomBytes(32) for tokens. Set all cookie security flags. Implement server-side session store with TTL. Regenerate session ID on authentication state change."
+        },
+        {
+          "id": "auth-03",
+          "name": "Multi-Factor Authentication",
+          "what_to_check": [
+            "TOTP 2FA is enforced for super_admin role, recommended for editor/reviewer",
+            "TOTP secrets are stored encrypted or in a secure location, not plaintext JSON",
+            "Backup/recovery codes exist for 2FA lockout scenarios",
+            "TOTP window is limited (1-2 periods, not unlimited)"
+          ],
+          "remediation": "Encrypt TOTP secrets at rest. Implement backup codes. Enforce 2FA for all admin roles."
+        },
+        {
+          "id": "auth-04",
+          "name": "Brute Force Protection",
+          "what_to_check": [
+            "Login endpoints have rate limiting (e.g., 5 attempts per 15 minutes per IP/account)",
+            "Account lockout or exponential backoff after repeated failures",
+            "Failed login attempts are logged with timestamp and IP",
+            "Rate limiting applies to password reset flows too"
+          ],
+          "remediation": "Use express-rate-limit on /login, /reset-password. Implement progressive delays. Log all auth failures to audit log."
+        }
+      ]
+    },
+    {
+      "id": "authz",
+      "name": "Authorization & Access Control",
+      "weight": 1.5,
+      "description": "What authenticated users can do. Covers RBAC enforcement, route protection, and data-level access controls.",
+      "criteria": [
+        {
+          "id": "authz-01",
+          "name": "RBAC Enforcement",
+          "what_to_check": [
+            "Every admin route checks user role server-side before executing",
+            "Role checks happen in middleware, not just in route handlers (defense in depth)",
+            "Roles are defined: super_admin, editor, reviewer — verify each has correct permissions",
+            "No routes rely solely on client-side role checks (React component visibility)",
+            "Default deny: if role is unknown/missing, access is denied"
+          ],
+          "known_issues": [
+            "Need to verify all bot admin endpoints (events, visitors, messages) require role checks"
+          ],
+          "remediation": "Create a central authorization middleware. Apply it to ALL admin routes. Implement permission matrix: which role can access which endpoints."
+        },
+        {
+          "id": "authz-02",
+          "name": "API Endpoint Protection",
+          "what_to_check": [
+            "ALL write endpoints (POST/PUT/DELETE) require authentication",
+            "Bot admin API endpoints verify x-bot-admin-key or session token",
+            "Attendance service endpoints that modify data require auth",
+            "Public read endpoints are intentionally public (not accidentally unprotected)",
+            "Document which endpoints are public vs. authenticated vs. admin-only"
+          ],
+          "known_issues": [
+            "Previous audit found unauthenticated bot write endpoints"
+          ],
+          "remediation": "Audit every route in bot/src/routes/ and attendance service. Add auth middleware to all state-changing endpoints. Create an endpoint inventory with auth requirements."
+        },
+        {
+          "id": "authz-03",
+          "name": "Insecure Direct Object References (IDOR)",
+          "what_to_check": [
+            "Users cannot access other users' data by modifying IDs in URLs/params",
+            "Attendance check-in records are scoped to the correct session",
+            "Visitor/member records are only accessible by authorized admin roles",
+            "Prayer requests and feedback are not publicly enumerable"
+          ],
+          "remediation": "Always scope queries by the authenticated user's permissions. Use UUIDs instead of sequential IDs for external-facing references."
+        }
+      ]
+    },
+    {
+      "id": "secrets",
+      "name": "Secrets & Configuration Management",
+      "weight": 1.3,
+      "description": "How sensitive credentials, API keys, and configuration values are stored and accessed.",
+      "criteria": [
+        {
+          "id": "secrets-01",
+          "name": "No Hardcoded Secrets",
+          "what_to_check": [
+            "grep -r for patterns: password, secret, api_key, token, credential in source files",
+            "No secrets in .env files committed to git (check .gitignore)",
+            "No VITE_ prefixed env vars exposing secrets to the client bundle",
+            "WhatsApp Cloud API token stored in env vars, not source",
+            "PostgreSQL connection strings use env vars",
+            "Redis connection credentials use env vars",
+            "LLM API keys (Vertex AI, OpenAI, Gemini) use env vars",
+            "Paystack keys are implemented — verify PAYSTACK_SECRET_KEY is server-side only, with test vs live separation"
+          ],
+          "known_issues": [
+            "VITE_ADMIN_PASSWORD was removed in Phase 1 — verify no VITE_ prefixed secrets remain",
+            "Paystack is now implemented — verify PAYSTACK_SECRET_KEY is server-side only (never in frontend bundle)",
+            "BOT_ADMIN_API_KEY handling needs verification"
+          ],
+          "remediation": "Remove ALL secrets from source. Use dotenv for local dev, proper secret management for production. Audit git history for previously committed secrets (they need rotation even after removal). Never use VITE_ prefix for secrets."
+        },
+        {
+          "id": "secrets-02",
+          "name": "Environment Separation",
+          "what_to_check": [
+            "Separate .env files or configs for development, staging, production",
+            "Production secrets are NOT in the git repository, even in .env.example",
+            "Example env file (.env.example) has placeholder values only",
+            "NODE_ENV is set correctly per environment"
+          ],
+          "remediation": "Create .env.example with dummy values. Use .env.local for dev. Production uses server-level env vars or secret manager."
+        },
+        {
+          "id": "secrets-03",
+          "name": "Secret Rotation Readiness",
+          "what_to_check": [
+            "Can secrets (DB password, API keys, session secret) be rotated without downtime?",
+            "Is there a documented process for rotating compromised credentials?",
+            "WhatsApp API token refresh is handled (Meta tokens expire)"
+          ],
+          "remediation": "Document secret rotation procedures. Ensure app can reload config without restart where possible."
+        },
+        {
+          "id": "secrets-04",
+          "name": "JSON File Data Store Security",
+          "what_to_check": [
+            "data/admin-users.json (password hashes, TOTP secrets) has restricted file permissions (600 or 640)",
+            "data/admin-sessions.json is not committed to git (.gitignore covers data/ directory)",
+            "data/admin-audit-log.json is access-controlled",
+            "data/admin-blog-posts.json, data/admin-testimonies.json, data/admin-media.json — file permissions appropriate",
+            "data/contact-submissions.json, data/newsletter-subscribers.json — contain PII, verify permissions",
+            "data/rum-events.json — assess sensitivity",
+            "All data/*.json files are excluded from git via .gitignore",
+            "Concurrent write safety: JSON file writes use atomic write pattern (write to temp, rename) to prevent corruption",
+            "Migration plan exists to move remaining JSON stores to PostgreSQL (same pattern as giving migration)"
+          ],
+          "known_issues": [
+            "Giving data was migrated from JSON to PostgreSQL in Phase 3, but all other data stores remain as flat JSON files",
+            "JSON file storage has concurrency and data loss risks that were the motivation for the giving migration"
+          ],
+          "remediation": "Set file permissions to 600 for sensitive files (admin-users, admin-sessions). Ensure data/ is in .gitignore. Plan incremental migration to PostgreSQL. Use atomic writes (fs.writeFile to temp path + fs.rename) to prevent corruption."
+        }
+      ]
+    },
+    {
+      "id": "input",
+      "name": "Input Validation & Output Encoding",
+      "weight": 1.4,
+      "description": "How the application handles untrusted data from users, WhatsApp messages, and external APIs.",
+      "criteria": [
+        {
+          "id": "input-01",
+          "name": "Server-Side Input Validation",
+          "what_to_check": [
+            "All API endpoints validate incoming data (type, length, format, range)",
+            "Use express-validator, Joi, Zod, or equivalent — not just manual checks",
+            "WhatsApp webhook payload is validated against Meta's expected schema",
+            "Attendance check-in data (member ID, session ID) is validated",
+            "Event creation/update validates all fields (dates, capacity, text lengths)",
+            "Contact form and subscription endpoints validate email format, sanitize message text"
+          ],
+          "remediation": "Add validation middleware to every endpoint. Define schemas for all input types. Reject invalid input with 400 status and safe error messages."
+        },
+        {
+          "id": "input-02",
+          "name": "SQL Injection Prevention",
+          "what_to_check": [
+            "ALL PostgreSQL queries use parameterized queries ($1, $2) or an ORM",
+            "No string concatenation to build SQL queries",
+            "Search/filter functionality uses parameterized LIKE queries",
+            "Check visitor duplicate detection queries, event queries, attendance queries"
+          ],
+          "remediation": "Use parameterized queries everywhere. Use pg library's query(text, values) pattern. Consider an ORM like Knex for complex queries."
+        },
+        {
+          "id": "input-03",
+          "name": "XSS Prevention",
+          "what_to_check": [
+            "React JSX auto-escaping is relied upon (no dangerouslySetInnerHTML without DOMPurify)",
+            "Blog content, testimonies, and user-generated text are sanitized before storage AND display",
+            "Rich text/HTML content uses DOMPurify or equivalent",
+            "URL parameters are not reflected unsanitized into page content",
+            "Event descriptions and prayer requests are sanitized"
+          ],
+          "known_issues": [
+            "Blog and testimony content was migrated from localStorage to server-side JSON files (data/admin-blog-posts.json, data/admin-testimonies.json) — ensure sanitization on both write and read paths"
+          ],
+          "remediation": "Audit all dangerouslySetInnerHTML usage. Add DOMPurify for any HTML rendering. Sanitize on input AND output."
+        },
+        {
+          "id": "input-04",
+          "name": "WhatsApp Message Input Handling",
+          "what_to_check": [
+            "Inbound WhatsApp messages are sanitized before processing",
+            "Command parsing (@email, STOP, FAQ triggers) handles edge cases and injection",
+            "LLM prompt injection: user messages passed to Vertex AI/OpenAI/Gemini are sandboxed",
+            "Message content stored in PostgreSQL is parameterized",
+            "Opt-out parsing doesn't execute arbitrary commands"
+          ],
+          "remediation": "Sanitize all inbound message text. Use strict regex for command parsing. Sandbox LLM inputs with system prompts that instruct ignoring injected instructions."
+        }
+      ]
+    },
+    {
+      "id": "crypto",
+      "name": "Cryptography & Data Protection",
+      "weight": 1.0,
+      "description": "Encryption in transit and at rest, secure random number generation, and data protection.",
+      "criteria": [
+        {
+          "id": "crypto-01",
+          "name": "HTTPS / TLS",
+          "what_to_check": [
+            "All traffic served over HTTPS (Cloudflare Tunnel handles this)",
+            "No mixed content (HTTP resources loaded on HTTPS pages)",
+            "HSTS headers present",
+            "Internal service-to-service communication (bot <-> attendance) is secured"
+          ],
+          "remediation": "Verify Cloudflare Tunnel enforces HTTPS. Add HSTS header. Check internal service communication."
+        },
+        {
+          "id": "crypto-02",
+          "name": "Secure Randomness",
+          "what_to_check": [
+            "All tokens, session IDs, and security-sensitive values use crypto.randomBytes or crypto.randomUUID",
+            "No Math.random() for security purposes (tokens, IDs, codes)",
+            "QR code generation uses secure random identifiers",
+            "TOTP implementation uses proper cryptographic library"
+          ],
+          "remediation": "Replace any Math.random() in security contexts with crypto module equivalents."
+        },
+        {
+          "id": "crypto-03",
+          "name": "Data Encryption at Rest",
+          "what_to_check": [
+            "Sensitive data in PostgreSQL (phone numbers, prayer requests, personal info) — assess if encryption is needed",
+            "Admin JSON files with password hashes and TOTP secrets — are these on encrypted filesystem?",
+            "Backup files are encrypted",
+            "Redis data (queued messages, session cache) — assess sensitivity"
+          ],
+          "remediation": "For a church website, column-level encryption may be overkill, but ensure filesystem permissions are tight and backups are encrypted. Document the decision."
+        }
+      ]
+    },
+    {
+      "id": "headers",
+      "name": "HTTP Security Headers & Middleware",
+      "weight": 1.0,
+      "description": "Security headers and Express middleware hardening.",
+      "criteria": [
+        {
+          "id": "headers-01",
+          "name": "Helmet.js Usage",
+          "what_to_check": [
+            "helmet() middleware is applied to all Express apps (bot, attendance, any API server)",
+            "Content-Security-Policy is configured (not just default)",
+            "X-Content-Type-Options: nosniff is set",
+            "X-Frame-Options: DENY or SAMEORIGIN is set",
+            "X-Powered-By header is removed (helmet does this)"
+          ],
+          "remediation": "Install and configure helmet() on every Express app. Customize CSP for your needs."
+        },
+        {
+          "id": "headers-02",
+          "name": "CORS Configuration",
+          "what_to_check": [
+            "CORS is configured to allow only your domain(s), not wildcard *",
+            "Credentials mode is properly set if using cookies cross-origin",
+            "Preflight requests are handled correctly",
+            "Bot webhook endpoint CORS allows Meta's servers"
+          ],
+          "known_issues": [
+            "Phase 3 added CORS whitelist to giving API — verify it covers all API routes, not just giving"
+          ],
+          "remediation": "Set CORS origin to your specific domains. Use cors() middleware with explicit origin list."
+        },
+        {
+          "id": "headers-03",
+          "name": "Rate Limiting",
+          "what_to_check": [
+            "express-rate-limit applied to public-facing endpoints",
+            "Different rate limits for different endpoint types (auth = strict, public = moderate)",
+            "Bot webhook has appropriate limits (Meta may send bursts)",
+            "Attendance check-in has rate limiting (already noted as present)"
+          ],
+          "known_issues": [
+            "Phase 3 added rate limiting to /api/giving/initialize (10 req/min/IP) — verify other public endpoints (contact form, newsletter subscribe, attendance check-in) also have rate limiting"
+          ],
+          "remediation": "Apply tiered rate limiting: auth endpoints (5/15min), API endpoints (100/15min), webhooks (appropriate for Meta's patterns)."
+        }
+      ]
+    },
+    {
+      "id": "errors",
+      "name": "Error Handling & Information Disclosure",
+      "weight": 1.0,
+      "description": "How errors are handled, logged, and communicated to users.",
+      "criteria": [
+        {
+          "id": "errors-01",
+          "name": "No Stack Traces in Responses",
+          "what_to_check": [
+            "Production error responses return generic messages, not stack traces",
+            "Express error handler middleware catches all unhandled errors",
+            "No err.stack or err.message directly sent to client in production",
+            "Database errors (PostgreSQL) are caught and not leaked to client"
+          ],
+          "remediation": "Implement global error handler middleware on every Express app. Return generic 500 messages. Log full errors server-side only."
+        },
+        {
+          "id": "errors-02",
+          "name": "Secure Logging",
+          "what_to_check": [
+            "Logs do not contain passwords, tokens, API keys, or full credit card numbers",
+            "Logs do not contain full WhatsApp message content from users (privacy)",
+            "Log levels are appropriate (debug off in production)",
+            "Structured logging format for easy analysis"
+          ],
+          "remediation": "Audit all logger.info/warn/error calls. Redact sensitive fields. Use structured logging (winston or pino)."
+        },
+        {
+          "id": "errors-03",
+          "name": "Graceful Shutdown & Error Recovery",
+          "what_to_check": [
+            "SIGTERM/SIGINT handlers exist for clean shutdown",
+            "Database connections are closed on shutdown",
+            "Redis connections are closed on shutdown",
+            "BullMQ workers are drained before exit",
+            "Process doesn't crash on unhandled promise rejections (process.on('unhandledRejection'))"
+          ],
+          "known_issues": [
+            "Phase 1 added SIGTERM/SIGINT handlers to all three services — verify they actually work (drain connections, close pools, 15-second timeout)"
+          ],
+          "remediation": "Add process signal handlers. Drain queues. Close DB/Redis pools. Set process.on('unhandledRejection') to log and handle."
+        }
+      ]
+    },
+    {
+      "id": "deps",
+      "name": "Dependency Security",
+      "weight": 1.1,
+      "description": "Third-party package security and supply chain risk.",
+      "criteria": [
+        {
+          "id": "deps-01",
+          "name": "Known Vulnerability Scan",
+          "what_to_check": [
+            "Run npm audit on all package.json files (frontend, bot, attendance)",
+            "No high or critical vulnerabilities in direct dependencies",
+            "Dependabot or similar is enabled on the GitHub repo",
+            "Lock files (package-lock.json) are committed and up to date"
+          ],
+          "remediation": "Run npm audit fix. Enable GitHub Dependabot alerts. Pin dependency versions. Review and update quarterly."
+        },
+        {
+          "id": "deps-02",
+          "name": "Dependency Hygiene",
+          "what_to_check": [
+            "No unused packages in package.json (depcheck tool)",
+            "No deprecated packages still in use",
+            "Minimal dependencies — no unnecessary packages adding attack surface",
+            "LLM-related packages are from official/verified sources"
+          ],
+          "remediation": "Run npx depcheck. Remove unused deps. Replace deprecated packages."
+        }
+      ]
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp-Specific Security",
+      "weight": 1.2,
+      "description": "Security controls specific to the WhatsApp Bot integration via Meta Cloud API.",
+      "criteria": [
+        {
+          "id": "wa-01",
+          "name": "Webhook Verification",
+          "what_to_check": [
+            "Webhook endpoint verifies Meta's signature (X-Hub-Signature-256 header)",
+            "Webhook verify token is checked on GET requests (Meta's challenge verification)",
+            "Webhook endpoint only processes verified payloads",
+            "Replay protection: check message timestamps aren't stale"
+          ],
+          "remediation": "Implement X-Hub-Signature-256 verification middleware. Verify the shared secret matches. Reject unsigned or invalid payloads."
+        },
+        {
+          "id": "wa-02",
+          "name": "Opt-Out & Privacy",
+          "what_to_check": [
+            "STOP/opt-out is respected immediately and persisted",
+            "Opted-out numbers do not receive any further messages",
+            "Member phone numbers are stored securely",
+            "Message history retention policy exists (don't store indefinitely without reason)"
+          ],
+          "remediation": "Verify opt-out flow end-to-end. Implement data retention policy. Consider hashing phone numbers at rest."
+        },
+        {
+          "id": "wa-03",
+          "name": "LLM Message Safety",
+          "what_to_check": [
+            "LLM-generated messages are reviewed/templated, not raw model output sent to users",
+            "System prompts prevent the LLM from generating harmful, off-topic, or inappropriate content",
+            "Fallback to static templates when LLM fails (cascading provider strategy)",
+            "LLM responses are length-limited and content-filtered before sending"
+          ],
+          "remediation": "Add output validation on LLM responses. Ensure system prompts are restrictive. Test with adversarial inputs."
+        },
+        {
+          "id": "wa-04",
+          "name": "Giving Notification Security",
+          "what_to_check": [
+            "/bot/api/giving/notify endpoint validates BOT_ADMIN_API_KEY in request header before processing",
+            "Endpoint cannot be spoofed to send arbitrary WhatsApp messages (only sends pre-defined thank-you template)",
+            "Donor PII (name, email, amount) is not leaked in server logs when notification is sent",
+            "Thank-you message respects opt-out status (does not message opted-out numbers)",
+            "Fire-and-forget pattern from website API to bot logs failures (not silently dropped)",
+            "Notification payload is validated (phone number format, transaction reference exists)"
+          ],
+          "known_issues": [
+            "Phase 3 added /bot/api/giving/notify as internal endpoint — verify BOT_ADMIN_API_KEY check is present and correct",
+            "Fire-and-forget from website to bot may silently drop failures — verify error logging"
+          ],
+          "remediation": "Verify BOT_ADMIN_API_KEY middleware on /bot/api/giving/notify. Check opt-out status before sending thank-you. Log notification failures with transaction reference (but not donor PII). Validate payload schema."
+        }
+      ]
+    }
+  ],
+  "evaluation_instructions": {
+    "for_claude_code": "To evaluate this framework against the codebase, read this JSON file, then systematically check each criterion against the actual source code. For each criterion: 1) Search the codebase for relevant files and patterns, 2) Score 1-10 based on the rubric, 3) Document specific file paths and line numbers as evidence, 4) Note any findings that match known_issues, 5) Provide actionable remediation steps with code examples where possible. Output a markdown report to evaluation/results/ with timestamp.",
+    "report_format": {
+      "filename_pattern": "security-eval-{YYYY-MM-DD-HHmmss}.md",
+      "sections": [
+        "Executive Summary (overall score, critical findings count)",
+        "Category Scores (table with category, score, weight, weighted score)",
+        "Detailed Findings (per criterion: score, evidence, files, remediation)",
+        "Critical Action Items (ordered by severity)",
+        "Progress Tracking (comparison with previous evaluation if exists)"
+      ]
+    }
+  }
+}

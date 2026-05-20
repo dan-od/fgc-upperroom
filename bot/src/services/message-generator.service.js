@@ -138,6 +138,7 @@ Return only the message text.
 `
 
 const buildServiceReminderPrompt = (name, serviceTime, isFirstSunday) => {
+  const firstName = String(name || '').trim().split(/\s+/)[0] || name
   const specialNote = isFirstSunday
     ? "Tomorrow is First Sunday. Mention that plainly and note that service starts at the given time."
     : 'Tomorrow is a regular Sunday service. Keep the reminder simple.'
@@ -145,7 +146,7 @@ const buildServiceReminderPrompt = (name, serviceTime, isFirstSunday) => {
   return `${BOT_MESSAGE_STYLE_GUIDE}
 
 Task: Write a WhatsApp reminder for one church member.
-Recipient name: ${name}
+Recipient name: ${firstName}
 Service time: ${serviceTime}
 Context: ${specialNote}
 
@@ -160,6 +161,7 @@ Optional closing: God bless you.
 }
 
 const buildEventReminderPrompt = (name, eventTitle, eventDate, eventTime, registrationLink) => {
+  const firstName = String(name || '').trim().split(/\s+/)[0] || name
   const details = [
     `Event title: ${eventTitle}`,
     `Event date: ${eventDate}`,
@@ -170,7 +172,7 @@ const buildEventReminderPrompt = (name, eventTitle, eventDate, eventTime, regist
   return `${BOT_MESSAGE_STYLE_GUIDE}
 
 Task: Write a WhatsApp reminder for one church member.
-Recipient name: ${name}
+Recipient name: ${firstName}
 ${details}
 
 Write 2 to 4 short sentences.

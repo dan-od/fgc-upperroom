@@ -35,6 +35,7 @@
     "qa:load": "WHATSAPP_PROVIDER=stub node bot/scripts/load-test.js",
     "qa:performance": "WHATSAPP_PROVIDER=stub node scripts/perf-smoke.mjs",
     "qa:security": "WHATSAPP_PROVIDER=stub BOT_ADMIN_API_KEY=test-admin node scripts/security-smoke.mjs",
+    "lint": "eslint src bot/src attendance --ext .js,.jsx,.ts,.tsx",
     "qa:accessibility": "node scripts/accessibility-smoke.mjs",
     "qa:ci": "npm run bot:schema:ensure && npm run test:integration && npm run test:e2e && npm run qa:accessibility && npm run qa:performance && npm run qa:security && npm run qa:load -- 25",
     "openclaw:hook:test": "node scripts/openclaw-hook-test.mjs"
@@ -60,11 +61,15 @@
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.5.0",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
     "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",

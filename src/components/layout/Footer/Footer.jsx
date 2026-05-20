@@ -318,7 +318,10 @@ const Footer = () => {
           <p className="footer__scripture">
             {t('footer.scripture', '"Jesus Christ the same yesterday, and today, and forever."')} — Hebrews 13:8
           </p>
-          <p className="footer__copyright">© {new Date().getFullYear()} FGC Upper Room Mgbuoba. {t('footer.rightsReserved', 'All rights reserved.')}</p>
+          <p className="footer__copyright">
+            © {new Date().getFullYear()} FGC Upper Room Mgbuoba. {t('footer.rightsReserved', 'All rights reserved.')}{' '}
+            <Link to="/privacy" className="footer__privacy-link">{t('footer.privacyPolicy', 'Privacy Policy')}</Link>
+          </p>
         </div>
       </div>
     </footer>

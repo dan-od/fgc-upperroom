@@ -307,3 +307,19 @@ VALUES
   ('2026-01-01', 'New Year''s Day', '*', TRUE, '{"default":true}'::jsonb),
   ('2026-12-25', 'Christmas Day', '*', TRUE, '{"default":true}'::jsonb)
 ON CONFLICT (holiday_date, timezone) DO NOTHING;
+
+-- ── Data Retention: 90-day purge ─────────────────────────────────────────────
+-- messages and conversation_feedback contain personal data and must be purged
+-- after 90 days per the NDPR / privacy policy retention schedule.
+-- Run purge_old_message_data() via pg_cron or an application cron job daily.
+
+CREATE OR REPLACE FUNCTION purge_old_message_data() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM messages
+  WHERE created_at < now() - INTERVAL '90 days';
+
+  DELETE FROM conversation_feedback
+  WHERE created_at < now() - INTERVAL '90 days';
+END;
+$$;
