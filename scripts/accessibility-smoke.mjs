@@ -47,16 +47,16 @@ const main = async () => {
     )
   }
 
-  const homeSource = await readText('src/pages/Home/Home.jsx')
+  const newsletterModalSource = await readText('src/pages/Home/NewsletterModal.jsx')
   assertCheck(
-    homeSource.includes('role="dialog"') && homeSource.includes('aria-modal="true"'),
+    newsletterModalSource.includes('role="dialog"') && newsletterModalSource.includes('aria-modal="true"'),
     'Home newsletter modal is missing dialog accessibility attributes.',
     failures
   )
 
-  const eventsSource = await readText('src/pages/Events/Events.jsx')
+  const eventModalSource = await readText('src/pages/Events/EventModal.jsx')
   assertCheck(
-    eventsSource.includes('role="dialog"') && eventsSource.includes('aria-modal="true"'),
+    eventModalSource.includes('role="dialog"') && eventModalSource.includes('aria-modal="true"'),
     'Events details modal is missing dialog accessibility attributes.',
     failures
   )
@@ -77,7 +77,7 @@ const main = async () => {
 
   const formLabelChecks = [
     {
-      path: 'src/pages/Home/Home.jsx',
+      path: 'src/pages/Home/NewsletterModal.jsx',
       patterns: ['htmlFor="home-newsletter-name"', 'htmlFor="home-newsletter-phone"', 'htmlFor="home-newsletter-email"']
     },
     {
@@ -85,7 +85,7 @@ const main = async () => {
       patterns: ['htmlFor="footer-newsletter-name"', 'htmlFor="footer-newsletter-email"']
     },
     {
-      path: 'src/pages/Events/Events.jsx',
+      path: 'src/pages/Events/EventSubscribeForm.jsx',
       patterns: ['htmlFor="event-reminder-frequency"']
     }
   ]
