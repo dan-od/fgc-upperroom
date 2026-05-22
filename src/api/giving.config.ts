@@ -90,7 +90,7 @@ const parseLegacyBankDetails = (): BankTransferDetail[] => {
 };
 
 export const getGivingRuntimeConfig = (): GivingRuntimeConfig => {
-  loadProjectEnv(true);
+  loadProjectEnv();
   const paystackPublicKey = cleanEnv(process.env.PAYSTACK_PUBLIC_KEY);
   const paystackSecretKey = cleanEnv(process.env.PAYSTACK_SECRET_KEY);
   const givingCurrency = cleanEnv(process.env.GIVING_CURRENCY || "NGN").toUpperCase() || "NGN";

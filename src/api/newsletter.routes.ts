@@ -50,6 +50,7 @@ router.post("/subscribe", subscribeRateLimit, async (req, res) => {
   return res.json({
     ok: true,
     message: "You are subscribed for event email updates.",
+    data: nextRecord,
   });
 });
 

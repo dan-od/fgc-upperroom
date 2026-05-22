@@ -4,6 +4,7 @@ import { normalizeGivingStatus, resolveGivingStatus } from "../../lib/giving-uti
 import type { GivingTransaction, GivingTransactionStatus } from "./types.js";
 import { getGivingRuntimeConfig } from "./giving.config.js";
 import { maskEmail, maskPhone } from "./utils/privacy.js";
+import { paths, readJsonArray, writeJsonArray } from "./storage.js";
 
 // ── Pure helpers (exported for use in route handlers) ──────────────────────
 export const normalizeEmail = (value: unknown): string => {
@@ -85,6 +86,9 @@ export const normalizeGivingTransaction = (source: Partial<GivingTransaction>): 
 const { Pool } = pg;
 let _givingPool: pg.Pool | null = null;
 
+const useJsonGivingStore = () =>
+  ["1", "true", "yes"].includes(String(process.env.GIVING_USE_JSON_STORE || "").trim().toLowerCase());
+
 export const getGivingPool = (): pg.Pool => {
   if (!_givingPool) {
     if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL must be set for giving transactions");
@@ -119,18 +123,44 @@ export const rowToTransaction = (row: Record<string, unknown>): GivingTransactio
     walletAddress: row.wallet_address ? String(row.wallet_address) : undefined,
   });
 
+const readGivingJsonTransactions = async (): Promise<GivingTransaction[]> => {
+  const records = await readJsonArray<Partial<GivingTransaction>>(paths.givingTransactions);
+  return records.map((item) => normalizeGivingTransaction(item));
+};
+
+const writeGivingJsonTransactions = async (records: GivingTransaction[]) => {
+  const normalized = records.map((item) => normalizeGivingTransaction(item));
+  await writeJsonArray(paths.givingTransactions, normalized.slice(0, 5000));
+};
+
 // ── Query helpers ──────────────────────────────────────────────────────────
 export const getTransactionByReference = async (reference: string): Promise<GivingTransaction | null> => {
+  if (useJsonGivingStore()) {
+    const records = await readGivingJsonTransactions();
+    return records.find((item) => item.reference === reference) || null;
+  }
+
   const result = await getGivingPool().query("SELECT * FROM giving_transactions WHERE reference = $1", [reference]);
   return result.rows.length ? rowToTransaction(result.rows[0]) : null;
 };
 
 export const referenceExists = async (reference: string): Promise<boolean> => {
+  if (useJsonGivingStore()) {
+    const records = await readGivingJsonTransactions();
+    return records.some((item) => item.reference === reference);
+  }
+
   const result = await getGivingPool().query("SELECT 1 FROM giving_transactions WHERE reference = $1", [reference]);
   return result.rows.length > 0;
 };
 
 export const insertGivingTransaction = async (tx: GivingTransaction): Promise<void> => {
+  if (useJsonGivingStore()) {
+    const records = await readGivingJsonTransactions();
+    await writeGivingJsonTransactions([normalizeGivingTransaction(tx), ...records]);
+    return;
+  }
+
   await getGivingPool().query(
     `INSERT INTO giving_transactions
        (id, reference, provider, status, amount_kobo, currency, fund,
@@ -150,6 +180,14 @@ export const insertGivingTransaction = async (tx: GivingTransaction): Promise<vo
 };
 
 export const updateGivingTransaction = async (tx: GivingTransaction): Promise<void> => {
+  if (useJsonGivingStore()) {
+    const records = await readGivingJsonTransactions();
+    const normalized = normalizeGivingTransaction(tx);
+    const updated = records.map((item) => item.reference === normalized.reference ? normalized : item);
+    await writeGivingJsonTransactions(updated.some((item) => item.reference === normalized.reference) ? updated : [normalized, ...records]);
+    return;
+  }
+
   await getGivingPool().query(
     `UPDATE giving_transactions SET
        status=$1, amount_kobo=$2, currency=$3, provider_status=$4,
@@ -169,6 +207,11 @@ export const updateGivingTransaction = async (tx: GivingTransaction): Promise<vo
 export const findTransactionByTxHashDb = async (txHash: string, excludeReference: string): Promise<GivingTransaction | null> => {
   const normalizedHash = String(txHash || "").trim().toLowerCase();
   if (!normalizedHash) return null;
+  if (useJsonGivingStore()) {
+    const records = await readGivingJsonTransactions();
+    return records.find((item) => item.txHash === normalizedHash && item.reference !== excludeReference) || null;
+  }
+
   const result = await getGivingPool().query(
     "SELECT * FROM giving_transactions WHERE tx_hash = $1 AND reference != $2",
     [normalizedHash, excludeReference]

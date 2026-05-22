@@ -131,10 +131,12 @@ await fs.writeFile(path.join(dataDir, 'rum-events.json'), '[]', 'utf8')
 process.env.APP_DATA_DIR = dataDir
 process.env.APP_DIST_DIR = distDir
 process.env.APP_BASE_PATH = '/fgc-testing/'
+process.env.GIVING_USE_JSON_STORE = 'true'
 process.env.ADMIN_DEFAULT_EMAIL = 'admin@upperroom.local'
 process.env.ADMIN_DEFAULT_PASSWORD = 'ChangeMe1234'
 process.env.PAYSTACK_SECRET_KEY = ''
 process.env.PAYSTACK_PUBLIC_KEY = 'pk_test_fake'
+process.env.GIVING_ENABLE_CRYPTO = 'true'
 process.env.GIVING_BANK_ACCOUNTS_JSON = JSON.stringify([
   {
     id: 'zenith-main',
