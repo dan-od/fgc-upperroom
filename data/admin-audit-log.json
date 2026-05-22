@@ -1,5 +1,17 @@
 [
   {
+    "id": "11f70792-d588-4389-a74d-55cb7a298a4b",
+    "actorUserId": "c3bb8ceb-01f7-4fdf-bfd8-2d5f94d00522",
+    "actorEmail": "admin@upperroom.local",
+    "actorRole": "super_admin",
+    "action": "auth.login",
+    "resource": "session",
+    "ip": "::ffff:127.0.0.1",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "details": {},
+    "createdAt": "2026-03-29T08:50:47.945Z"
+  },
+  {
     "id": "45ce33c7-bc3c-4a60-bc3d-183f8b5903a3",
     "actorUserId": "c3bb8ceb-01f7-4fdf-bfd8-2d5f94d00522",
     "actorEmail": "admin@upperroom.local",

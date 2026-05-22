@@ -1,6 +1,6 @@
 # FGC Upper Room Mgbuoba Website v2.0
 
-React website, admin center, attendance flow, and WhatsApp bot for FGC Upper Room Mgbuoba, the youth fellowship of Foursquare Gospel Church, Mgbuoba Zonal HQ.
+React website, admin center, attendance flow, and WhatsApp bot for FGC Upper Room Mgbuoba, the youth church of Foursquare Gospel Church, Mgbuoba Zonal HQ.
 
 ## 🚀 Quick Start
 

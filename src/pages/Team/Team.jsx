@@ -13,6 +13,7 @@ const getInitials = (name) => {
 }
 
 const DEFAULT_UNIT_PHONE = '+2347031526399'
+const UNIT_APPLICATION_FORM_URL = 'https://tally.so/forms/Me6abY'
 
 const toWhatsAppDigits = (value = '') => String(value).replace(/[^\d]/g, '')
 
@@ -23,7 +24,32 @@ const createWhatsAppLink = (phone, text = '') => {
   return payload ? `https://wa.me/${digits}?text=${encodeURIComponent(payload)}` : `https://wa.me/${digits}`
 }
 
+const toTallyEmbedUrl = (formUrl, unitName = '') => {
+  const rawUrl = String(formUrl || '').trim()
+  if (!rawUrl) return ''
+
+  try {
+    const url = new URL(rawUrl)
+    if (url.hostname === 'tally.so' && url.pathname.startsWith('/r/')) {
+      url.pathname = url.pathname.replace('/r/', '/embed/')
+    }
+
+    if (url.hostname === 'tally.so') {
+      url.searchParams.set('transparentBackground', '1')
+      url.searchParams.set('dynamicHeight', '1')
+      if (unitName) {
+        url.searchParams.set('unit', unitName)
+      }
+    }
+
+    return url.toString()
+  } catch {
+    return rawUrl
+  }
+}
+
 const Team = () => {
+  const [activeView, setActiveView] = useState('teams')
   const withBasePath = (assetPath) => toAssetUrl(String(assetPath || '').replace(/^\/+/, ''))
   const leadership = [
     {
@@ -86,15 +112,16 @@ const Team = () => {
 
   const departments = [
     { name: 'Choir', icon: 'fa-solid fa-music', description: 'Leading worship through music' },
-    { name: 'Media', icon: 'fa-solid fa-camera', description: 'Capturing and sharing our moments' },
-    { name: 'Ushers', icon: 'fa-solid fa-handshake', description: 'Welcoming and assisting members' },
     { name: 'Drama', icon: 'fa-solid fa-masks-theater', description: 'Creative arts ministry' },
-    { name: 'Sanctuary', icon: 'fa-solid fa-church', description: 'Maintaining God\'s house' },
-    { name: 'Protocol', icon: 'fa-solid fa-clipboard-list', description: 'Organizing and coordinating' },
-    { name: 'Prayer', icon: 'fa-solid fa-hands-praying', description: 'Interceding for the fellowship' },
-    { name: 'Greeters', icon: 'fa-solid fa-people-group', description: 'Creating a warm and welcoming environment' },
-    { name: 'Welfare', icon: 'fa-solid fa-hand-holding-heart', description: 'Caring for the wellbeing of members' },
     { name: 'Follow Up', icon: 'fa-solid fa-user-check', description: 'Following up with members' },
+    { name: 'Greeters', icon: 'fa-solid fa-people-group', description: 'Creating a warm and welcoming environment' },
+    { name: 'Media', icon: 'fa-solid fa-camera', description: 'Capturing and sharing our moments' },
+    { name: 'Prayer', icon: 'fa-solid fa-hands-praying', description: 'Interceding for the church' },
+    { name: 'Protocol', icon: 'fa-solid fa-clipboard-list', description: 'Organizing and coordinating' },
+    { name: 'Sanctuary', icon: 'fa-solid fa-church', description: 'Maintaining God\'s house' },
+    { name: 'Technical', icon: 'fa-solid fa-screwdriver-wrench', description: 'Supporting technical aspects of ministry in terms of equipment and systems' },
+    { name: 'Ushers', icon: 'fa-solid fa-handshake', description: 'Welcoming and assisting members' },
+    { name: 'Welfare', icon: 'fa-solid fa-hand-holding-heart', description: 'Caring for the wellbeing of members' }
   ]
 
   const unitModalContent = {
@@ -108,7 +135,7 @@ const Team = () => {
       },
       items: [
         'Join rehearsals and help lead heartfelt worship during services.',
-        'Contribute your vocal or instrumental gift to the fellowship.',
+        'Contribute your vocal or instrumental gift to the church.',
         'Receive guidance on choir schedules, auditions, and commitment expectations.'
       ]
     },
@@ -184,7 +211,7 @@ const Team = () => {
     },
     Prayer: {
       title: 'Prayer Unit',
-      subtitle: 'Covering the fellowship in intercession',
+      subtitle: 'Covering the church in intercession',
       bulletStyle: 'interpunct',
       contact: {
         phone: '+2347031526399',
@@ -233,38 +260,97 @@ const Team = () => {
         whatsapp: '+2347031526399'
       },
       items: [
-        'Welcomes first-time guests and helps them settle into fellowship life.',
+        'Welcomes first-time guests and helps them settle into church life.',
         'Checks in with members who have been absent and offers support.',
         'Follows up after programs to pray, encourage, and answer questions.',
         'Connects members to departments, small groups, and next growth steps.'
+      ]
+    },
+    Technical: {
+      title: 'Technical Unit',
+      subtitle: 'Supporting sound, equipment, and systems',
+      bulletStyle: 'interpunct',
+      contact: {
+        phone: '+2347031526399',
+        whatsapp: '+2347031526399'
+      },
+      items: [
+        'Support sound, equipment setup, and service technical workflows.',
+        'Help maintain systems that keep services and programs running smoothly.',
+        'Get onboarded into technical responsibilities and service-day expectations.'
       ]
     }
   }
 
   const [activeUnitModal, setActiveUnitModal] = useState(null)
+  const [isUnitModalClosing, setIsUnitModalClosing] = useState(false)
+  const [applicationUnit, setApplicationUnit] = useState('')
+  const [isApplicationModalClosing, setIsApplicationModalClosing] = useState(false)
   const activeUnitDetails = activeUnitModal ? unitModalContent[activeUnitModal] : null
   const activeUnitPhone = activeUnitDetails?.contact?.phone || DEFAULT_UNIT_PHONE
   const activeUnitWhatsAppPhone = activeUnitDetails?.contact?.whatsapp || activeUnitPhone
   const activeUnitCallHref = activeUnitPhone ? `tel:${activeUnitPhone}` : ''
+  const activeUnitApplyHref = String(UNIT_APPLICATION_FORM_URL || '').trim()
   const activeUnitChatHref = createWhatsAppLink(
     activeUnitWhatsAppPhone,
     activeUnitModal ? `Hello, I would like to reach the ${activeUnitModal} unit.` : ''
   )
+  const applicationEmbedUrl = toTallyEmbedUrl(UNIT_APPLICATION_FORM_URL, applicationUnit)
   const unitModalPanelRef = useRef(null)
   const unitModalCloseRef = useRef(null)
+  const applicationModalPanelRef = useRef(null)
+  const applicationModalCloseRef = useRef(null)
   const activeUnitTriggerRef = useRef(null)
+  const unitModalCloseTimerRef = useRef(null)
+  const applicationModalCloseTimerRef = useRef(null)
 
   const openUnitModal = (unitName, triggerEl = null) => {
     if (!unitModalContent[unitName]) return
+    window.clearTimeout(unitModalCloseTimerRef.current)
+    setIsUnitModalClosing(false)
     activeUnitTriggerRef.current = triggerEl
     setActiveUnitModal(unitName)
   }
 
   const closeUnitModal = () => {
-    setActiveUnitModal(null)
-    requestAnimationFrame(() => {
+    if (!activeUnitModal || isUnitModalClosing) return
+    setIsUnitModalClosing(true)
+    window.clearTimeout(unitModalCloseTimerRef.current)
+    unitModalCloseTimerRef.current = window.setTimeout(() => {
+      setActiveUnitModal(null)
+      setIsUnitModalClosing(false)
       activeUnitTriggerRef.current?.focus()
-    })
+    }, 220)
+  }
+
+  const openApplicationModal = () => {
+    if (!activeUnitApplyHref) return
+    const unitName = activeUnitModal || ''
+    setIsApplicationModalClosing(false)
+    window.clearTimeout(applicationModalCloseTimerRef.current)
+    closeUnitModal()
+    window.setTimeout(() => {
+      setApplicationUnit(unitName)
+      applicationModalCloseRef.current?.focus()
+    }, 260)
+  }
+
+  const closeApplicationModal = () => {
+    if (!applicationUnit || isApplicationModalClosing) return
+    setIsApplicationModalClosing(true)
+    window.clearTimeout(applicationModalCloseTimerRef.current)
+    applicationModalCloseTimerRef.current = window.setTimeout(() => {
+      setApplicationUnit('')
+      setIsApplicationModalClosing(false)
+      activeUnitTriggerRef.current?.focus()
+    }, 220)
+  }
+
+  const handleViewChange = (view) => {
+    setActiveView(view)
+    if (view !== 'teams') {
+      closeUnitModal()
+    }
   }
 
   useEffect(() => {
@@ -303,13 +389,38 @@ const Team = () => {
 
     return () => {
       window.clearTimeout(focusTimer)
+      window.clearTimeout(unitModalCloseTimerRef.current)
       document.removeEventListener('keydown', handleEscape)
       document.body.classList.remove('modal-open')
     }
   }, [activeUnitModal])
 
+  useEffect(() => {
+    if (!applicationUnit) return
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        closeApplicationModal()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    document.body.classList.add('modal-open')
+    const focusTimer = window.setTimeout(() => {
+      applicationModalCloseRef.current?.focus()
+    }, 30)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+      window.clearTimeout(applicationModalCloseTimerRef.current)
+      document.removeEventListener('keydown', handleEscape)
+      document.body.classList.remove('modal-open')
+    }
+  }, [applicationUnit])
+
   return (
     <main id="main-content" className="team-page">
+
       {/* Banner */}
       <section className="page-banner bg-purple">
         <div className="container">
@@ -318,182 +429,214 @@ const Team = () => {
         </div>
       </section>
 
-      {/* Leadership */}
-      <section className="team-section">
-        <div className="container">
-          <SectionHeader
-            tag="Leadership"
-            title="Our Shepherds"
-            subtitle="Spiritual leaders guiding our church"
-          />
-          {featuredLeaders.length > 0 && (
-            <div className="team-spotlight">
-              {spotlightFeaturedLeader && (
-                <div className="team-spotlight__top">
-                  <div className="team-card team-card--leadership team-card--spotlight">
+      <div className="team-view-toggle-wrap" aria-label="Team page view">
+        <div className={`team-view-toggle team-view-toggle--${activeView}`} aria-label="Team sections">
+          <span className="team-view-toggle__indicator" aria-hidden="true" />
+          <button
+            type="button"
+            className={`team-view-toggle__option${activeView === 'teams' ? ' team-view-toggle__option--active' : ''}`}
+            aria-pressed={activeView === 'teams'}
+            onClick={() => handleViewChange('teams')}
+          >
+            Teams
+          </button>
+          <button
+            type="button"
+            className={`team-view-toggle__option${activeView === 'shepherds' ? ' team-view-toggle__option--active' : ''}`}
+            aria-pressed={activeView === 'shepherds'}
+            onClick={() => handleViewChange('shepherds')}
+          >
+            Shepherds
+          </button>
+        </div>
+      </div>
+
+      <div className="team-view-panel" key={activeView}>
+        {activeView === 'shepherds' ? (
+          <>
+          {/* Leadership */}
+          <section className="team-section">
+            <div className="container">
+              <SectionHeader
+                tag="Leadership"
+                title="Our Shepherds"
+                subtitle="Spiritual leaders guiding our church"
+              />
+              {featuredLeaders.length > 0 && (
+                <div className="team-spotlight">
+                  {spotlightFeaturedLeader && (
+                    <div className="team-spotlight__top">
+                      <div className="team-card team-card--leadership team-card--spotlight">
+                        <div className="team-card__image">
+                          {spotlightFeaturedLeader.image ? (
+                            <img
+                              src={spotlightFeaturedLeader.image}
+                              alt={spotlightFeaturedLeader.name}
+                              className="team-card__photo"
+                              loading="lazy"
+                              style={getImageStyle(spotlightFeaturedLeader)}
+                            />
+                          ) : (
+                            <div className="team-card__placeholder team-card__placeholder--cross">
+                              <span>{getInitials(spotlightFeaturedLeader.name)}</span>
+                              <small>{spotlightFeaturedLeader.role}</small>
+                            </div>
+                          )}
+                        </div>
+                        <h3>{spotlightFeaturedLeader.name}</h3>
+                        <p className="team-card__role">{spotlightFeaturedLeader.role}</p>
+                        <p className="team-card__desc">{spotlightFeaturedLeader.description}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {secondaryFeaturedLeaders.length > 0 && (
+                    <div className="team-spotlight__grid team-spotlight__grid--secondary">
+                      {secondaryFeaturedLeaders.map((person, index) => (
+                        <div key={`${person.name}-${index}`} className="team-card team-card--leadership team-card--spotlight">
+                          <div className="team-card__image">
+                            {person.image ? (
+                              <img
+                                src={person.image}
+                                alt={person.name}
+                                className="team-card__photo"
+                                loading="lazy"
+                                style={getImageStyle(person)}
+                              />
+                            ) : (
+                              <div className={`team-card__placeholder team-card__placeholder--${avatarTones[index % avatarTones.length]}`}>
+                                <span>{getInitials(person.name)}</span>
+                                <small>{person.role}</small>
+                              </div>
+                            )}
+                          </div>
+                          <h3>{person.name}</h3>
+                          <p className="team-card__role">{person.role}</p>
+                          <p className="team-card__desc">{person.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="team-grid team-grid--3">
+                {leadershipGrid.map((person, index) => (
+                  <div key={index} className="team-card team-card--leadership">
                     <div className="team-card__image">
-                      {spotlightFeaturedLeader.image ? (
+                      {person.image ? (
                         <img
-                          src={spotlightFeaturedLeader.image}
-                          alt={spotlightFeaturedLeader.name}
+                          src={person.image}
+                          alt={person.name}
                           className="team-card__photo"
                           loading="lazy"
-                          style={getImageStyle(spotlightFeaturedLeader)}
+                          style={getImageStyle(person)}
                         />
                       ) : (
-                        <div className="team-card__placeholder team-card__placeholder--cross">
-                          <span>{getInitials(spotlightFeaturedLeader.name)}</span>
-                          <small>{spotlightFeaturedLeader.role}</small>
+                        <div className={`team-card__placeholder team-card__placeholder--${avatarTones[index % avatarTones.length]}`}>
+                          <span>{getInitials(person.name)}</span>
+                          <small>{person.role}</small>
                         </div>
                       )}
                     </div>
-                    <h3>{spotlightFeaturedLeader.name}</h3>
-                    <p className="team-card__role">{spotlightFeaturedLeader.role}</p>
-                    <p className="team-card__desc">{spotlightFeaturedLeader.description}</p>
+                    <h3>{person.name}</h3>
+                    <p className="team-card__role">{person.role}</p>
+                    <p className="team-card__desc">{person.description}</p>
                   </div>
-                </div>
-              )}
-
-              {secondaryFeaturedLeaders.length > 0 && (
-                <div className="team-spotlight__grid team-spotlight__grid--secondary">
-                  {secondaryFeaturedLeaders.map((person, index) => (
-                    <div key={`${person.name}-${index}`} className="team-card team-card--leadership team-card--spotlight">
-                      <div className="team-card__image">
-                        {person.image ? (
-                          <img
-                            src={person.image}
-                            alt={person.name}
-                            className="team-card__photo"
-                            loading="lazy"
-                            style={getImageStyle(person)}
-                          />
-                        ) : (
-                          <div className={`team-card__placeholder team-card__placeholder--${avatarTones[index % avatarTones.length]}`}>
-                            <span>{getInitials(person.name)}</span>
-                            <small>{person.role}</small>
-                          </div>
-                        )}
-                      </div>
-                      <h3>{person.name}</h3>
-                      <p className="team-card__role">{person.role}</p>
-                      <p className="team-card__desc">{person.description}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+                ))}
               </div>
-          )}
-          <div className="team-grid team-grid--3">
-            {leadershipGrid.map((person, index) => (
-              <div key={index} className="team-card team-card--leadership">
-                <div className="team-card__image">
-                  {person.image ? (
-                    <img
-                      src={person.image}
-                      alt={person.name}
-                      className="team-card__photo"
-                      loading="lazy"
-                      style={getImageStyle(person)}
-                    />
-                  ) : (
-                    <div className={`team-card__placeholder team-card__placeholder--${avatarTones[index % avatarTones.length]}`}>
-                      <span>{getInitials(person.name)}</span>
-                      <small>{person.role}</small>
-                    </div>
-                  )}
-                </div>
-                <h3>{person.name}</h3>
-                <p className="team-card__role">{person.role}</p>
-                <p className="team-card__desc">{person.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
+          </section>
 
-      {/* Excos */}
-      <section className="team-section bg-cream">
-        <div className="container">
-          <SectionHeader
-            tag="Executive"
-            title="Our Excos"
-            subtitle="Youth executives leading the church"
-          />
-          <div className="team-grid team-grid--3">
-            {excos.map((person, index) => (
-              <div key={index} className="team-card">
-                <div className="team-card__image">
-                  {person.image ? (
-                    <img
-                      src={person.image}
-                      alt={person.name}
-                      className="team-card__photo"
-                      loading="lazy"
-                      style={getImageStyle(person)}
-                    />
-                  ) : (
-                    <div className={`team-card__placeholder team-card__placeholder--${avatarTones[index % avatarTones.length]}`}>
-                      <span>{getInitials(person.name)}</span>
-                      <small>{person.role}</small>
+          {/* Excos */}
+          <section className="team-section bg-cream">
+            <div className="container">
+              <SectionHeader
+                tag="Executive"
+                title="Our Excos"
+                subtitle="Youth executives leading the church"
+              />
+              <div className="team-grid team-grid--3">
+                {excos.map((person, index) => (
+                  <div key={index} className="team-card">
+                    <div className="team-card__image">
+                      {person.image ? (
+                        <img
+                          src={person.image}
+                          alt={person.name}
+                          className="team-card__photo"
+                          loading="lazy"
+                          style={getImageStyle(person)}
+                        />
+                      ) : (
+                        <div className={`team-card__placeholder team-card__placeholder--${avatarTones[index % avatarTones.length]}`}>
+                          <span>{getInitials(person.name)}</span>
+                          <small>{person.role}</small>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <h3>{person.name}</h3>
-                <p className="team-card__role">{person.role}</p>
+                    <h3>{person.name}</h3>
+                    <p className="team-card__role">{person.role}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Departments */}
-      <section className="team-section">
-        <div className="container">
-          <SectionHeader
-            tag="Departments"
-            title="Our Units"
-            subtitle="Various departments serving in the church"
-          />
-          <div className="dept-grid">
-            {departments.map((dept, index) => {
-              const isInteractive = Boolean(unitModalContent[dept.name])
-              const interactiveProps = isInteractive
-                ? {
-                    onClick: (event) => openUnitModal(dept.name, event.currentTarget),
-                    onKeyDown: (event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        openUnitModal(dept.name, event.currentTarget)
+            </div>
+          </section>
+          </>
+        ) : (
+          <section className="team-section">
+            <div className="container">
+              <SectionHeader
+                tag="Departments"
+                title="Our Units"
+                subtitle="Various departments serving in the church"
+              />
+              <div className="dept-grid">
+                {departments.map((dept, index) => {
+                  const isInteractive = Boolean(unitModalContent[dept.name])
+                  const interactiveProps = isInteractive
+                    ? {
+                        onClick: (event) => openUnitModal(dept.name, event.currentTarget),
+                        onKeyDown: (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            openUnitModal(dept.name, event.currentTarget)
+                          }
+                        },
+                        role: 'button',
+                        tabIndex: 0,
+                        'aria-label': `Open ${dept.name} details`,
+                        'aria-haspopup': 'dialog',
+                        'aria-expanded': activeUnitModal === dept.name
                       }
-                    },
-                    role: 'button',
-                    tabIndex: 0,
-                    'aria-label': `Open ${dept.name} details`,
-                    'aria-haspopup': 'dialog',
-                    'aria-expanded': activeUnitModal === dept.name
-                  }
-                : {}
+                    : {}
 
-              return (
-                <div
-                  key={index}
-                  className={`dept-card${isInteractive ? ' dept-card--interactive' : ''}`}
-                  {...interactiveProps}
-                >
-                  <span className="dept-card__icon">
-                    <i className={dept.icon}></i>
-                  </span>
-                  <h3>{dept.name}</h3>
-                  <p>{dept.description}</p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
+                  return (
+                    <div
+                      key={index}
+                      className={`dept-card${isInteractive ? ' dept-card--interactive' : ''}`}
+                      {...interactiveProps}
+                    >
+                      <span className="dept-card__icon">
+                        <i className={dept.icon}></i>
+                      </span>
+                      <h3>{dept.name}</h3>
+                      <p>{dept.description}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
 
       {activeUnitDetails && (
-        <div className="team-unit-modal" role="dialog" aria-modal="true" aria-labelledby="team-unit-modal-title">
+        <div
+          className={`team-unit-modal${isUnitModalClosing ? ' team-unit-modal--closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="team-unit-modal-title"
+        >
           <button type="button" className="team-unit-modal__backdrop" onClick={closeUnitModal} aria-label="Close unit details modal" />
           <div ref={unitModalPanelRef} className="team-unit-modal__panel">
             <button
@@ -516,8 +659,17 @@ const Team = () => {
                   </li>
                 ))}
               </ul>
-              {(activeUnitCallHref || activeUnitChatHref) ? (
+              {(activeUnitApplyHref || activeUnitCallHref || activeUnitChatHref) ? (
                 <div className="team-unit-modal__actions">
+                  <button
+                    type="button"
+                    className="team-unit-modal__action team-unit-modal__action--apply"
+                    onClick={openApplicationModal}
+                    disabled={!activeUnitApplyHref}
+                  >
+                      <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                      Apply
+                  </button>
                   {activeUnitCallHref ? (
                     <a className="team-unit-modal__action team-unit-modal__action--call" href={activeUnitCallHref}>
                       <i className="fa-solid fa-phone"></i>
@@ -533,6 +685,39 @@ const Team = () => {
                 </div>
               ) : null}
             </div>
+          </div>
+        </div>
+      )}
+
+      {applicationUnit && (
+        <div
+          className={`team-unit-modal team-application-modal${isApplicationModalClosing ? ' team-unit-modal--closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="team-application-modal-title"
+        >
+          <button type="button" className="team-unit-modal__backdrop" onClick={closeApplicationModal} aria-label="Close application form modal" />
+          <div ref={applicationModalPanelRef} className="team-unit-modal__panel team-application-modal__panel">
+            <button
+              ref={applicationModalCloseRef}
+              type="button"
+              className="team-unit-modal__close"
+              onClick={closeApplicationModal}
+              aria-label="Close application form modal"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+            <h3 id="team-application-modal-title">Apply to Join a Unit</h3>
+            {applicationEmbedUrl ? (
+              <iframe
+                className="team-application-modal__frame"
+                src={applicationEmbedUrl}
+                title="Unit application form"
+                loading="lazy"
+              />
+            ) : (
+              <p className="team-application-modal__empty">Add your shared Tally form URL to enable applications.</p>
+            )}
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FacebookIcon, InstagramIcon, YoutubeIcon, TwitterIcon, TikTokIcon } from '../../common/SocialIcons'
-import { subscribeEmail } from '../../../utils/newsletterApi'
+import { subscribeToUpdates } from '../../../utils/subscribeApi'
 import { useI18n } from '../../../i18n/LanguageContext'
 import { toAssetUrl } from '../../../utils/appPaths'
 import './Footer.css'
@@ -16,7 +16,7 @@ const FOOTER_ASSETS = {
 
 const Footer = () => {
   const { t, language, setLanguage, languages } = useI18n()
-  const [newsletterForm, setNewsletterForm] = useState({ name: '', email: '' })
+  const [newsletterForm, setNewsletterForm] = useState({ name: '', phone: '', email: '' })
   const [newsletterStatus, setNewsletterStatus] = useState(null)
   const [newsletterMessage, setNewsletterMessage] = useState('')
   const [newsletterSubmitting, setNewsletterSubmitting] = useState(false)
@@ -58,32 +58,42 @@ const Footer = () => {
     setNewsletterStatus(null)
 
     const name = newsletterForm.name.trim()
+    const phone = newsletterForm.phone.trim()
     const email = newsletterForm.email.trim()
-    if (!name || !email) {
+    if (!name || (!phone && !email)) {
       setNewsletterStatus('error')
-      setNewsletterMessage(t('footer.subscribeErrorMissing', 'Please enter your name and email address.'))
+      setNewsletterMessage(t('footer.subscribeErrorMissing', 'Please enter your name and either WhatsApp number or email address.'))
       return
     }
 
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailPattern.test(email)) {
+    if (email && !emailPattern.test(email)) {
       setNewsletterStatus('error')
       setNewsletterMessage(t('footer.subscribeErrorInvalidEmail', 'Enter a valid email address.'))
+      return
+    }
+
+    if (phone && phone.replace(/\D/g, '').length < 10) {
+      setNewsletterStatus('error')
+      setNewsletterMessage(t('footer.subscribeErrorInvalidPhone', 'Enter a valid WhatsApp number.'))
       return
     }
 
     setNewsletterSubmitting(true)
 
     try {
-      const result = await subscribeEmail({
+      const result = await subscribeToUpdates({
         name,
+        phone,
         email,
-        source: 'footer-newsletter'
+        source: 'footer-updates'
       })
 
-      setNewsletterStatus('success')
-      setNewsletterMessage(result?.message || t('footer.subscribeSuccessFallback', 'You are subscribed for event email updates.'))
-      setNewsletterForm({ name: '', email: '' })
+      setNewsletterStatus(result.ok ? 'success' : 'error')
+      setNewsletterMessage(result?.message || t('footer.subscribeSuccessFallback', 'You are subscribed for updates.'))
+      if (result.ok) {
+        setNewsletterForm({ name: '', phone: '', email: '' })
+      }
     } catch {
       setNewsletterStatus('error')
       setNewsletterMessage(t('footer.subscribeErrorFallback', 'Unable to subscribe right now. Please try again shortly.'))
@@ -205,7 +215,7 @@ const Footer = () => {
 
             <div className="footer__newsletter">
               <h4>{t('footer.emailUpdates', 'Email Updates')}</h4>
-              <p>{t('footer.emailUpdatesDesc', 'Get event communication and ministry updates by email.')}</p>
+              <p>{t('footer.emailUpdatesDesc', 'Get event communication and ministry updates by WhatsApp, email, or both.')}</p>
               <form className="footer__newsletter-form" onSubmit={handleNewsletterSubmit}>
                 <label className="sr-only" htmlFor="footer-newsletter-name">{t('footer.yourName', 'Your name')}</label>
                 <input
@@ -220,6 +230,19 @@ const Footer = () => {
                   disabled={newsletterSubmitting}
                   required
                 />
+                <label className="sr-only" htmlFor="footer-newsletter-phone">{t('footer.whatsappNumber', 'WhatsApp number')}</label>
+                <input
+                  id="footer-newsletter-phone"
+                  type="tel"
+                  name="phone"
+                  value={newsletterForm.phone}
+                  onChange={handleNewsletterChange}
+                  className="footer__newsletter-input"
+                  placeholder="+234 8123456789"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  disabled={newsletterSubmitting}
+                />
                 <label className="sr-only" htmlFor="footer-newsletter-email">{t('footer.emailAddress', 'Email address')}</label>
                 <input
                   id="footer-newsletter-email"
@@ -231,7 +254,6 @@ const Footer = () => {
                   placeholder="you@example.com"
                   autoComplete="email"
                   disabled={newsletterSubmitting}
-                  required
                 />
                 <button
                   type="submit"

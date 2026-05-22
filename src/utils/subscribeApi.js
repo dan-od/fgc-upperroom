@@ -20,6 +20,10 @@ export const SUBSCRIBED_KEY = 'upperroom_subscribed'
  */
 export const hasSubscribed = () => Boolean(localStorage.getItem(SUBSCRIBED_KEY))
 
+const markSubscribed = () => {
+  localStorage.setItem(SUBSCRIBED_KEY, 'true')
+}
+
 /**
  * POST subscriber data to the bot API and record the result in localStorage.
  *
@@ -28,28 +32,34 @@ export const hasSubscribed = () => Boolean(localStorage.getItem(SUBSCRIBED_KEY))
  */
 export const subscribeVisitor = async ({ name, phone, email, reminderPreferences }) => {
   // Normalise phone: strip spaces so DB stores cleanly
-  const phoneNumber = phone.replace(/\s+/g, '')
+  const phoneNumber = String(phone || '').replace(/\s+/g, '')
+  const emailAddress = String(email || '').trim()
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos'
 
   try {
     const res = await fetch(`${BOT_API_BASE}/bot/api/visitors`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phoneNumber, email, timezone, reminderPreferences })
+      body: JSON.stringify({ name, phoneNumber, email: emailAddress, timezone, reminderPreferences })
     })
 
     if (res.ok) {
       const visitor = await res.json()
-      subscribeEmail({
-        name,
-        email,
-        phoneNumber,
-        source: 'whatsapp-signup'
-      }).catch(() => {})
+      if (emailAddress) {
+        subscribeEmail({
+          name,
+          email: emailAddress,
+          phoneNumber,
+          source: 'whatsapp-signup'
+        }).catch(() => {})
+      }
 
       // Permanently mark this browser as subscribed so the popup never shows again
-      localStorage.setItem(SUBSCRIBED_KEY, 'true')
-      return { ok: true, message: `Thank you ${name}! You'll receive WhatsApp reminders on ${phoneNumber} and email event updates.`, visitor }
+      markSubscribed()
+      const channelMessage = emailAddress
+        ? `WhatsApp reminders on ${phoneNumber} and email event updates`
+        : `WhatsApp reminders on ${phoneNumber}`
+      return { ok: true, message: `Thank you ${name}! You'll receive ${channelMessage}.`, visitor }
     }
 
     const err = await res.json().catch(() => ({}))
@@ -57,4 +67,63 @@ export const subscribeVisitor = async ({ name, phone, email, reminderPreferences
   } catch {
     return { ok: false, message: 'Could not connect. Please check your connection and try again.' }
   }
+}
+
+export const subscribeToUpdates = async ({ name, phone = '', email = '', reminderPreferences, source = 'website' }) => {
+  const cleanName = String(name || '').trim()
+  const cleanPhone = String(phone || '').trim()
+  const cleanEmail = String(email || '').trim()
+  const hasPhone = Boolean(cleanPhone)
+  const hasEmail = Boolean(cleanEmail)
+
+  if (!cleanName || (!hasPhone && !hasEmail)) {
+    return { ok: false, message: 'Please enter your name and at least one contact method.' }
+  }
+
+  const failures = []
+  let visitor
+
+  if (hasPhone) {
+    const result = await subscribeVisitor({
+      name: cleanName,
+      phone: cleanPhone,
+      email: cleanEmail,
+      reminderPreferences
+    })
+
+    if (!result.ok) {
+      failures.push(result.message || 'WhatsApp subscription failed.')
+    } else {
+      visitor = result.visitor
+    }
+  }
+
+  if (hasEmail) {
+    try {
+      await subscribeEmail({
+        name: cleanName,
+        email: cleanEmail,
+        phoneNumber: cleanPhone.replace(/\s+/g, ''),
+        source
+      })
+    } catch (error) {
+      failures.push(error?.message || 'Email subscription failed.')
+    }
+  }
+
+  if (failures.length > 0) {
+    return { ok: false, message: failures.join(' ') }
+  }
+
+  markSubscribed()
+
+  if (hasPhone && hasEmail) {
+    return { ok: true, message: `Thank you ${cleanName}! You'll receive WhatsApp reminders and email updates.`, visitor }
+  }
+
+  if (hasPhone) {
+    return { ok: true, message: `Thank you ${cleanName}! You'll receive WhatsApp reminders.`, visitor }
+  }
+
+  return { ok: true, message: `Thank you ${cleanName}! You'll receive email updates.` }
 }

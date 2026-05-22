@@ -92,13 +92,23 @@ export const loginAdmin = async ({ email, password, otpCode } = {}) => {
     return { ok: true, user: payload?.user || null, otpRequired: false, message: '' }
   } catch (error) {
     const otpRequired = error?.code === 'OTP_REQUIRED'
-    return { ok: false, user: null, otpRequired, message: error?.message || 'Login failed.' }
+    return {
+      ok: false,
+      user: null,
+      otpRequired,
+      status: error?.status || 0,
+      message: error?.message || 'Login failed.'
+    }
   }
 }
 
 export const loginAdminWithFallback = async ({ email, password, otpCode } = {}) => {
   const primary = await loginAdmin({ email, password, otpCode })
   if (primary.ok || primary.otpRequired) {
+    return primary
+  }
+
+  if (primary.status && primary.status < 500) {
     return primary
   }
 

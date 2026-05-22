@@ -4,9 +4,10 @@ import './ServiceBar.css'
 
 const ServiceBar = () => {
   const announcements = [
-    '🕐 Join us on Sundays at 7:30am and 9:30am | Wednesdays at 5:30pm | Fridays at 5:00pm',
+    '🕐 Join us every Sunday at 8:00am for our worship service',
+    '🕐 Join us every Tuesday at 5:00pm for our bible study service',
     '📱 Follow us on social media for daily inspirations and event updates',
-    '🙏 Become a member of the prayer team and intercede for the fellowship',
+    '🙏 Become a member of the prayer team and intercede for the church',
     '🎵 Join our choir ministry and help lead worship with music',
     '❤️ Support our welfare unit by reaching out to those in need',
   ]

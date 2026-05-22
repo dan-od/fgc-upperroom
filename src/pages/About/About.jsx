@@ -51,13 +51,13 @@ const About = () => {
               <span className="tag">Who We Are</span>
               <h2 bold>The Upperroom</h2>
               <p>
-                We are the youth fellowship of the Foursquare Gospel Church, 
-                Mgbuoba Zonal Headquarters.<br />We are a vibrant community of young 
+                We are the youth church of the Foursquare Gospel Church,
+                Mgbuoba Zonal Headquarters.<br />We are a vibrant community of young
                 believers passionate about knowing God and making Him known.
               </p>
               <p>
-                Our name "Upperroom" is inspired by Acts 1:13-14, where the early 
-                disciples gathered in prayer and unity, waiting for the promise of 
+                Our name "Upperroom" is inspired by Acts 1:13-14, where the early
+                disciples gathered in prayer and unity, waiting for the promise of
                 the Holy Spirit. Like them, we gather to seek God's presence, grow 
                 in faith, and be empowered for kingdom impact.
               </p>

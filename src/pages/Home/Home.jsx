@@ -163,7 +163,7 @@ const Hero = ({ t }) => {
           <img src={HERO_ICONS.crown} alt="Jesus the Coming King symbol" className="hero__logo-icon" />
         </div>
         <p className="hero__welcome">
-          {t('home.heroWelcome', 'Welcome to')}<br />The
+          {t('home.heroWelcome', 'Welcome to')}
         </p>
         <img src={HERO_WORDMARK} alt="Upperroom Mgbuoba" className="hero__title" />
         <p className="hero__tagline">{t('home.heroTagline', 'Raising Kingdom Youths!')}</p>
@@ -296,7 +296,7 @@ const PastorWelcome = () => (
           <h2>Welcome to Our Family</h2>
           <p>
             On behalf of the entire Foursquare Gospel Church, Mgbuoba Zonal Headquarters,
-            I warmly welcome you to our youth fellowship - The Upperroom. We believe that God
+            I warmly welcome you to our youth church - The Upperroom. We believe that God
             has a special plan for every young person, and we are committed to helping you
             discover and fulfill that purpose.
           </p>

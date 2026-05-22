@@ -321,7 +321,7 @@ const Blog = () => {
         <section className="page-banner bg-blue blog-banner">
           <div className="container">
             <h1>Blog</h1>
-            <p>Faith-filled reflections, practical teaching notes, and stories from our fellowship.</p>
+            <p>Faith-filled reflections, practical teaching notes, and stories from our church.</p>
           </div>
         </section>
 

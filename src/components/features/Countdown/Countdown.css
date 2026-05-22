@@ -7,7 +7,6 @@
   backdrop-filter: blur(10px);
   padding: var(--space-xl) var(--space-2xl);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   width: min(1100px, calc(100vw - 40px));
   margin-inline: auto;
 }

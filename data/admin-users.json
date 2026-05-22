@@ -34,14 +34,14 @@
     "email": "admin@upperroom.local",
     "name": "Primary Admin",
     "role": "super_admin",
-    "passwordHash": "ed06a7533cd9a536b96540bb049daaa6dfa9df57e1b8f31c12ff8f1f6ab5ec17ab02d57e783df61bc3f2f46e1c8c8a291bc4434cc1466248e9b2a26132678aa3",
-    "passwordSalt": "180912ef15c359af1631ef1def0c3bd9",
+    "passwordHash": "c3b17fa99796ad7f77a08ba211470d3fcfa0dfa0d90be1eb9800d21ce33c25d1a4d259ce479f2c5ddb2b793553eaff83e6ef323cc2b88d8323352223ea203974",
+    "passwordSalt": "2e0d2f4782cf8a7704ab398f0a9d1846",
     "isActive": true,
     "twoFactorEnabled": false,
     "twoFactorSecret": null,
     "pendingTwoFactorSecret": null,
     "createdAt": "2026-03-24T20:23:29.726Z",
-    "updatedAt": "2026-03-28T22:23:38.910Z",
-    "lastLoginAt": "2026-03-28T22:23:38.910Z"
+    "updatedAt": "2026-05-22T07:12:26.322Z",
+    "lastLoginAt": "2026-03-29T08:50:47.932Z"
   }
 ]

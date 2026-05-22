@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { SectionHeader, Button, DropdownSelect } from '../../components/common'
-import { subscribeVisitor } from '../../utils/subscribeApi'
 import {
   createDefaultRegistrationMethods,
   normalizeRegistrationMethods,
@@ -35,36 +34,7 @@ const Events = () => {
   const eventModalCloseRef = useRef(null)
   const activeModalTriggerRef = useRef(null)
 
-  // Subscribe form state
-  const [subForm, setSubForm] = useState({ name: '', phone: '', email: '' })
-  const [subSubmitting, setSubSubmitting] = useState(false)
-  const [subStatus, setSubStatus] = useState(null) // null | 'success' | 'error'
-  const [subMessage, setSubMessage] = useState('')
-  const [subReminderFrequency, setSubReminderFrequency] = useState('weekly')
-  const [subReminderScope, setSubReminderScope] = useState('all') // all | selected
-  const [subReminderEventIds, setSubReminderEventIds] = useState([])
   const [events, setEvents] = useState([])
-
-  const validateSubscription = () => {
-    const name = subForm.name.trim()
-    const phone = subForm.phone.trim()
-    const email = subForm.email.trim()
-
-    if (!name || !phone || !email) {
-      return 'Please fill in your name, phone number, and email.'
-    }
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailPattern.test(email)) {
-      return 'Enter a valid email address.'
-    }
-
-    if (phone.replace(/\D/g, '').length < 10) {
-      return 'Enter a valid WhatsApp phone number.'
-    }
-
-    return null
-  }
 
   // Detect mobile viewport
   useEffect(() => {
@@ -194,9 +164,6 @@ const Events = () => {
     : null
 
   const featuredRegistrationOptions = featuredEvent ? getRegistrationOptions(featuredEvent) : []
-  const reminderPreferenceEvents = upcomingEvents
-    .filter((event) => Boolean(event?.id))
-    .slice(0, 8)
 
   useEffect(() => {
     if (featuredEvents.length <= 1) {
@@ -589,84 +556,6 @@ const Events = () => {
       link.download = `${event.title.replace(/\s+/g, '-')}.ics`
       link.click()
       URL.revokeObjectURL(link.href)
-    }
-  }
-
-  const handleSubChange = (e) => {
-    const { name, value } = e.target
-    setSubForm(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleReminderScopeChange = (scope) => {
-    setSubReminderScope(scope)
-    if (scope === 'all') {
-      setSubReminderEventIds([])
-    }
-  }
-
-  const handleReminderEventToggle = (eventId, isChecked) => {
-    setSubReminderEventIds((current) => {
-      const normalizedId = String(eventId || '').trim()
-      if (!normalizedId) {
-        return current
-      }
-
-      if (isChecked) {
-        return current.includes(normalizedId) ? current : [...current, normalizedId]
-      }
-
-      return current.filter((id) => id !== normalizedId)
-    })
-  }
-
-  const handleSubSubmit = async (e) => {
-    e.preventDefault()
-    setSubStatus(null)
-
-    const validationError = validateSubscription()
-    if (validationError) {
-      setSubMessage(validationError)
-      setSubStatus('error')
-      return
-    }
-
-    if (subReminderScope === 'selected' && reminderPreferenceEvents.length > 0 && subReminderEventIds.length === 0) {
-      setSubMessage('Select at least one event or switch to "All upcoming events".')
-      setSubStatus('error')
-      return
-    }
-
-    setSubSubmitting(true)
-
-    try {
-      const reminderPreferences = {
-        serviceReminders: true,
-        eventReminders: true,
-        eventReminderFrequency: subReminderFrequency,
-        eventIds: subReminderScope === 'selected' ? subReminderEventIds : []
-      }
-
-      const result = await subscribeVisitor({
-        name: subForm.name.trim(),
-        phone: subForm.phone.trim(),
-        email: subForm.email.trim(),
-        reminderPreferences
-      })
-
-      setSubMessage(result.message)
-      setSubStatus(result.ok ? 'success' : 'error')
-
-      if (result.ok) {
-        setSubForm({ name: '', phone: '', email: '' })
-        setSubReminderFrequency('weekly')
-        setSubReminderScope('all')
-        setSubReminderEventIds([])
-      }
-    } catch {
-      setSubStatus('error')
-      setSubMessage('Subscription failed. Please try again in a moment.')
-    } finally {
-      setSubSubmitting(false)
     }
   }
 
@@ -1224,135 +1113,6 @@ const Events = () => {
         </div>
       </section>
 
-      {/* Event Newsletter Subscribe */}
-      <section className="event-newsletter">
-        <div className="container">
-          <div className="event-newsletter__content">
-            <div className="event-newsletter__text">
-              <h2>Never Miss an Event</h2>
-              <p>Subscribe for WhatsApp reminders about upcoming programs, early registrations, and exclusive updates.</p>
-            </div>
-
-            {subStatus === 'success' ? (
-              <div className="event-newsletter__success">
-                <i className="fa-solid fa-circle-check"></i>
-                <p>{subMessage}</p>
-              </div>
-            ) : (
-              <form className="event-newsletter__form event-newsletter__form--full" onSubmit={handleSubSubmit}>
-                {subStatus === 'error' && (
-                  <p className="event-newsletter__error">{subMessage}</p>
-                )}
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Your Full Name"
-                  className="event-newsletter__input"
-                  value={subForm.name}
-                  onChange={handleSubChange}
-                  autoComplete="name"
-                  required
-                  disabled={subSubmitting}
-                />
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="WhatsApp Number (e.g., +234 8123456789)"
-                  className="event-newsletter__input"
-                  value={subForm.phone}
-                  onChange={handleSubChange}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  required
-                  disabled={subSubmitting}
-                />
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Your Email Address"
-                  className="event-newsletter__input"
-                  value={subForm.email}
-                  onChange={handleSubChange}
-                  autoComplete="email"
-                  required
-                  disabled={subSubmitting}
-                />
-                <fieldset className="event-newsletter__preferences">
-                  <legend className="event-newsletter__preferences-title">Reminder Preferences</legend>
-                  <label className="event-newsletter__preferences-label" htmlFor="event-reminder-frequency">
-                    How often should we remind you?
-                  </label>
-                  <DropdownSelect
-                    id="event-reminder-frequency"
-                    className="event-newsletter__select"
-                    value={subReminderFrequency}
-                    onChange={(event) => setSubReminderFrequency(event.target.value)}
-                    disabled={subSubmitting}
-                  >
-                    <option value="daily">Daily (closer countdown updates)</option>
-                    <option value="weekly">Weekly (recommended)</option>
-                    <option value="key-dates">Key dates only (30/14/7/3/1 days)</option>
-                  </DropdownSelect>
-
-                  <div className="event-newsletter__scope">
-                    <label className="event-newsletter__scope-option">
-                      <input
-                        type="radio"
-                        name="event-reminder-scope"
-                        value="all"
-                        checked={subReminderScope === 'all'}
-                        onChange={() => handleReminderScopeChange('all')}
-                        disabled={subSubmitting}
-                      />
-                      <span>All upcoming events</span>
-                    </label>
-                    <label className="event-newsletter__scope-option">
-                      <input
-                        type="radio"
-                        name="event-reminder-scope"
-                        value="selected"
-                        checked={subReminderScope === 'selected'}
-                        onChange={() => handleReminderScopeChange('selected')}
-                        disabled={subSubmitting || reminderPreferenceEvents.length === 0}
-                      />
-                      <span>Only selected events</span>
-                    </label>
-                  </div>
-
-                  {subReminderScope === 'selected' && (
-                    reminderPreferenceEvents.length > 0 ? (
-                      <div className="event-newsletter__event-picks">
-                        {reminderPreferenceEvents.map((eventItem) => {
-                          const eventId = String(eventItem.id || '')
-                          return (
-                            <label key={eventId} className="event-newsletter__event-option">
-                              <input
-                                type="checkbox"
-                                checked={subReminderEventIds.includes(eventId)}
-                                onChange={(event) => handleReminderEventToggle(eventId, event.target.checked)}
-                                disabled={subSubmitting}
-                              />
-                              <span>
-                                {eventItem.title}
-                                <small>{eventItem.date}</small>
-                              </span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="event-newsletter__hint">No upcoming events available yet for specific selection.</p>
-                    )
-                  )}
-                </fieldset>
-                <Button type="submit" variant="white" size="lg" disabled={subSubmitting}>
-                  {subSubmitting ? 'Subscribing…' : 'Subscribe'}
-                </Button>
-              </form>
-            )}
-          </div>
-        </div>
-      </section>
     </main>
   )
 }
