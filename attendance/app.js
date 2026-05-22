@@ -62,7 +62,15 @@ const gracefulShutdown = async (signal) => {
 
   try {
     clearInterval(autoGenInterval)
-    await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
+    await new Promise((resolve, reject) => {
+      server.close((err) => {
+        if (!err || err.code === 'ERR_SERVER_NOT_RUNNING') {
+          resolve()
+          return
+        }
+        reject(err)
+      })
+    })
     await closeAttendancePool()
     clearTimeout(forceExit)
     console.log('[ATTENDANCE] Graceful shutdown complete')
