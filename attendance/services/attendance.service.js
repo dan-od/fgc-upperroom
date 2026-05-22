@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import QRCode from 'qrcode'
 
 import { getSocialLinkByKey, listSocialLinks } from '../config/social-links.js'
@@ -5,6 +6,10 @@ import { attendanceStore } from '../store/attendance.store.js'
 import { generateAttendanceCode, sha256 } from '../utils/id.js'
 import { formatServiceDate, getWindowStatus, isAttendanceWindowOpen, lagosNow } from '../utils/time.js'
 import { syncAttendanceCheckin, syncAttendanceSession } from './attendance-history-sync.js'
+import { writeSessionToDb, writeCheckinToDb } from './attendance.db.js'
+import { rehydrateAttendanceStore as _rehydrateAttendanceStore } from './attendance.rehydrate.js'
+
+export { rehydrateAttendanceStore } from './attendance.rehydrate.js'
 
 const RATE_LIMIT_WINDOW_MS = 20 * 60 * 1000
 const SELF_IP_LIMIT_PER_WINDOW = 5
@@ -26,10 +31,11 @@ const createSessionForServiceDate = (serviceDate) => {
     id: `session-${serviceDate}`,
     serviceDate,
     code: generateAttendanceCode(),
-    qrToken: sha256(`qr:${serviceDate}:${Date.now()}:${Math.random()}`).slice(0, 24),
+    qrToken: crypto.randomBytes(12).toString('hex'),
     createdAt: new Date().toISOString()
   })
 
+  void writeSessionToDb(session)
   void syncAttendanceSession(session)
   return session
 }
@@ -222,6 +228,7 @@ export const submitSelfCheckin = ({ name, browserToken, ip, code, qrToken }) => 
     ipHash,
     createdAt: new Date().toISOString()
   })
+  void writeCheckinToDb(checkin)
   void syncAttendanceCheckin(checkin)
 
   return {
@@ -279,6 +286,7 @@ export const submitAssistedCheckin = ({ helperName, assistedName, assistedPhone,
     ipHash: sha256(ip),
     createdAt: new Date().toISOString()
   })
+  void writeCheckinToDb(checkin)
   void syncAttendanceCheckin(checkin)
 
   return {
@@ -337,6 +345,7 @@ export const submitScanCheckin = ({ qrToken, fingerprint, ip }) => {
     ipHash: sha256(ip),
     createdAt: new Date().toISOString()
   })
+  void writeCheckinToDb(checkin)
   void syncAttendanceCheckin(checkin)
 
   return {

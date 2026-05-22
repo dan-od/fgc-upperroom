@@ -18,13 +18,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -42,7 +42,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://botuser:${DB_PASSWORD}@postgres:5432/church_bot
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       ENABLE_SCHEDULER: "true"
       BOT_PORT: 4100
       BOT_TIMEZONE: Africa/Lagos
@@ -76,7 +76,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://botuser:${DB_PASSWORD}@postgres:5432/church_bot
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       WHATSAPP_PROVIDER: meta
       META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
@@ -85,6 +85,21 @@ services:
       META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN}
       META_APP_SECRET: ${META_APP_SECRET}
       META_API_VERSION: ${META_API_VERSION:-v21.0}
+    restart: unless-stopped
+
+  pg-backup:
+    image: postgres:15-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://botuser:${DB_PASSWORD}@postgres:5432/church_bot
+      BACKUP_DIR: /backups
+      KEEP_DAYS: "7"
+    volumes:
+      - ../scripts/pg-backup.sh:/pg-backup.sh:ro
+      - ./backups:/backups
+    entrypoint: ["sh", "-c", "while true; do sh /pg-backup.sh; sleep 86400; done"]
     restart: unless-stopped
 
 volumes:

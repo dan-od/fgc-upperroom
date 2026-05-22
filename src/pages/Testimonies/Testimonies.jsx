@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { SectionHeader } from '../../components/common'
 import { BubbleField } from './components/BubbleField'
 import { readPublicTestimonies } from '../../utils/testimonyStorage'
@@ -32,6 +33,15 @@ const Testimonies = () => {
 
   return (
     <main id="main-content" className="testimonies-page">
+      <Helmet>
+        <title>Testimonies — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Read testimonies of God's faithfulness from members of FGC Upper Room Mgbuoba youth fellowship." />
+        <meta property="og:title" content="Testimonies — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Stories of faith and answered prayers from the Upper Room Mgbuoba community." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/testimonies" />
+      </Helmet>
       <section className="page-banner bg-purple">
         <div className="container">
           <h1>Testimonies</h1>

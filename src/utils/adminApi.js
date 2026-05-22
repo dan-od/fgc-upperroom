@@ -2,10 +2,6 @@ import { toApiUrl } from './appPaths'
 import { roleHasPermission } from '../shared/admin-permissions'
 
 export const ADMIN_SESSION_TOKEN_KEY = 'admin_session_token_v1'
-const ADMIN_FALLBACK_PASSWORD_KEY = 'admin_password_override_v1'
-const ADMIN_FALLBACK_ENABLED =
-  import.meta.env.DEV &&
-  String(import.meta.env.VITE_ENABLE_ADMIN_FALLBACK_LOGIN || '').trim().toLowerCase() === 'true'
 
 export const getAdminSessionToken = () => {
   try {
@@ -25,20 +21,6 @@ export const clearAdminSessionToken = () => {
   sessionStorage.removeItem(ADMIN_SESSION_TOKEN_KEY)
 }
 
-const getFallbackLoginCredentials = () => {
-  if (!ADMIN_FALLBACK_ENABLED) {
-    return null
-  }
-
-  const password = String(localStorage.getItem(ADMIN_FALLBACK_PASSWORD_KEY) || '').trim() || String(import.meta.env.VITE_ADMIN_PASSWORD || '').trim()
-  if (!password) return null
-  return {
-    email: String(import.meta.env.VITE_ADMIN_EMAIL || 'admin@upperroom.local').trim(),
-    password
-  }
-}
-
-export const isAdminFallbackLoginEnabled = () => ADMIN_FALLBACK_ENABLED
 
 const request = async (path, options = {}) => {
   const token = getAdminSessionToken()
@@ -92,51 +74,10 @@ export const loginAdmin = async ({ email, password, otpCode } = {}) => {
     return { ok: true, user: payload?.user || null, otpRequired: false, message: '' }
   } catch (error) {
     const otpRequired = error?.code === 'OTP_REQUIRED'
-    return {
-      ok: false,
-      user: null,
-      otpRequired,
-      status: error?.status || 0,
-      message: error?.message || 'Login failed.'
-    }
+    return { ok: false, user: null, otpRequired, message: error?.message || 'Login failed.' }
   }
 }
 
-export const loginAdminWithFallback = async ({ email, password, otpCode } = {}) => {
-  const primary = await loginAdmin({ email, password, otpCode })
-  if (primary.ok || primary.otpRequired) {
-    return primary
-  }
-
-  if (primary.status && primary.status < 500) {
-    return primary
-  }
-
-  const fallback = getFallbackLoginCredentials()
-  if (!fallback) {
-    return primary
-  }
-
-  if (String(email || '').trim().toLowerCase() !== fallback.email.toLowerCase()) {
-    return primary
-  }
-
-  if (String(password || '').trim() !== fallback.password) {
-    return primary
-  }
-
-  return {
-    ok: true,
-    otpRequired: false,
-    user: {
-      id: 'fallback-local-admin',
-      name: 'Local Admin',
-      email: fallback.email,
-      role: 'super_admin',
-      twoFactorEnabled: false
-    }
-  }
-}
 
 export const logoutAdmin = async () => {
   try {

@@ -1,0 +1,279 @@
+{
+  "framework": {
+    "id": "frontend-v1",
+    "name": "Frontend Best Practices Evaluation",
+    "version": "1.0.0",
+    "created": "2026-05-19",
+    "description": "Evaluates the Vite/React frontend for performance, accessibility, SEO, UX patterns, and modern React best practices. The FGC Upper Room website serves a church congregation — it must be fast on mobile (many Nigerian users on slower connections), accessible, and easy to navigate.",
+    "context": {
+      "tech_stack": "Vite 5+, React 18+, React Router, CSS Variables, Google Fonts (Manrope & Spectral)",
+      "target_audience": "Church congregation in Mgbuoba, Nigeria. Primarily mobile users. Variable network speeds.",
+      "pages": ["Home", "About", "Team", "Events", "Media", "Blog", "Contact", "Testimonies", "Admin"]
+    },
+    "scoring": {
+      "scale": "1-10 per criterion",
+      "rubric": {
+        "1-2": "Critical: Major usability or performance issues. Site is unusable for target audience.",
+        "3-4": "Poor: Significant problems affecting user experience.",
+        "5-6": "Fair: Functional but with notable gaps.",
+        "7-8": "Good: Solid implementation with minor improvements possible.",
+        "9-10": "Excellent: Production-grade, optimized, accessible, performant."
+      }
+    }
+  },
+  "categories": [
+    {
+      "id": "performance",
+      "name": "Performance & Loading",
+      "weight": 1.5,
+      "description": "Critical for Nigerian mobile users on 3G/4G connections.",
+      "criteria": [
+        {
+          "id": "perf-01",
+          "name": "Bundle Size & Code Splitting",
+          "what_to_check": [
+            "Run 'npm run build' and check dist/ sizes",
+            "Total JS bundle under 200KB gzipped for initial load",
+            "Route-based code splitting with React.lazy() and Suspense",
+            "Admin pages including the new giving dashboard are lazy-loaded (not in main bundle)",
+            "No large libraries imported that are only used on one page",
+            "Tree-shaking is effective (no barrel file re-exports pulling in unused code)"
+          ],
+          "remediation": "Add React.lazy() for Admin, Media, Blog pages. Analyze bundle with 'npx vite-bundle-visualizer'. Split vendor chunks in vite.config."
+        },
+        {
+          "id": "perf-02",
+          "name": "Image Optimization",
+          "what_to_check": [
+            "Images use modern formats (WebP, AVIF) with fallbacks",
+            "Images are appropriately sized (not 4000px wide for a 400px display)",
+            "Lazy loading on below-fold images (loading='lazy')",
+            "Hero/above-fold images are preloaded",
+            "Image dimensions specified to prevent layout shift (width/height or aspect-ratio)"
+          ],
+          "remediation": "Convert images to WebP. Use responsive images (srcset). Add loading='lazy' to below-fold images. Specify dimensions."
+        },
+        {
+          "id": "perf-03",
+          "name": "Font Loading",
+          "what_to_check": [
+            "Google Fonts (Manrope & Spectral) loaded with display=swap",
+            "Font files are preloaded or self-hosted for faster loading",
+            "Fallback fonts specified in font stack",
+            "No FOUT (flash of unstyled text) or FOIT (flash of invisible text)"
+          ],
+          "remediation": "Add font-display: swap. Consider self-hosting fonts for faster loads on slow connections. Preload critical fonts in <head>."
+        },
+        {
+          "id": "perf-04",
+          "name": "Core Web Vitals Readiness",
+          "what_to_check": [
+            "LCP (Largest Contentful Paint) target: under 2.5s on 4G",
+            "CLS (Cumulative Layout Shift) target: under 0.1",
+            "INP (Interaction to Next Paint) target: under 200ms",
+            "No render-blocking resources in <head>",
+            "CSS is minimal and critical CSS is inlined or loaded first"
+          ],
+          "remediation": "Profile with Lighthouse. Optimize LCP element (usually hero image or text). Prevent CLS with explicit dimensions. Minimize JS execution for INP."
+        },
+        {
+          "id": "perf-05",
+          "name": "PWA Readiness",
+          "what_to_check": [
+            "manifest.json (or manifest.webmanifest) exists with proper icons, name, theme_color, start_url",
+            "Service worker is registered for offline capability",
+            "Offline fallback page exists (at minimum, cached service times and contact info)",
+            "App is installable on mobile (meets PWA installability criteria)",
+            "Cache strategy defined: which assets are cached, for how long"
+          ],
+          "known_issues": [
+            "IMPLEMENTATION_TODOS.md lists PWA as a strategic feature — check current implementation status",
+            "Particularly important for Nigerian mobile users with spotty 3G/4G connectivity"
+          ],
+          "remediation": "Add manifest.json with church branding. Register a service worker (vite-plugin-pwa or Workbox). Cache static assets and key content pages. Add offline fallback showing service times and contact info."
+        }
+      ]
+    },
+    {
+      "id": "accessibility",
+      "name": "Accessibility (a11y)",
+      "weight": 1.3,
+      "criteria": [
+        {
+          "id": "a11y-01",
+          "name": "Semantic HTML",
+          "what_to_check": [
+            "Proper use of heading hierarchy (h1 -> h2 -> h3, no skipping levels)",
+            "Only one h1 per page",
+            "Navigation uses <nav> element",
+            "Main content in <main> element",
+            "Footer in <footer>, header in <header>",
+            "Lists use <ul>/<ol>, not divs with bullet characters",
+            "Buttons are <button>, links are <a> (not divs with onClick)"
+          ],
+          "remediation": "Audit HTML structure. Replace divs-as-buttons with proper elements. Fix heading hierarchy."
+        },
+        {
+          "id": "a11y-02",
+          "name": "ARIA & Screen Reader Support",
+          "what_to_check": [
+            "Images have meaningful alt text (not 'image1.jpg')",
+            "Decorative images have alt='' or role='presentation'",
+            "Form inputs have associated labels (<label htmlFor>)",
+            "Error messages are announced to screen readers (aria-live or role='alert')",
+            "Modal dialogs trap focus and have aria-modal",
+            "Skip-to-content link exists"
+          ],
+          "remediation": "Add alt text to all images. Associate all form labels. Add skip-to-content link. Test with screen reader."
+        },
+        {
+          "id": "a11y-03",
+          "name": "Keyboard Navigation",
+          "what_to_check": [
+            "All interactive elements are keyboard accessible (Tab, Enter, Escape)",
+            "Focus states are visible (not removed by outline:none without replacement)",
+            "Tab order is logical (follows visual layout)",
+            "Dropdown menus are keyboard navigable",
+            "Mobile menu can be opened/closed with keyboard"
+          ],
+          "remediation": "Test full site with keyboard only. Ensure focus styles are visible. Fix any keyboard traps."
+        },
+        {
+          "id": "a11y-04",
+          "name": "Color & Contrast",
+          "what_to_check": [
+            "Text meets WCAG AA contrast ratio (4.5:1 for normal text, 3:1 for large text)",
+            "Foursquare branding colors meet contrast requirements against backgrounds",
+            "Information is not conveyed by color alone",
+            "Links are distinguishable from surrounding text (not just color)"
+          ],
+          "remediation": "Test with contrast checker tool. Adjust colors where needed while respecting Foursquare branding."
+        }
+      ]
+    },
+    {
+      "id": "seo",
+      "name": "SEO & Discoverability",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "seo-01",
+          "name": "Meta Tags & Structure",
+          "what_to_check": [
+            "Each page has unique <title> and <meta description>",
+            "Open Graph tags for social sharing (og:title, og:description, og:image)",
+            "Canonical URLs are set",
+            "React Helmet or equivalent for dynamic meta tags",
+            "robots.txt exists and is appropriate",
+            "sitemap.xml exists (generated from routes)"
+          ],
+          "remediation": "Add React Helmet (or Vite plugin) for per-page meta. Create sitemap.xml. Add OG tags for social sharing."
+        },
+        {
+          "id": "seo-02",
+          "name": "SPA SEO Considerations",
+          "what_to_check": [
+            "Client-side routing doesn't break direct URL access (React Router + server config)",
+            "404 page exists for unknown routes",
+            "Dynamic content (events, blog posts) has proper URL structure",
+            "Pre-rendering or SSR considered for public pages (if SEO is important)"
+          ],
+          "remediation": "Ensure nginx/server returns index.html for all routes (SPA fallback). Add 404 route. Consider prerendering for key pages."
+        }
+      ]
+    },
+    {
+      "id": "responsive",
+      "name": "Responsive Design & Mobile",
+      "weight": 1.4,
+      "description": "Most church members will access on mobile phones.",
+      "criteria": [
+        {
+          "id": "resp-01",
+          "name": "Mobile-First Implementation",
+          "what_to_check": [
+            "Base styles are mobile, media queries scale up (not desktop-first with mobile overrides)",
+            "Touch targets are at least 44x44px (Apple guideline) or 48x48px (Material guideline)",
+            "No horizontal scroll on any mobile viewport",
+            "Text is readable without zooming (16px minimum body text)",
+            "Forms are usable on mobile (appropriate input types, large enough fields)"
+          ],
+          "remediation": "Test on 320px, 375px, 414px viewports. Fix any horizontal overflow. Increase touch targets."
+        },
+        {
+          "id": "resp-02",
+          "name": "Offline & Low Connectivity",
+          "what_to_check": [
+            "Service worker for offline support (consider for a church app)",
+            "Meaningful loading states while data fetches",
+            "Error states for network failures (not just blank screens)",
+            "Images degrade gracefully on slow connections",
+            "Critical content (service times, location, contact) is in static HTML, not API-dependent"
+          ],
+          "remediation": "Add loading and error states to all data-dependent components. Consider a service worker for offline access to key info. Ensure service times are in static markup."
+        },
+        {
+          "id": "resp-03",
+          "name": "Internationalization (i18n) Readiness",
+          "what_to_check": [
+            "src/i18n/ directory exists with literalTranslations.js and messages.js — evaluate completeness",
+            "Are translations actually used throughout components, or is it dead/half-done code?",
+            "Check if hardcoded English strings exist alongside the i18n system (inconsistent usage)",
+            "Date, time, and number formatting uses locale-aware functions",
+            "RTL layout support if any target languages require it"
+          ],
+          "known_issues": [
+            "src/i18n/ directory exists with literalTranslations.js and messages.js — assess whether internationalization is complete, half-done, or dead code that should be cleaned up"
+          ],
+          "remediation": "If i18n is a priority, complete the translation coverage across all components. If not, either finish it or remove the dead code to reduce confusion. Document the decision."
+        }
+      ]
+    },
+    {
+      "id": "ux",
+      "name": "UX Patterns & Polish",
+      "weight": 0.8,
+      "criteria": [
+        {
+          "id": "ux-01",
+          "name": "Navigation & Information Architecture",
+          "what_to_check": [
+            "Primary navigation is clear and consistent across all pages",
+            "Current page is indicated in navigation",
+            "Mobile menu is easy to open/close",
+            "Important actions (contact, give, attend) are prominently accessible",
+            "Breadcrumbs or back navigation on nested pages"
+          ],
+          "remediation": "Highlight active nav item. Ensure key CTAs are visible. Test navigation flow on mobile."
+        },
+        {
+          "id": "ux-02",
+          "name": "Form UX",
+          "what_to_check": [
+            "Contact form provides inline validation (not just on submit)",
+            "Success/error states are clear and prominent",
+            "Form fields have appropriate input types (email, tel, etc.)",
+            "Submission button shows loading state during API call",
+            "Form doesn't lose data on accidental navigation"
+          ],
+          "remediation": "Add inline validation. Show loading state on submit. Use appropriate HTML5 input types."
+        }
+      ]
+    }
+  ],
+  "evaluation_instructions": {
+    "for_claude_code": "Evaluate by: 1) Run 'npm run build' and analyze output sizes, 2) Review all component files for accessibility and semantic HTML, 3) Check CSS for responsive patterns, 4) Review index.html for meta tags and font loading, 5) Check all images for alt text and optimization, 6) Review React Router config for code splitting. Score each criterion with evidence.",
+    "report_format": {
+      "filename_pattern": "frontend-eval-{YYYY-MM-DD-HHmmss}.md",
+      "sections": [
+        "Executive Summary",
+        "Performance Metrics (bundle sizes, estimated load times)",
+        "Accessibility Audit Summary",
+        "Category Scores",
+        "Detailed Findings",
+        "Mobile-Specific Issues",
+        "Action Items by Priority"
+      ]
+    }
+  }
+}

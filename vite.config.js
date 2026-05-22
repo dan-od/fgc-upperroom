@@ -44,6 +44,11 @@ export default defineConfig({
             return 'vendor-motion'
           }
 
+          if (id.includes('/react-helmet-async/')) {
+            return 'vendor-helmet'
+          }
+
+          return 'vendor'
         }
       }
     }

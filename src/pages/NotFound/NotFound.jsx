@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import './NotFound.css'
 
 const NotFound = () => (
   <main id="main-content" className="not-found-page">
+    <Helmet>
+      <title>404 — Page Not Found | FGC Upper Room</title>
+      <meta name="robots" content="noindex" />
+    </Helmet>
     <section className="page-banner bg-blue">
       <div className="container">
         <h1>404</h1>

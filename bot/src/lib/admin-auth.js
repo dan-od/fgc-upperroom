@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { logger } from './logger.js'
 
 const PLACEHOLDER_PATTERNS = [/^admin123$/i, /^replace_me$/i, /^your[_-]/i]
@@ -9,7 +10,7 @@ const isWeakSecret = (value = '') => {
 }
 
 export const getAdminSecret = () => {
-  const value = process.env.BOT_ADMIN_API_KEY || process.env.VITE_ADMIN_PASSWORD || ''
+  const value = process.env.BOT_ADMIN_API_KEY || ''
   return isWeakSecret(value) ? '' : value
 }
 
@@ -21,8 +22,10 @@ export const assertAdmin = (req, res) => {
     return false
   }
 
-  const provided = req.headers['x-bot-admin-key']
-  if (!provided || provided !== expected) {
+  const provided = String(req.headers['x-bot-admin-key'] || '')
+  const providedBuf = Buffer.from(provided)
+  const expectedBuf = Buffer.from(expected)
+  if (!provided || providedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(providedBuf, expectedBuf)) {
     res.status(401).json({ error: 'Admin authorization failed.' })
     return false
   }

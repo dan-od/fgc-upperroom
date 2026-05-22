@@ -1,0 +1,283 @@
+{
+  "framework": {
+    "id": "api-security-v1",
+    "name": "API & External Service Security Evaluation",
+    "version": "1.0.0",
+    "created": "2026-05-19",
+    "description": "Deep evaluation of API endpoint security across all FGC services: WhatsApp Bot (port 4100), Attendance Service (port 4201), admin API, contact/subscribe endpoints, and Paystack giving integration. Covers authentication, authorization, rate limiting, input validation, and external service integration patterns.",
+    "scoring": {
+      "scale": "1-10 per criterion",
+      "rubric": {
+        "1-2": "Critical: APIs are exploitable. Unauthenticated access to sensitive operations.",
+        "3-4": "Poor: Major gaps in API protection. Multiple endpoints vulnerable.",
+        "5-6": "Fair: Basic protections exist but inconsistent across services.",
+        "7-8": "Good: Comprehensive API security with minor gaps.",
+        "9-10": "Excellent: Defense in depth across all API surfaces."
+      }
+    }
+  },
+  "categories": [
+    {
+      "id": "endpoint-inventory",
+      "name": "API Endpoint Inventory & Classification",
+      "weight": 1.2,
+      "criteria": [
+        {
+          "id": "inv-01",
+          "name": "Complete Endpoint Map",
+          "what_to_check": [
+            "Document EVERY route across all Express apps with: path, method, auth requirement, rate limit, input validation",
+            "Classify each endpoint: public, authenticated, admin-only",
+            "Check for hidden/debug endpoints that should be removed in production",
+            "Verify no Express route wildcards that could match unintended paths",
+            "Map which service each endpoint belongs to (bot, attendance, frontend API)"
+          ],
+          "remediation": "Create an API inventory document. Use express-list-endpoints or manual grep of app.get/post/put/delete patterns. Remove any debug/test endpoints."
+        },
+        {
+          "id": "inv-02",
+          "name": "API Versioning",
+          "what_to_check": [
+            "API routes are versioned (/api/v1/) or have a versioning strategy",
+            "Breaking changes don't affect existing consumers",
+            "Frontend API utility files reference consistent base URLs"
+          ],
+          "remediation": "Add /api/v1/ prefix to all API routes. Plan for versioning strategy."
+        }
+      ]
+    },
+    {
+      "id": "whatsapp-api",
+      "name": "WhatsApp Cloud API Integration",
+      "weight": 1.5,
+      "criteria": [
+        {
+          "id": "wa-api-01",
+          "name": "Webhook Security",
+          "what_to_check": [
+            "GET /webhook verifies Meta's hub.verify_token challenge correctly",
+            "POST /webhook validates X-Hub-Signature-256 header using app secret",
+            "Signature validation happens BEFORE any message processing",
+            "Invalid signatures return 403/401 and are logged",
+            "Webhook endpoint doesn't process duplicate messages (deduplication by message ID)"
+          ],
+          "remediation": "Implement signature verification middleware: crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex') compared to header value. Process raw body before JSON parsing for accurate signature verification."
+        },
+        {
+          "id": "wa-api-02",
+          "name": "Outbound Message Security",
+          "what_to_check": [
+            "WhatsApp API token is not logged or exposed in error responses",
+            "Outbound messages go through BullMQ queue (not synchronous, preventing webhook timeout)",
+            "Failed message sends are retried with backoff (not infinite retries)",
+            "Message content is sanitized before sending (no injection into WhatsApp template variables)",
+            "Rate limiting respects Meta's messaging limits (1000 messages/24h for unverified business)"
+          ],
+          "remediation": "Ensure token is only in env vars. Configure BullMQ retry with exponential backoff. Track message sending rate against Meta limits."
+        },
+        {
+          "id": "wa-api-03",
+          "name": "Inbound Message Processing",
+          "what_to_check": [
+            "Message type is validated (text, image, button response, etc.)",
+            "Text messages are length-limited before processing",
+            "Command parsing is strict (can't trigger unintended code paths)",
+            "FAQ bot responses don't leak internal data",
+            "Prayer request intake sanitizes and length-limits content"
+          ],
+          "remediation": "Add type guards for message types. Limit text processing to 1000 chars. Strict command regex patterns."
+        }
+      ]
+    },
+    {
+      "id": "attendance-api",
+      "name": "Attendance Service API",
+      "weight": 1.2,
+      "criteria": [
+        {
+          "id": "att-01",
+          "name": "Check-In Endpoint Security",
+          "what_to_check": [
+            "Self check-in validates member identity (how? phone number? code?)",
+            "Assisted check-in requires admin authentication",
+            "QR scan check-in validates QR token is current and not reused",
+            "Duplicate check-in detection is server-side (not client-side only)",
+            "Session auto-generation (Sunday 12AM-6PM) is timezone-safe (Africa/Lagos)"
+          ],
+          "remediation": "Ensure all check-in modes verify identity server-side. QR tokens should be time-limited. Duplicate detection must be atomic (DB constraint)."
+        },
+        {
+          "id": "att-02",
+          "name": "Data Sync Security",
+          "what_to_check": [
+            "Attendance data sync to bot's PostgreSQL uses authenticated connection",
+            "Sync doesn't expose member data in transit between services",
+            "Historical attendance data access requires admin auth"
+          ],
+          "remediation": "Secure inter-service communication. Consider shared secret or internal API key for service-to-service calls."
+        }
+      ]
+    },
+    {
+      "id": "admin-api",
+      "name": "Admin API Endpoints",
+      "weight": 1.4,
+      "criteria": [
+        {
+          "id": "admin-01",
+          "name": "Admin Route Protection",
+          "what_to_check": [
+            "Every /admin or admin-level route requires session token verification",
+            "Token verification is middleware (applied before route handler, not inside it)",
+            "Admin actions are logged to audit trail (who did what, when)",
+            "Super_admin exclusive actions (user management, role changes) have additional checks",
+            "Admin API returns minimal data (no excessive data exposure)"
+          ],
+          "remediation": "Apply auth middleware to router-level, not per-route. Log all admin actions. Implement principle of least privilege per role."
+        },
+        {
+          "id": "admin-02",
+          "name": "Data Management Endpoints",
+          "what_to_check": [
+            "CRUD endpoints for events, members, blog, testimonies, media all require auth",
+            "Bulk operations (mass message, bulk attendance) have additional confirmation/logging",
+            "Delete operations are soft-delete or have undo capability",
+            "Export/download endpoints don't expose more data than intended"
+          ],
+          "remediation": "Audit all CRUD routes. Add confirmation for destructive actions. Implement soft delete."
+        }
+      ]
+    },
+    {
+      "id": "public-api",
+      "name": "Public-Facing API Endpoints",
+      "weight": 1.1,
+      "criteria": [
+        {
+          "id": "pub-01",
+          "name": "Contact & Subscribe Endpoints",
+          "what_to_check": [
+            "Contact form endpoint validates email, name, message",
+            "Subscribe endpoint validates email format",
+            "Both have rate limiting to prevent spam",
+            "CAPTCHA or honeypot field for bot prevention",
+            "Email injection prevention (no newlines in email/name fields that could inject headers)",
+            "Response doesn't confirm if email already exists (prevents enumeration)"
+          ],
+          "known_issues": [
+            "Rate limiting exists on /api/giving/initialize (10 req/min/IP) — verify contact form and newsletter subscribe endpoints have equivalent protection"
+          ],
+          "remediation": "Add rate limiting (3 submissions per hour per IP). Add honeypot field. Validate and sanitize all fields. Strip newlines from header-bound fields."
+        },
+        {
+          "id": "pub-02",
+          "name": "Public Data Endpoints",
+          "what_to_check": [
+            "Event listing API only returns public event data (no internal notes/admin fields)",
+            "Blog/testimony listing doesn't expose draft/unpublished content",
+            "No sensitive data in public API responses (no member phone numbers, etc.)",
+            "Pagination is implemented to prevent data dump attacks"
+          ],
+          "remediation": "Audit all public endpoint responses. Use select/projection to return only public fields. Implement pagination with max page size."
+        }
+      ]
+    },
+    {
+      "id": "paystack",
+      "name": "Payment Integration (Paystack — Live)",
+      "weight": 1.3,
+      "description": "Paystack is implemented with HMAC-SHA512 webhook validation, transaction state machine, and PostgreSQL storage (giving_transactions table). Evaluate the live implementation.",
+      "criteria": [
+        {
+          "id": "pay-01",
+          "name": "Payment Security Architecture",
+          "what_to_check": [
+            "Paystack secret key (PAYSTACK_SECRET_KEY) is server-side ONLY (never in frontend bundle, not in any VITE_ var)",
+            "Paystack public key is used client-side for Paystack Popup/Inline payment",
+            "Webhook endpoint verifies Paystack signature (X-Paystack-Signature header) using HMAC-SHA512",
+            "Payment amounts are validated server-side (user can't modify amount client-side)",
+            "Idempotency: duplicate webhook events don't create duplicate records (transaction state machine prevents this)",
+            "Test vs Live key separation by environment",
+            "Webhook timestamp validation rejects events older than 5 minutes (configurable via WEBHOOK_MAX_AGE_MS)"
+          ],
+          "remediation": "Use Paystack's recommended architecture: client collects payment via Popup/Inline, server verifies via webhook. Never trust client-reported payment amounts."
+        },
+        {
+          "id": "pay-02",
+          "name": "Payment Data Handling",
+          "what_to_check": [
+            "No card numbers stored in your database (Paystack handles PCI compliance)",
+            "Transaction references are unique and unpredictable",
+            "Payment logs don't contain full card details",
+            "Giving/tithe records are access-controlled (who can see who donated)",
+            "Payment failure handling doesn't leak error details to user",
+            "Giving admin dashboard masks donor PII (name, email, phone) for non-super_admin roles — verify masking is effective and cannot be bypassed via API"
+          ],
+          "remediation": "Store only transaction references and Paystack-provided metadata. Implement access controls on giving records. Log transaction events without sensitive data."
+        },
+        {
+          "id": "pay-03",
+          "name": "Bot Notification Bridge Security",
+          "what_to_check": [
+            "/bot/api/giving/notify endpoint requires BOT_ADMIN_API_KEY header authentication",
+            "Endpoint cannot be used to send arbitrary WhatsApp messages (only sends pre-defined thank-you template)",
+            "Fire-and-forget pattern from website API to bot does not silently drop failures — verify error logging exists",
+            "Thank-you message respects opt-out status (does not message opted-out phone numbers)",
+            "Notification payload is validated (phone number format, transaction reference exists in DB)",
+            "Donor PII (name, email, amount) is not leaked in server logs when notification is processed"
+          ],
+          "known_issues": [
+            "Phase 3 added /bot/api/giving/notify as internal endpoint — verify BOT_ADMIN_API_KEY check is present and correct",
+            "Fire-and-forget from website to bot may silently drop failures — verify error logging"
+          ],
+          "remediation": "Verify BOT_ADMIN_API_KEY middleware. Check opt-out before sending. Log failures with transaction ref but not PII. Validate notification payload schema."
+        }
+      ]
+    },
+    {
+      "id": "llm-api",
+      "name": "LLM API Integration Security",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "llm-01",
+          "name": "LLM Provider Security",
+          "what_to_check": [
+            "API keys for Vertex AI, OpenAI, Gemini are env-var only",
+            "Cascading fallback (Vertex -> OpenAI -> Gemini -> static) handles failures gracefully",
+            "LLM API errors don't leak API keys or provider details to users",
+            "Request timeouts are set (LLM calls can hang)",
+            "Cost controls: message generation is rate-limited to prevent runaway API costs"
+          ],
+          "remediation": "Set timeouts on all LLM API calls (10-30s). Implement per-day/per-hour cost caps. Log provider usage for cost tracking."
+        },
+        {
+          "id": "llm-02",
+          "name": "Prompt Injection Prevention",
+          "what_to_check": [
+            "User-provided content (names, prayer requests, feedback) passed to LLM is treated as data, not instructions",
+            "System prompts clearly delineate user content from instructions",
+            "LLM output is validated/filtered before being used (sent as WhatsApp message, stored in DB)",
+            "No user input directly concatenated into system prompts"
+          ],
+          "remediation": "Use message role separation (system vs user). Wrap user content in delimiters. Validate LLM output against expected format before use."
+        }
+      ]
+    }
+  ],
+  "evaluation_instructions": {
+    "for_claude_code": "Evaluate by: 1) Map all Express routes across all services (grep -r 'app.get\\|app.post\\|app.put\\|app.delete\\|router.get\\|router.post' --include='*.js' --include='*.ts'), 2) For each route, check auth middleware, validation, rate limiting, 3) Test webhook verification logic, 4) Review all API utility files in frontend (src/utils/*Api.js), 5) Score each criterion with file:line evidence.",
+    "report_format": {
+      "filename_pattern": "api-security-eval-{YYYY-MM-DD-HHmmss}.md",
+      "sections": [
+        "Executive Summary",
+        "Complete Endpoint Inventory Table (path, method, auth, rate-limit, validation)",
+        "Category Scores",
+        "Detailed Findings",
+        "Unauthenticated Endpoint Alerts",
+        "Paystack Implementation Assessment",
+        "Action Items by Priority"
+      ]
+    }
+  }
+}

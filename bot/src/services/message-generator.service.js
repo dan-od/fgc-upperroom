@@ -138,6 +138,7 @@ Return only the message text.
 `
 
 const buildServiceReminderPrompt = (name, serviceTime, isFirstSunday) => {
+  const firstName = String(name || '').trim().split(/\s+/)[0] || name
   const specialNote = isFirstSunday
     ? "Tomorrow is First Sunday. Mention that plainly and note that service starts at the given time."
     : 'Tomorrow is a regular Sunday service. Keep the reminder simple.'
@@ -145,7 +146,7 @@ const buildServiceReminderPrompt = (name, serviceTime, isFirstSunday) => {
   return `${BOT_MESSAGE_STYLE_GUIDE}
 
 Task: Write a WhatsApp reminder for one church member.
-Recipient name: ${name}
+Recipient name: ${firstName}
 Service time: ${serviceTime}
 Context: ${specialNote}
 
@@ -160,6 +161,7 @@ Optional closing: God bless you.
 }
 
 const buildEventReminderPrompt = (name, eventTitle, eventDate, eventTime, registrationLink) => {
+  const firstName = String(name || '').trim().split(/\s+/)[0] || name
   const details = [
     `Event title: ${eventTitle}`,
     `Event date: ${eventDate}`,
@@ -170,7 +172,7 @@ const buildEventReminderPrompt = (name, eventTitle, eventDate, eventTime, regist
   return `${BOT_MESSAGE_STYLE_GUIDE}
 
 Task: Write a WhatsApp reminder for one church member.
-Recipient name: ${name}
+Recipient name: ${firstName}
 ${details}
 
 Write 2 to 4 short sentences.
@@ -191,6 +193,7 @@ const callOpenAI = async (prompt) => {
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(10_000),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${env.OPENAI_API_KEY}`
@@ -211,6 +214,10 @@ const callOpenAI = async (prompt) => {
     const data = await response.json()
     return data.choices?.[0]?.message?.content || null
   } catch (error) {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      logger.warn('OpenAI request timed out after 10s')
+      return null
+    }
     logger.error('Failed to call OpenAI', { error: error.message })
     return null
   }
@@ -229,6 +236,7 @@ const callGemini = async (prompt, retryCount = 0) => {
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
       {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: {
           'Content-Type': 'application/json'
         },
@@ -266,6 +274,10 @@ const callGemini = async (prompt, retryCount = 0) => {
     const text = data?.candidates?.[0]?.content?.parts?.map((part) => part?.text || '').join('').trim()
     return text || null
   } catch (error) {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      logger.warn('Gemini request timed out after 10s')
+      return null
+    }
     logger.error('Failed to call Gemini', { error: error.message })
     return null
   }
@@ -292,6 +304,7 @@ const callVertexGemini = async (prompt, retryCount = 0) => {
       `https://${encodeURIComponent(location)}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(env.VERTEX_PROJECT_ID)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`,
       {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -334,6 +347,10 @@ const callVertexGemini = async (prompt, retryCount = 0) => {
     const text = data?.candidates?.[0]?.content?.parts?.map((part) => part?.text || '').join('').trim()
     return text || null
   } catch (error) {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      logger.warn('Vertex Gemini request timed out after 10s')
+      return null
+    }
     logger.error('Failed to call Vertex Gemini', { error: error.message })
     return null
   }

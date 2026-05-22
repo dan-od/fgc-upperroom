@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import crypto from 'node:crypto'
 
 import { env } from './config/env.js'
@@ -16,13 +17,21 @@ import attendanceHistoryRoutes from './routes/attendance-history.js'
 import prayerRequestRoutes from './routes/prayer-requests.js'
 import memberRoutes from './routes/members.js'
 import privacyRoutes from './routes/privacy.js'
+import givingRoutes from './routes/giving.js'
+import { maskPhone } from './utils/privacy.js'
 
 export const createBotApp = () => {
   const app = express()
 
   app.disable('x-powered-by')
-  app.use(cors())
-  app.use(express.json({ limit: '1mb' }))
+  app.use(helmet({ contentSecurityPolicy: false }))
+  app.use(cors({ origin: ['https://fgcupperroom.org', 'https://www.fgcupperroom.org', 'http://localhost:5173', 'http://localhost:3000'] }))
+
+  const _rawBodyStore = new WeakMap()
+  app.use(express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => { _rawBodyStore.set(req, buf) },
+  }))
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('X-Frame-Options', 'DENY')
@@ -74,6 +83,7 @@ export const createBotApp = () => {
   app.use('/bot/api/prayer-requests', prayerRequestRoutes)
   app.use('/bot/api/members', memberRoutes)
   app.use('/bot/api/privacy', privacyRoutes)
+  app.use('/bot/api/giving', givingRoutes)
   app.use('/bot/api', importRoutes)
   app.use('/bot/api', previewRoutes)
   app.use('/bot/api/admin', adminRoutes)
@@ -90,13 +100,40 @@ export const createBotApp = () => {
       return res.status(200).send(challenge)
     }
 
-    logger.warn('Meta webhook verification failed', { mode, token })
+    logger.warn('Meta webhook verification failed', { event: 'webhook_verification_failed', mode })
     res.status(403).send('Forbidden')
   })
 
   // Meta webhook events (POST) — inbound messages + delivery statuses
   app.post('/bot/webhooks/whatsapp', async (req, res) => {
     try {
+      // Verify X-Hub-Signature-256 before processing any payload
+      const appSecret = env.META_APP_SECRET
+      if (appSecret) {
+        const sig = String(req.headers['x-hub-signature-256'] || '')
+        const rawBody = _rawBodyStore.get(req)
+        if (!sig || !rawBody) {
+          logger.warn('WhatsApp webhook rejected — missing signature or raw body', { event: 'webhook_sig_missing', path: req.path })
+          return res.status(403).json({ error: 'Forbidden' })
+        }
+        const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+        const sigBuf = Buffer.from(sig)
+        const expectedBuf = Buffer.from(expected)
+        const signaturesMatch =
+          sigBuf.length === expectedBuf.length &&
+          crypto.timingSafeEqual(sigBuf, expectedBuf)
+        if (!signaturesMatch) {
+          logger.warn('WhatsApp webhook rejected — invalid X-Hub-Signature-256', { event: 'webhook_sig_invalid', path: req.path })
+          return res.status(403).json({ error: 'Forbidden' })
+        }
+      } else {
+        if (process.env.NODE_ENV === 'production') {
+          logger.error('META_APP_SECRET not configured in production — rejecting webhook')
+          return res.status(503).json({ error: 'Webhook verification not configured.' })
+        }
+        logger.warn('META_APP_SECRET not configured — skipping webhook signature verification (non-production)')
+      }
+
       // Always acknowledge immediately — Meta retries if it doesn't get 200 quickly
       res.status(200).json({ received: true })
 
@@ -110,7 +147,7 @@ export const createBotApp = () => {
         const { updateMessageStatus } = await import('./services/message.repository.js')
         const { recordDeliveryFailure, recordDeliverySuccess } = await import('./services/visitor.repository.js')
         for (const status of changes.statuses) {
-          logger.info('Meta delivery status', { wamid: status.id, status: status.status, recipient: status.recipient_id })
+          logger.info('Meta delivery status', { wamid: status.id, status: status.status, recipient: maskPhone(status.recipient_id) })
           if (status.id) {
             await updateMessageStatus(status.id, status.status, status?.errors?.[0]?.title || null)
           }
@@ -138,7 +175,7 @@ export const createBotApp = () => {
         const text = message.text?.body     // message body text
         const wamid = message.id
 
-        logger.info('Received inbound WhatsApp message', { from, text, wamid })
+        logger.info('Received inbound WhatsApp message', { from: maskPhone(from), wamid })
 
         if (!from || !text) return
 
@@ -192,6 +229,11 @@ export const createBotApp = () => {
     } catch (error) {
       logger.error('Webhook processing error', { error: error.message })
     }
+  })
+
+  app.use((err, req, res, next) => {
+    logger.error('Unhandled error', { error: err.message, path: req.originalUrl })
+    res.status(500).json({ error: 'Internal server error' })
   })
 
   return app

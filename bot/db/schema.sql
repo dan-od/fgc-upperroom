@@ -255,6 +255,39 @@ CREATE INDEX IF NOT EXISTS idx_message_templates_key ON message_templates(templa
 CREATE INDEX IF NOT EXISTS idx_holiday_exceptions_date ON holiday_exceptions(holiday_date);
 CREATE INDEX IF NOT EXISTS idx_conversation_feedback_created ON conversation_feedback(created_at DESC);
 
+CREATE TABLE IF NOT EXISTS giving_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visitor_id UUID REFERENCES visitors(id) ON DELETE SET NULL,
+  reference TEXT UNIQUE NOT NULL,
+  provider TEXT NOT NULL,
+  status TEXT NOT NULL,
+  amount_kobo INTEGER,
+  currency TEXT DEFAULT 'NGN',
+  fund TEXT DEFAULT 'general',
+  donor_name TEXT,
+  donor_email TEXT,
+  donor_phone TEXT,
+  message TEXT DEFAULT '',
+  source TEXT DEFAULT 'website',
+  provider_status TEXT DEFAULT '',
+  provider_message TEXT DEFAULT '',
+  tx_hash TEXT,
+  wallet_address TEXT,
+  initialized_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  paid_at TIMESTAMPTZ,
+  timeline JSONB DEFAULT '[]',
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_giving_tx_reference ON giving_transactions(reference);
+CREATE INDEX IF NOT EXISTS idx_giving_tx_visitor ON giving_transactions(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_giving_tx_status ON giving_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_giving_tx_fund ON giving_transactions(fund);
+
+-- Store plain qr_token so attendance service can rehydrate after restart
+ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS qr_token TEXT;
+
 INSERT INTO message_templates (template_key, channel, content, metadata)
 VALUES
   ('service_reminder', 'whatsapp', 'Hi {{name}}, just a quick reminder from FGC Upper Room. Sunday service starts at {{serviceTime}} tomorrow. {{specialLine}} See you if you can make it. God bless you. Reply STOP to opt out.', '{"category":"reminder"}'::jsonb),
@@ -265,7 +298,8 @@ VALUES
   ('faq_contact', 'whatsapp', 'You can reach us on WhatsApp at +2347031526399 or email upperroom@fgcmgbuoba.org.', '{"category":"faq"}'::jsonb),
   ('prayer_ack', 'whatsapp', 'Thanks {{name}}. We have your prayer request, and the prayer team will keep it in prayer.', '{"category":"inbound"}'::jsonb),
   ('feedback_ack', 'whatsapp', 'Thanks {{name}}. We have your feedback and will read it carefully.', '{"category":"inbound"}'::jsonb),
-  ('default_auto_reply', 'whatsapp', 'Thanks for reaching out to FGC Upper Room. Send PRAYER for prayer requests, FEEDBACK for feedback, or ask about service time, location, or contact details.', '{"category":"inbound"}'::jsonb)
+  ('default_auto_reply', 'whatsapp', 'Thanks for reaching out to FGC Upper Room. Send PRAYER for prayer requests, FEEDBACK for feedback, or ask about service time, location, or contact details.', '{"category":"inbound"}'::jsonb),
+  ('giving_thanks', 'whatsapp', 'Hi {{firstName}}, thank you for your generous gift of ₦{{amountNaira}} to the {{fund}} Fund. Your giving is a blessing to this community. May God richly reward your faithfulness. – FGC Upper Room. Reply STOP to opt out.', '{"category":"giving"}'::jsonb)
 ON CONFLICT (template_key) DO NOTHING;
 
 INSERT INTO holiday_exceptions (holiday_date, holiday_name, timezone, skip_reminders, metadata)
@@ -273,3 +307,19 @@ VALUES
   ('2026-01-01', 'New Year''s Day', '*', TRUE, '{"default":true}'::jsonb),
   ('2026-12-25', 'Christmas Day', '*', TRUE, '{"default":true}'::jsonb)
 ON CONFLICT (holiday_date, timezone) DO NOTHING;
+
+-- ── Data Retention: 90-day purge ─────────────────────────────────────────────
+-- messages and conversation_feedback contain personal data and must be purged
+-- after 90 days per the NDPR / privacy policy retention schedule.
+-- Run purge_old_message_data() via pg_cron or an application cron job daily.
+
+CREATE OR REPLACE FUNCTION purge_old_message_data() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM messages
+  WHERE created_at < now() - INTERVAL '90 days';
+
+  DELETE FROM conversation_feedback
+  WHERE created_at < now() - INTERVAL '90 days';
+END;
+$$;

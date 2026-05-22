@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async'
 import { SectionHeader, Button } from '../../components/common'
 import { useI18n } from '../../i18n/LanguageContext'
 import { toAssetUrl } from '../../utils/appPaths'
@@ -5,7 +6,7 @@ import './About.css'
 
 const About = () => {
   const { t } = useI18n()
-  const youthPhoto = toAssetUrl('assets/media/pictures/IMG_1769.png')
+  const youthPhoto = toAssetUrl('assets/media/pictures/IMG_1769.webp')
   const beliefs = [
     {
       title: 'Jesus the Savior',
@@ -35,6 +36,15 @@ const About = () => {
 
   return (
     <main id="main-content" className="about-page">
+      <Helmet>
+        <title>About Us — FGC Upper Room Mgbuoba</title>
+        <meta name="description" content="Learn about FGC Upper Room Mgbuoba — who we are, what we believe, and our mission to raise kingdom-minded youth in Port Harcourt." />
+        <meta property="og:title" content="About Us — FGC Upper Room Mgbuoba" />
+        <meta property="og:description" content="Discover the story, vision, and Foursquare Gospel foundation of Upper Room Mgbuoba youth fellowship." />
+        <meta property="og:image" content="https://fgcmgbuoba.org/fgc-testing/assets/media/pictures/IMG_1769.webp" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fgcmgbuoba.org/fgc-testing/about" />
+      </Helmet>
       {/* Hero Banner */}
       <section className="page-banner bg-blue">
         <div className="container">
@@ -51,13 +61,13 @@ const About = () => {
               <span className="tag">Who We Are</span>
               <h2 bold>The Upperroom</h2>
               <p>
-                We are the youth church of the Foursquare Gospel Church,
-                Mgbuoba Zonal Headquarters.<br />We are a vibrant community of young
+                We are the youth fellowship of the Foursquare Gospel Church, 
+                Mgbuoba Zonal Headquarters.<br />We are a vibrant community of young 
                 believers passionate about knowing God and making Him known.
               </p>
               <p>
-                Our name "Upperroom" is inspired by Acts 1:13-14, where the early
-                disciples gathered in prayer and unity, waiting for the promise of
+                Our name "Upperroom" is inspired by Acts 1:13-14, where the early 
+                disciples gathered in prayer and unity, waiting for the promise of 
                 the Holy Spirit. Like them, we gather to seek God's presence, grow 
                 in faith, and be empowered for kingdom impact.
               </p>
@@ -68,7 +78,7 @@ const About = () => {
               </p>
             </div>
             <div className="about-intro__image">
-              <img src={youthPhoto} alt="Upperroom Youth Church" />
+              <img src={youthPhoto} alt="Upperroom Youth Church" width="600" height="450" loading="lazy" />
             </div>
           </div>
         </div>

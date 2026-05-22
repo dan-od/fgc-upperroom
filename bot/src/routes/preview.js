@@ -4,10 +4,12 @@ import { previewServiceReminder, previewEventReminder, previewBulkMessages } fro
 import { listSubscribedVisitors } from '../services/visitor.repository.js'
 import { buildSundayServiceContext } from '../services/reminder.service.js'
 import { logger } from '../lib/logger.js'
+import { assertAdmin } from '../lib/admin-auth.js'
 
 const router = express.Router()
 
 router.post('/preview/service', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const { name, serviceTime, isFirstSunday, useFallbackTemplate } = req.body
     const preview = await previewServiceReminder({ name, serviceTime, isFirstSunday, useFallbackTemplate })
@@ -19,6 +21,7 @@ router.post('/preview/service', async (req, res) => {
 })
 
 router.post('/preview/event', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const { name, eventTitle, eventDate, eventTime, registrationLink, useFallbackTemplate } = req.body
     const preview = await previewEventReminder({ name, eventTitle, eventDate, eventTime, registrationLink, useFallbackTemplate })
@@ -30,6 +33,7 @@ router.post('/preview/event', async (req, res) => {
 })
 
 router.post('/preview/bulk-service', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const { limit, useFallbackTemplate } = req.body
     const visitors = await listSubscribedVisitors()
@@ -54,6 +58,7 @@ router.post('/preview/bulk-service', async (req, res) => {
 })
 
 router.post('/preview/bulk-event', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const { eventTitle, eventDate, eventTime, registrationLink, limit, useFallbackTemplate } = req.body
     const visitors = await listSubscribedVisitors()

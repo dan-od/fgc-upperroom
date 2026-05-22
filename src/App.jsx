@@ -18,6 +18,7 @@ const Giving = lazy(() => import('./pages/Giving/Giving'))
 const Blog = lazy(() => import('./pages/Blog/Blog'))
 const Contact = lazy(() => import('./pages/Contact/Contact'))
 const Testimonies = lazy(() => import('./pages/Testimonies/Testimonies'))
+const Privacy = lazy(() => import('./pages/Privacy/Privacy'))
 const Admin = lazy(() => import('./pages/Admin/Admin'))
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'))
 const Footer = lazy(() => import('./components/layout/Footer/Footer'))
@@ -137,6 +138,7 @@ function App() {
                     <Route path="/blog" element={<Blog />} />
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/testimonies" element={<Testimonies />} />
+                    <Route path="/privacy" element={<Privacy />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

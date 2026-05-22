@@ -4,7 +4,7 @@ export const ADMIN_SETTINGS_UPDATED_EVENT = 'admin-settings-updated'
 
 export const DEFAULT_ADMIN_SETTINGS = {
   siteName: 'FGC Upper Room Mgbuoba',
-  siteDescription: 'Youth Church of Foursquare Gospel Church',
+  siteDescription: 'Youth Fellowship of Foursquare Gospel Church',
   contactEmail: 'info@fgcupperroom.org',
   whatsappNumber: '+234801234567',
   address: 'Mgbuoba, Port Harcourt',

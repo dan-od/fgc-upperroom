@@ -2,6 +2,7 @@ import express from 'express'
 
 import { getHealthMetrics, checkAlertThresholds, getErrorSummary, getMonitoringMetrics } from '../services/monitoring.service.js'
 import { logger } from '../lib/logger.js'
+import { assertAdmin } from '../lib/admin-auth.js'
 
 const router = express.Router()
 
@@ -17,6 +18,7 @@ router.get('/health', async (req, res) => {
 })
 
 router.get('/alerts', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const alerts = await checkAlertThresholds()
     res.json(alerts)
@@ -27,6 +29,7 @@ router.get('/alerts', async (req, res) => {
 })
 
 router.get('/errors', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const { hours } = req.query
     const errors = await getErrorSummary(parseInt(hours) || 24)
@@ -38,6 +41,7 @@ router.get('/errors', async (req, res) => {
 })
 
 router.get('/metrics', async (req, res) => {
+  if (!assertAdmin(req, res)) return
   try {
     const metrics = await getMonitoringMetrics()
     res.json(metrics)

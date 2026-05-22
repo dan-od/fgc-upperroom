@@ -1,11 +1,13 @@
 import "./load-env.js";
 import express from "express";
+import helmet from "helmet";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { createServer as createViteServer } from "vite";
 import givingRouter from "./giving.routes.js";
 import commonRouter from "./common.routes.js";
 import adminRouter from "./admin.routes.js";
+import givingAdminRouter from "./giving-admin.routes.js";
 import newsletterRouter from "./newsletter.routes.js";
 import { adminMediaRouter, publicMediaRouter } from "./media.routes.js";
 import { hashPassword } from "./auth.utils.js";
@@ -55,11 +57,14 @@ async function ensureSeedAdminUser() {
     process.env.ADMIN_DEFAULT_EMAIL ||
     "admin@upperroom.local"
   ).trim();
-  const password = String(
-    process.env.ADMIN_PASSWORD ||
-    process.env.ADMIN_DEFAULT_PASSWORD ||
-    "Admin123!"
-  ).trim();
+  const rawPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_DEFAULT_PASSWORD || "";
+  if (!rawPassword) {
+    throw new Error(
+      "[BACKEND_API] ADMIN_PASSWORD or ADMIN_DEFAULT_PASSWORD must be set before first run. " +
+      "Set it in your .env file and restart."
+    );
+  }
+  const password = rawPassword.trim();
   const { hash, salt } = hashPassword(password);
   const nowIso = new Date().toISOString();
 
@@ -91,12 +96,31 @@ export const createApp = async (options: CreateAppOptions = {}) => {
 
   const app = express();
   app.disable("x-powered-by");
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: "2mb" }));
+
+  app.use((req, res, next) => {
+    const startedAt = process.hrtime.bigint();
+    res.on("finish", () => {
+      if (req.path.endsWith("/health")) return;
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+      console.log(
+        JSON.stringify({
+          method: req.method,
+          path: req.originalUrl,
+          status: res.statusCode,
+          durationMs: Number(durationMs.toFixed(1)),
+        })
+      );
+    });
+    next();
+  });
 
   const apiRouter = express.Router();
   apiRouter.use("/giving", givingRouter);
   apiRouter.use("/media", publicMediaRouter);
   apiRouter.use("/admin/media", adminMediaRouter);
+  apiRouter.use("/admin/giving", givingAdminRouter);
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/newsletter", newsletterRouter);
   apiRouter.use("/", commonRouter);
@@ -129,6 +153,11 @@ export const createApp = async (options: CreateAppOptions = {}) => {
     });
   }
 
+  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("[API] Unhandled error", err.message);
+    res.status(500).json({ error: "An unexpected error occurred." });
+  });
+
   return app;
 };
 
@@ -141,6 +170,31 @@ export const startServer = async () => {
     const server = app.listen(port, () => {
       console.log(`[BACKEND_API] Server running on http://localhost:${port}`);
       resolve(server);
+
+      const gracefulShutdown = async (signal: string) => {
+        console.log(`[BACKEND_API] ${signal} received — starting graceful shutdown`);
+
+        const forceExit = setTimeout(() => {
+          console.error("[BACKEND_API] Graceful shutdown timed out after 15s — forcing exit");
+          process.exit(1);
+        }, 15_000);
+
+        try {
+          await new Promise<void>((res, rej) => server.close((err) => (err ? rej(err) : res())));
+          clearTimeout(forceExit);
+          console.log("[BACKEND_API] Graceful shutdown complete");
+          process.exit(0);
+        } catch (error) {
+          console.error("[BACKEND_API] Error during graceful shutdown", error);
+          process.exit(1);
+        }
+      };
+
+      process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+      process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+      process.on("unhandledRejection", (reason) => {
+        console.error("[BACKEND_API] Unhandled rejection", String(reason));
+      });
     });
   });
 };

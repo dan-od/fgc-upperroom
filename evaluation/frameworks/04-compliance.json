@@ -1,0 +1,276 @@
+{
+  "framework": {
+    "id": "compliance-v1",
+    "name": "Data Privacy & Compliance Evaluation",
+    "version": "1.0.0",
+    "created": "2026-05-19",
+    "description": "Evaluates data privacy compliance for the FGC Upper Room platform. A church website handling member phone numbers, attendance records, prayer requests, giving/tithe data (Paystack live, stored in PostgreSQL), and WhatsApp communications has real privacy obligations. Covers NDPR (Nigeria Data Protection Regulation — since the church is in Nigeria), GDPR awareness (for any diaspora members), and general data protection best practices.",
+    "context": {
+      "jurisdiction": "Nigeria (NDPR/NDPA applies as primary regulation)",
+      "data_subjects": "Church members, visitors, website users, WhatsApp contacts",
+      "sensitive_data_types": [
+        "Phone numbers (WhatsApp)",
+        "Names and contact information",
+        "Attendance records (location + time = movement tracking)",
+        "Prayer requests (potentially sensitive personal/health information)",
+        "Giving/tithe amounts (financial data, Paystack implemented, stored in PostgreSQL giving_transactions table)",
+        "Opt-out/consent records",
+        "Feedback and conversation history"
+      ]
+    },
+    "scoring": {
+      "scale": "1-10 per criterion",
+      "rubric": {
+        "1-2": "Critical: No privacy controls. Actively violating data protection principles.",
+        "3-4": "Poor: Minimal awareness of privacy obligations. Major gaps.",
+        "5-6": "Fair: Some controls in place but documentation and enforcement lacking.",
+        "7-8": "Good: Solid privacy practices with minor gaps.",
+        "9-10": "Excellent: Privacy by design implemented. Documented, enforceable, compliant."
+      }
+    }
+  },
+  "categories": [
+    {
+      "id": "consent",
+      "name": "Consent & Lawful Basis",
+      "weight": 1.5,
+      "criteria": [
+        {
+          "id": "consent-01",
+          "name": "WhatsApp Opt-In Consent",
+          "what_to_check": [
+            "Members explicitly opt-in to receive WhatsApp messages (not auto-enrolled)",
+            "Opt-in mechanism is documented (how does a member get added to the messaging list?)",
+            "Consent is recorded with timestamp and method",
+            "Initial message explains what they'll receive and how to opt-out",
+            "Meta's WhatsApp Business Policy requirements are met (business messaging rules)"
+          ],
+          "remediation": "Implement explicit opt-in flow. Record consent in database with timestamp. First message must include opt-out instructions."
+        },
+        {
+          "id": "consent-02",
+          "name": "Opt-Out & Right to Withdraw",
+          "what_to_check": [
+            "STOP keyword immediately halts all messaging",
+            "Opt-out is persisted in the database (not just in-memory)",
+            "Opted-out members don't receive ANY future messages (even event reminders)",
+            "Opt-out confirmation message is sent",
+            "Re-opt-in requires explicit action (not automatic after cooldown)"
+          ],
+          "remediation": "Verify opt-out flow end-to-end. Test that no scheduler or queue bypasses opt-out status. Log all opt-out events."
+        },
+        {
+          "id": "consent-03",
+          "name": "Website Data Collection Consent",
+          "what_to_check": [
+            "Contact form has a privacy notice or link to privacy policy",
+            "Newsletter/subscribe form explains what emails they'll receive",
+            "Cookie consent banner if analytics or tracking is used",
+            "Prayer request submission form notes how the request will be handled (who sees it)"
+          ],
+          "remediation": "Add privacy notices to all data collection forms. Create a privacy policy page. Be transparent about data usage."
+        }
+      ]
+    },
+    {
+      "id": "data-minimization",
+      "name": "Data Minimization & Purpose Limitation",
+      "weight": 1.2,
+      "criteria": [
+        {
+          "id": "min-01",
+          "name": "Collect Only What's Needed",
+          "what_to_check": [
+            "Database schema — are all columns necessary for the stated purpose?",
+            "Member profiles: what fields are collected? Are all needed?",
+            "Attendance records: what data is stored beyond check-in time?",
+            "Prayer requests: is the submitter's identity stored? Is it needed?",
+            "WhatsApp message history: is full message text stored? For how long?"
+          ],
+          "remediation": "Audit each database table against its purpose. Remove unnecessary fields. Document the purpose of each data point collected."
+        },
+        {
+          "id": "min-02",
+          "name": "Data Retention Policy",
+          "what_to_check": [
+            "Is there a defined retention period for each data type?",
+            "Are old messages, attendance records, prayer requests automatically purged?",
+            "WhatsApp conversation logs — how long are they kept?",
+            "Visitor data — is there a retention limit?",
+            "Is there a mechanism to purge data (cron job, manual process)?"
+          ],
+          "remediation": "Define retention periods: messages (90 days), attendance (2 years), prayer requests (30 days unless saved by submitter), visitor data (1 year). Implement automated cleanup."
+        }
+      ]
+    },
+    {
+      "id": "access-control",
+      "name": "Access to Personal Data",
+      "weight": 1.3,
+      "criteria": [
+        {
+          "id": "access-01",
+          "name": "Role-Based Data Access",
+          "what_to_check": [
+            "Not all admin roles can see all member data",
+            "Prayer requests are only visible to designated pastoral staff",
+            "Giving/tithe records (live in PostgreSQL) are restricted — verify /api/admin/giving/summary and /transactions restrict full donor PII to super_admin",
+            "Giving admin dashboard masks donor PII (name, email, phone) for editor/reviewer roles — verify masking is effective",
+            "Attendance data access is appropriate (admin can see aggregates, individuals need justification)",
+            "Database direct access is restricted (not all developers have production DB access)"
+          ],
+          "remediation": "Map data access to roles: super_admin (all), editor (content only), reviewer (read-only). Add a pastoral role for prayer requests. Finance role for giving data."
+        },
+        {
+          "id": "access-02",
+          "name": "Data Subject Rights (NDPR)",
+          "what_to_check": [
+            "Can a member request to see what data you hold about them?",
+            "Can a member request deletion of their data?",
+            "Is there a process (even manual) for handling these requests?",
+            "Contact information for data requests is published (privacy policy, email)",
+            "Data can actually be deleted across all systems (DB, logs, backups)"
+          ],
+          "remediation": "Document a data subject request process. Ensure deletion can cascade: PostgreSQL records, WhatsApp opt-in records, attendance history, prayer requests. Publish contact email for requests."
+        }
+      ]
+    },
+    {
+      "id": "data-security",
+      "name": "Technical Data Protection",
+      "weight": 1.2,
+      "criteria": [
+        {
+          "id": "sec-01",
+          "name": "Data in Transit",
+          "what_to_check": [
+            "All external communication over HTTPS/TLS",
+            "Database connections use SSL (PostgreSQL ssl: true)",
+            "Redis connection uses TLS if exposed beyond localhost",
+            "WhatsApp API calls use HTTPS (Meta enforces this)",
+            "Internal service-to-service calls — is the network trusted?"
+          ],
+          "remediation": "Enable SSL on PostgreSQL connections. Verify Redis is localhost-only or TLS-enabled. All external APIs use HTTPS."
+        },
+        {
+          "id": "sec-02",
+          "name": "Data at Rest",
+          "what_to_check": [
+            "PostgreSQL data directory permissions (only postgres user can read)",
+            "Admin JSON files (user accounts, TOTP secrets) — file permissions, encryption",
+            "Backup encryption — scripts/pg-backup.sh produces backup files: are they encrypted? Stored on same server or off-site?",
+            "Log files don't contain personal data (or are access-controlled)",
+            "Redis persistence files are access-controlled"
+          ],
+          "remediation": "Restrict file permissions. Consider encrypting sensitive columns (phone numbers, prayer request text). Encrypt backups."
+        },
+        {
+          "id": "sec-03",
+          "name": "Data Breach Response Plan",
+          "what_to_check": [
+            "Is there a documented plan for what to do if data is compromised?",
+            "Who is notified? (NITDA within 72 hours under NDPR)",
+            "Can you identify what data was accessed in a breach?",
+            "Are audit logs sufficient to trace unauthorized access?"
+          ],
+          "remediation": "Create a simple incident response document: 1) Contain, 2) Assess scope, 3) Notify NITDA within 72h if required, 4) Notify affected individuals, 5) Remediate, 6) Document lessons learned."
+        }
+      ]
+    },
+    {
+      "id": "transparency",
+      "name": "Transparency & Documentation",
+      "weight": 1.0,
+      "criteria": [
+        {
+          "id": "trans-01",
+          "name": "Privacy Policy",
+          "what_to_check": [
+            "Website has a privacy policy page",
+            "Policy covers: what data is collected, why, how long it's kept, who has access",
+            "Policy mentions WhatsApp messaging and what data is collected through it",
+            "Policy is written in plain language (not just legalese)",
+            "Policy includes contact information for privacy questions",
+            "Policy mentions third-party services used (Meta WhatsApp, Paystack, LLM providers)"
+          ],
+          "remediation": "Create a privacy policy page on the website. Cover all data collection points. Keep it honest and readable."
+        },
+        {
+          "id": "trans-02",
+          "name": "Third-Party Data Sharing",
+          "what_to_check": [
+            "Document all third parties that receive member data: Meta (WhatsApp), Paystack (payment), LLM providers (message content)",
+            "Are LLM providers receiving member names/phone numbers in prompts? They shouldn't.",
+            "Meta's data processing terms are understood",
+            "Paystack's PCI compliance covers card data they handle"
+          ],
+          "remediation": "Audit all external API calls for personal data in payloads. Remove member names/numbers from LLM prompts. Document all third-party data processors."
+        },
+        {
+          "id": "trans-03",
+          "name": "LLM Data Leakage to Foreign Providers",
+          "what_to_check": [
+            "Check all LLM API call sites (Vertex AI, OpenAI, Gemini) for what data is included in prompts",
+            "Member names — are they passed in message generation prompts? They shouldn't be, or should use first name only",
+            "Phone numbers — are they included in any LLM prompt? They must not be",
+            "Prayer request content — is it sent to LLM providers for summarization or response generation? This is sensitive personal data leaving Nigeria",
+            "Giving amounts or donor details — are they in any LLM context?",
+            "Review the cascading provider strategy: does each provider (Vertex AI → OpenAI → Gemini) receive the same data?"
+          ],
+          "known_issues": [
+            "This is a real NDPR concern: member personal data sent to US-based AI providers (Vertex AI = Google US, OpenAI = US, Gemini = Google US) constitutes cross-border data transfer",
+            "Even if the LLM generates a church greeting, the prompt may contain member-identifying information"
+          ],
+          "remediation": "Audit every LLM API call for PII in prompts. Strip phone numbers entirely. Use only first names if personalization is needed. Consider whether prayer request text should ever reach LLM providers. Document the cross-border transfer in privacy policy."
+        }
+      ]
+    },
+    {
+      "id": "ndpr",
+      "name": "NDPR-Specific Requirements",
+      "weight": 1.3,
+      "description": "Nigeria Data Protection Regulation specific checks. NDPR applies since the church and its members are in Nigeria.",
+      "criteria": [
+        {
+          "id": "ndpr-01",
+          "name": "NDPR Compliance Basics",
+          "what_to_check": [
+            "Data is processed lawfully, fairly, and in a transparent manner",
+            "Purpose of data collection is defined and limited",
+            "Data is adequate, relevant, and not excessive",
+            "Data is accurate and kept up to date",
+            "Data is not stored longer than necessary",
+            "Appropriate security measures protect the data"
+          ],
+          "remediation": "Map each data processing activity to an NDPR principle. Document gaps. For a church, legitimate interest and consent are the likely lawful bases."
+        },
+        {
+          "id": "ndpr-02",
+          "name": "Data Protection Impact Assessment",
+          "what_to_check": [
+            "Has a DPIA been considered for high-risk processing?",
+            "WhatsApp mass messaging to congregation = potentially high-risk under NDPR",
+            "Attendance tracking = location/movement data = potentially high-risk",
+            "Financial data (giving records) = high-risk when implemented"
+          ],
+          "remediation": "A church is unlikely to need a formal DPIA, but documenting why you collect what you collect and how you protect it demonstrates good faith compliance. Create a simple data processing register."
+        }
+      ]
+    }
+  ],
+  "evaluation_instructions": {
+    "for_claude_code": "Evaluate by reviewing: 1) Database schema for data types collected, 2) All API endpoints that receive or return personal data, 3) WhatsApp bot message handling for consent/opt-out flows, 4) Frontend forms for privacy notices, 5) Check for privacy policy page existence, 6) Review LLM prompts for personal data inclusion, 7) File permissions on sensitive data stores. Score each criterion. For N/A items (Paystack not yet implemented), note readiness level instead.",
+    "report_format": {
+      "filename_pattern": "compliance-eval-{YYYY-MM-DD-HHmmss}.md",
+      "sections": [
+        "Executive Summary",
+        "Data Inventory (what personal data is collected, where, why)",
+        "Category Scores",
+        "Detailed Findings",
+        "NDPR Compliance Gap Analysis",
+        "Privacy Policy Checklist",
+        "Action Items by Priority"
+      ]
+    }
+  }
+}

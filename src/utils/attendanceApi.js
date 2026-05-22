@@ -1,5 +1,7 @@
 const ATTENDANCE_API_BASE = import.meta.env.VITE_ATTENDANCE_API_URL || ''
-const ATTENDANCE_ADMIN_KEY = import.meta.env.VITE_ATTENDANCE_ADMIN_KEY || import.meta.env.VITE_ADMIN_PASSWORD || 'admin123'
+// Attendance admin key must be supplied at runtime via a server-side session (Phase 2).
+// Do NOT read it from a VITE_ env var — that would expose it in the public JS bundle.
+const ATTENDANCE_ADMIN_KEY = ''
 
 const BROWSER_TOKEN_KEY = 'upperroom_attendance_browser_token'
 
