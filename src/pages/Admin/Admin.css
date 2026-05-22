@@ -342,6 +342,8 @@
 /* Login Page */
 .admin-login {
   min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -349,7 +351,8 @@
     radial-gradient(circle at 12% 16%, color-mix(in srgb, var(--dove-yellow) 24%, transparent), transparent 44%),
     radial-gradient(circle at 84% 88%, color-mix(in srgb, var(--cup-blue-light) 26%, transparent), transparent 36%),
     linear-gradient(150deg, color-mix(in srgb, var(--cup-blue-dark) 93%, black), color-mix(in srgb, var(--crown-purple-dark) 84%, black));
-  padding: var(--space-2xl);
+  overflow: hidden;
+  padding: clamp(0.75rem, 2vh, 1.25rem);
 }
 
 .admin-login-card {
@@ -357,12 +360,14 @@
   overflow: hidden;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--white) 95%, var(--main-cream)), color-mix(in srgb, var(--white) 98%, var(--main-cream)));
-  padding: var(--space-3xl);
+  padding: clamp(1.5rem, 3vh, 2.25rem);
   border-radius: var(--radius-2xl);
   box-shadow: 0 30px 80px rgba(5, 10, 35, 0.38);
   max-width: 430px;
+  max-height: calc(100dvh - 1.5rem);
   width: 100%;
   border: 1px solid color-mix(in srgb, var(--cup-blue) 25%, white);
+  overflow-y: auto;
 }
 
 .admin-login-card__halo {
@@ -379,7 +384,7 @@
   position: relative;
   z-index: 1;
   text-align: center;
-  margin-bottom: var(--space-2xl);
+  margin-bottom: clamp(1.1rem, 2.5vh, 1.6rem);
 }
 
 .admin-login-eyebrow {
@@ -399,9 +404,9 @@
 }
 
 .admin-login-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--space-lg);
+  width: clamp(52px, 7vh, 60px);
+  height: clamp(52px, 7vh, 60px);
+  margin: 0 auto clamp(0.8rem, 2vh, 1.1rem);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -427,7 +432,7 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: clamp(0.8rem, 2vh, 1.05rem);
 }
 
 .admin-form-group {
@@ -444,7 +449,7 @@
 
 .admin-form-input {
   width: 100%;
-  padding: 0.85rem 0.95rem;
+  padding: 0.72rem 0.95rem;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-lg);
   font-size: var(--text-base);
@@ -497,7 +502,7 @@
 }
 
 .admin-login-btn {
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 1rem;
   background: linear-gradient(135deg, color-mix(in srgb, var(--cup-blue-dark) 90%, black), color-mix(in srgb, var(--cup-blue) 74%, var(--blue-green)));
   color: var(--white);
   border: none;
