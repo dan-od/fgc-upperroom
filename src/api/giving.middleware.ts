@@ -6,6 +6,7 @@ const getGivingAllowedOrigins = (): Set<string> => {
     "https://fgcupperroom.org",
     "https://www.fgcupperroom.org",
     "http://localhost:5173",
+    "http://localhost:3000",
   ]);
   const envOrigin = cleanEnv(process.env.VITE_APP_BASE_URL).replace(/\/$/, "");
   if (envOrigin) origins.add(envOrigin);

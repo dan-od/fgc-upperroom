@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import nodemailer from "nodemailer";
 import express from "express";
 import { AdminUserRecord, AdminSessionRecord, AdminResetTokenRecord } from "./types.js";
 import { requireAdminAuth, AuthenticatedRequest } from "./auth.middleware.js";
@@ -10,6 +11,35 @@ import twoFaRouter from "./admin.auth.2fa.js";
 
 const router = express.Router();
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
+
+const createMailTransport = () => {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: String(process.env.SMTP_SECURE || "").toLowerCase() === "true",
+    auth: { user, pass },
+  });
+};
+
+const sendPasswordResetEmail = async (toEmail: string, resetUrl: string): Promise<void> => {
+  const transport = createMailTransport();
+  if (!transport) {
+    console.warn("[admin-auth] SMTP not configured — reset link:", resetUrl);
+    return;
+  }
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await transport.sendMail({
+    from,
+    to: toEmail,
+    subject: "FGC Upper Room — Admin Password Reset",
+    text: `You requested a password reset for your FGC Upper Room admin account.\n\nReset your password here (link expires in 1 hour):\n${resetUrl}\n\nIf you did not request this, you can safely ignore this email.`,
+    html: `<p>You requested a password reset for your FGC Upper Room admin account.</p><p><a href="${resetUrl}">Reset your password</a> &mdash; link expires in 1 hour.</p><p>If you did not request this, you can safely ignore this email.</p>`,
+  });
+};
 
 const authRateLimit = createRateLimit(5, 15 * 60 * 1000, "Too many attempts. Please wait 15 minutes and try again.");
 
@@ -154,6 +184,12 @@ router.post("/password-reset/request", async (req, res) => {
     const tokens = await readJsonArray<AdminResetTokenRecord>(paths.adminResetTokens);
     tokens.push(record);
     await writeJsonArray(paths.adminResetTokens, tokens);
+
+    const appUrl = String(process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const resetUrl = `${appUrl}/fgc-testing/admin?reset-token=${rawToken}`;
+    await sendPasswordResetEmail(user.email, resetUrl).catch((err) => {
+      console.error("[admin-auth] Failed to send reset email:", err?.message);
+    });
   }
   return res.json({ ok: true, message: "If the account exists, a reset link has been noted." });
 });

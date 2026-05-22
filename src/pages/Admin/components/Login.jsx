@@ -7,14 +7,17 @@ const initialForm = {
   otpCode: ''
 }
 
+const getTokenFromUrl = () =>
+  new URLSearchParams(window.location.search).get('reset-token') || ''
+
 const Login = ({ onLogin, onRequestReset, onConfirmReset }) => {
   const [form, setForm] = useState(initialForm)
-  const [mode, setMode] = useState('login')
+  const [mode, setMode] = useState(() => getTokenFromUrl() ? 'confirm-reset' : 'login')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
   const [otpRequired, setOtpRequired] = useState(false)
-  const [resetToken, setResetToken] = useState('')
+  const [resetToken, setResetToken] = useState(getTokenFromUrl)
   const [resetPassword, setResetPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showResetPassword, setShowResetPassword] = useState(false)
@@ -93,6 +96,9 @@ const Login = ({ onLogin, onRequestReset, onConfirmReset }) => {
     setLoading(true)
     try {
       await onConfirmReset({ token: resetToken.trim(), newPassword: resetPassword.trim() })
+      const cleanUrl = new URL(window.location.href)
+      cleanUrl.searchParams.delete('reset-token')
+      window.history.replaceState({}, '', cleanUrl.toString())
       setInfo('Password reset successful. Sign in with the new password.')
       setMode('login')
       setResetToken('')
